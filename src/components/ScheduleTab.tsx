@@ -399,7 +399,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                   onChange={e => upd({ divisionId: e.target.value, homeTeamId: '', awayTeamId: '', teamId: '' })}
                 >
                   <option value="">— select division —</option>
-                  {state.divisions.filter(d => d.teams.length > 0).map(d => (
+                  {state.divisions.map(d => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
