@@ -8,6 +8,16 @@ interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36) }
 
+function toMins(t: string) {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+function minsToTime(mins: number) {
+  const h = Math.floor(mins / 60) % 24
+  const m = mins % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 function fmtTime(t: string) {
   if (!t) return ''
   const [h, m] = t.split(':').map(Number)
@@ -59,6 +69,61 @@ export default function ScheduleTab({ state, setState }: Props) {
   const divMap = useMemo(() => new Map(state.divisions.map(d => [d.id, d])), [state.divisions])
   const blackoutSet = useMemo(() => new Set((state.blackoutDates ?? []).map(d => d.split('::')[0])), [state.blackoutDates])
 
+  // ── Conflict detection ──────────────────────────────────────────────
+  const conflicts = useMemo(() => {
+    type Conflict = { kind: 'field' | 'team' | 'umpire'; message: string }
+    const result: Conflict[] = []
+    if (!f.date || !f.time || !f.durationMinutes) return result
+
+    const fStart = toMins(f.time)
+    const fEnd   = fStart + f.durationMinutes
+
+    const others = [
+      ...state.schedule.games,
+      ...state.schedule.practices,
+    ].filter(ev => ev.id !== f.id && ev.date === f.date)
+
+    for (const ev of others) {
+      const evStart = toMins(ev.time)
+      const evEnd   = evStart + (ev.durationMinutes || 90)
+      if (fStart >= evEnd || evStart >= fEnd) continue   // no overlap
+
+      const evRange = `${fmtTime(ev.time)}–${fmtTime(minsToTime(evEnd))}`
+
+      // Field conflict (hard block)
+      if (f.fieldId && ev.fieldId === f.fieldId) {
+        const name = fieldMap.get(f.fieldId)?.name ?? 'That field'
+        result.push({ kind: 'field', message: `${name} is already booked ${evRange}` })
+      }
+
+      // Team conflict (warning)
+      const evTeams = ev.type === 'game'
+        ? [(ev as ScheduledGame).homeTeamId, (ev as ScheduledGame).awayTeamId]
+        : [(ev as ScheduledPractice).teamId]
+      const fTeams = f.type === 'game'
+        ? [f.homeTeamId, f.awayTeamId].filter(Boolean)
+        : [f.teamId].filter(Boolean)
+      for (const tid of fTeams) {
+        if (tid && evTeams.includes(tid)) {
+          const tname = teamMap.get(tid)?.name ?? 'A team'
+          result.push({ kind: 'team', message: `${tname} already has an event overlapping ${evRange}` })
+        }
+      }
+
+      // Umpire conflict (warning)
+      if (
+        f.type === 'game' && f.umpireId &&
+        ev.type === 'game' && (ev as ScheduledGame).umpireId === f.umpireId
+      ) {
+        const uname = umpireMap.get(f.umpireId)?.name ?? 'That umpire'
+        result.push({ kind: 'umpire', message: `${uname} is already assigned to a game overlapping ${evRange}` })
+      }
+    }
+    return result
+  }, [f, state.schedule, fieldMap, teamMap, umpireMap])
+
+  const hasFieldConflict = conflicts.some(c => c.kind === 'field')
+
   const eventsByDate = useMemo(() => {
     const map = new Map<string, (ScheduledGame | ScheduledPractice)[]>()
     for (const ev of [...state.schedule.games, ...state.schedule.practices]) {
@@ -108,6 +173,7 @@ export default function ScheduleTab({ state, setState }: Props) {
 
   function canSave() {
     if (!f.date || !f.time || !f.fieldId || !f.divisionId) return false
+    if (hasFieldConflict) return false
     if (f.type === 'game') return !!(f.homeTeamId && f.awayTeamId && f.homeTeamId !== f.awayTeamId)
     return !!f.teamId
   }
@@ -461,6 +527,35 @@ export default function ScheduleTab({ state, setState }: Props) {
                   <input type="number" min={15} max={300} step={5} className="input" value={f.durationMinutes} onChange={e => upd({ durationMinutes: Number(e.target.value) })} />
                 </Field>
               </div>
+
+              {/* Conflict warnings */}
+              {conflicts.length > 0 && (
+                <div className="space-y-2">
+                  {conflicts.map((c, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border ${
+                        c.kind === 'field'
+                          ? 'bg-red-50 border-red-200 text-red-700'
+                          : c.kind === 'team'
+                          ? 'bg-amber-50 border-amber-200 text-amber-700'
+                          : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                      }`}
+                    >
+                      <span className="mt-0.5 flex-shrink-0">
+                        {c.kind === 'field' ? '🚫' : '⚠️'}
+                      </span>
+                      <span>
+                        <span className="font-semibold">
+                          {c.kind === 'field' ? 'Field conflict — ' : c.kind === 'team' ? 'Team conflict — ' : 'Umpire conflict — '}
+                        </span>
+                        {c.message}
+                        {c.kind === 'field' && <span className="block text-xs mt-0.5 opacity-75">Change the field, time, or duration to resolve.</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
             </div>
 
