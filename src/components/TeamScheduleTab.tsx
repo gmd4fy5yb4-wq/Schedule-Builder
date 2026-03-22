@@ -1,17 +1,9 @@
 'use client'
 import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
+import { getDivisionColor } from '@/lib/divisionColors'
 
 interface Props { state: AppState }
-
-const DIV_COLORS: Record<string, { pill: string; header: string; accent: string }> = {
-  '6u':  { pill: 'bg-blue-100 text-blue-700',   header: 'bg-blue-600',   accent: 'border-blue-400' },
-  '8u':  { pill: 'bg-purple-100 text-purple-700', header: 'bg-purple-600', accent: 'border-purple-400' },
-  '10u': { pill: 'bg-amber-100 text-amber-700',  header: 'bg-amber-500',  accent: 'border-amber-400' },
-  '12u': { pill: 'bg-red-100 text-red-700',      header: 'bg-red-600',    accent: 'border-red-400' },
-}
-const DEF = { pill: 'bg-gray-100 text-gray-600', header: 'bg-gray-600', accent: 'border-gray-400' }
-function dc(id: string) { return DIV_COLORS[id] || DEF }
 
 function fmtDate(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -67,7 +59,7 @@ export default function TeamScheduleTab({ state }: Props) {
         )}
         {state.divisions.map(div => {
           if (div.teams.length === 0) return null
-          const c = dc(div.id)
+          const c = getDivisionColor(div.id, state.divisions)
           return (
             <div key={div.id} className="bg-white rounded-lg border overflow-hidden shadow-sm">
               <div className={`px-3 py-1.5 text-xs font-bold text-white uppercase tracking-wide ${c.header}`}>
@@ -120,7 +112,7 @@ export default function TeamScheduleTab({ state }: Props) {
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-bold text-gray-900">{selectedTeam?.name}</h2>
                   {selectedDiv && (
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${dc(selectedDiv.id).pill}`}>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${getDivisionColor(selectedDiv.id, state.divisions).pill}`}>
                       {selectedDiv.name}
                     </span>
                   )}

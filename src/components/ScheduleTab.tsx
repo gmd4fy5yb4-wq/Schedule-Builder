@@ -2,19 +2,11 @@
 import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { exportToExcel } from '@/lib/export'
+import { getDivisionColor } from '@/lib/divisionColors'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36) }
-
-const DIV_COLORS: Record<string, { bg: string; text: string; border: string; pill: string }> = {
-  '6u':  { bg: 'bg-blue-50',   text: 'text-blue-800',   border: 'border-blue-200',   pill: 'bg-blue-100 text-blue-700' },
-  '8u':  { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200', pill: 'bg-purple-100 text-purple-700' },
-  '10u': { bg: 'bg-amber-50',  text: 'text-amber-800',  border: 'border-amber-200',  pill: 'bg-amber-100 text-amber-700' },
-  '12u': { bg: 'bg-red-50',    text: 'text-red-800',    border: 'border-red-200',    pill: 'bg-red-100 text-red-700' },
-}
-const DEF_COLOR = { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', pill: 'bg-gray-100 text-gray-600' }
-function dc(id: string) { return DIV_COLORS[id] || DEF_COLOR }
 
 function fmtTime(t: string) {
   if (!t) return ''
@@ -254,7 +246,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                   {/* Events */}
                   <div className="flex-1 space-y-0.5">
                     {events.slice(0, 4).map(ev => {
-                      const c = dc(ev.divisionId)
+                      const c = getDivisionColor(ev.divisionId, state.divisions)
                       const isPractice = ev.type === 'practice'
                       const label = ev.type === 'game'
                         ? `${teamMap.get((ev as ScheduledGame).homeTeamId)?.name ?? '?'} vs ${teamMap.get((ev as ScheduledGame).awayTeamId)?.name ?? '?'}`
@@ -323,7 +315,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                 </thead>
                 <tbody>
                   {allItems.map(item => {
-                    const c = dc(item.divisionId)
+                    const c = getDivisionColor(item.divisionId, state.divisions)
                     return (
                       <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-700">{fmtDateShort(item.date)}</td>
@@ -363,7 +355,7 @@ export default function ScheduleTab({ state, setState }: Props) {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2 text-xs">
-        {state.divisions.map(d => { const c = dc(d.id); return <span key={d.id} className={`px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>{d.name} game</span> })}
+        {state.divisions.map(d => { const c = getDivisionColor(d.id, state.divisions); return <span key={d.id} className={`px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>{d.name} game</span> })}
         <span className="px-2 py-0.5 rounded border bg-gray-100 text-gray-600 border-gray-200">Practice</span>
         <span className="px-2 py-0.5 rounded border bg-red-50 text-red-400 border-red-200">Blackout date</span>
       </div>
