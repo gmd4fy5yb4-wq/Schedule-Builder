@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { getSupabase } from './supabase'
 import type { AppState } from './types'
 
 export interface LeagueRecord {
@@ -8,7 +8,7 @@ export interface LeagueRecord {
 }
 
 export async function loadLeague(code: string): Promise<LeagueRecord | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('leagues')
     .select('data, updated_at, updated_by')
     .eq('id', code.toUpperCase())
@@ -18,14 +18,14 @@ export async function loadLeague(code: string): Promise<LeagueRecord | null> {
 }
 
 export async function saveLeague(code: string, state: AppState, userName: string): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('leagues')
     .upsert({ id: code.toUpperCase(), data: state, updated_at: new Date().toISOString(), updated_by: userName })
   return !error
 }
 
 export async function leagueExists(code: string): Promise<boolean> {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from('leagues')
     .select('id')
     .eq('id', code.toUpperCase())
@@ -34,7 +34,6 @@ export async function leagueExists(code: string): Promise<boolean> {
 }
 
 export function generateCode(): string {
-  // Easy-to-read characters — no 0/O/1/I confusion
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
