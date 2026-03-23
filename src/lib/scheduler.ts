@@ -33,7 +33,7 @@ function expandSlots(fields: Field[], startDate: string, endDate: string, durati
   const slots: Slot[] = []
   const stepMins = Math.max(durationMinutes, 60)
   const openMins  = 8 * 60   // 8:00 AM
-  const closeMins = 19 * 60  // 7:00 PM
+  const closeMins = 20 * 60  // 8:00 PM
   const start = new Date(startDate + 'T12:00:00')
   const end   = new Date(endDate   + 'T12:00:00')
   for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {

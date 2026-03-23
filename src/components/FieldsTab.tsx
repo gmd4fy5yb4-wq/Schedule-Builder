@@ -29,7 +29,7 @@ export default function FieldsTab({ state, setState }: Props) {
       <div>
         <h2 className="text-xl font-semibold text-gray-800">Fields</h2>
         <p className="text-sm text-gray-500 mt-1">
-          All fields are available <strong>8:00 AM – 7:00 PM every day</strong>. When scheduling an event
+          All fields are available <strong>8:00 AM – 8:00 PM every day</strong>. When scheduling an event
           you choose the field, start time, and end time — the system automatically checks for conflicts.
         </p>
       </div>
@@ -82,7 +82,7 @@ export default function FieldsTab({ state, setState }: Props) {
               />
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 text-xs text-gray-400">
-              <span className="hidden sm:inline">8 AM – 7 PM</span>
+              <span className="hidden sm:inline">8 AM – 8 PM</span>
               <button onClick={() => removeField(field.id)} className="text-red-400 hover:text-red-600 ml-1 transition">Remove</button>
             </div>
           </div>

@@ -34,7 +34,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const DAY_HEADERS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 const FIELD_OPEN  = '08:00'  // 8 AM
-const FIELD_CLOSE = '19:00'  // 7 PM
+const FIELD_CLOSE = '20:00'  // 8 PM
 
 interface EventForm {
   id: string | null
@@ -568,7 +568,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                     />
                   </Field>
                 </div>
-                <p className="text-xs text-gray-400">Fields are open 8:00 AM – 7:00 PM · {f.time && f.endTime && toMins(f.endTime) > toMins(f.time) ? `${toMins(f.endTime) - toMins(f.time)} min` : '—'}</p>
+                <p className="text-xs text-gray-400">Fields are open 8:00 AM – 8:00 PM · {f.time && f.endTime && toMins(f.endTime) > toMins(f.time) ? `${toMins(f.endTime) - toMins(f.time)} min` : '—'}</p>
               </div>
 
               {/* Conflict warnings */}
