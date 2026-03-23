@@ -19,17 +19,11 @@ export interface Division {
   gamesPerTeam: number
 }
 
-export interface FieldSlot {
-  id: string
-  dayOfWeek: number  // 0=Sun … 6=Sat
-  time: string       // "HH:MM"
-}
-
 export interface Field {
   id: string
   name: string
   location: string
-  slots: FieldSlot[]
+  // Fields are open 8 AM – 7 PM every day; no slot configuration needed.
 }
 
 export interface Umpire {

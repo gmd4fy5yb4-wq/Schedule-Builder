@@ -10,6 +10,12 @@ function fmtTime(t: string) {
   const [h, m] = t.split(':').map(Number)
   return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
+function endTime(startTime: string, durationMinutes: number): string {
+  const total = startTime.split(':').map(Number).reduce((h, m) => h * 60 + m, 0) + durationMinutes
+  const h = Math.floor(total / 60) % 24
+  const m = total % 60
+  return fmtTime(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+}
 
 export async function exportToExcel(
   divisions: Division[],
@@ -32,20 +38,20 @@ export async function exportToExcel(
 
   const wb = XLSX.utils.book_new()
 
-  const HEADERS = ['Date', 'Day', 'Time', 'Duration', 'Division', 'Type', 'Home / Team', 'Away', 'Field', 'Umpire']
+  const HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Division', 'Type', 'Home / Team', 'Away', 'Field', 'Umpire']
 
   function buildRow(item: ScheduledGame | ScheduledPractice): string[] {
     const div = divMap.get(item.divisionId)?.name || ''
     const field = fieldMap.get(item.fieldId)?.name || ''
-    const dur = item.durationMinutes ? `${item.durationMinutes} min` : ''
+    const end = item.durationMinutes ? endTime(item.time, item.durationMinutes) : ''
     if (item.type === 'game') {
       const g = item as ScheduledGame
       const umpire = g.umpireId ? (umpireMap.get(g.umpireId)?.name || '') : 'TBD'
-      return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), dur, div, 'Game',
+      return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Game',
         teamMap.get(g.homeTeamId)?.name || '', teamMap.get(g.awayTeamId)?.name || '', field, umpire]
     } else {
       const p = item as ScheduledPractice
-      return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), dur, div, 'Practice',
+      return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Practice',
         teamMap.get(p.teamId)?.name || '', '', field, '']
     }
   }
@@ -71,20 +77,20 @@ export async function exportToExcel(
       )
       if (!teamItems.length) continue
       const rows = teamItems.map(item => {
-        const dur = item.durationMinutes ? `${item.durationMinutes} min` : ''
+        const end = item.durationMinutes ? endTime(item.time, item.durationMinutes) : ''
         if (item.type === 'game') {
           const g = item as ScheduledGame
           const isHome = g.homeTeamId === team.id
           const opp = teamMap.get(isHome ? g.awayTeamId : g.homeTeamId)?.name || ''
           const umpire = g.umpireId ? (umpireMap.get(g.umpireId)?.name || '') : 'TBD'
-          return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), dur, 'Game', opp, isHome ? 'Home' : 'Away', fieldMap.get(item.fieldId)?.name || '', umpire]
+          return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, 'Game', opp, isHome ? 'Home' : 'Away', fieldMap.get(item.fieldId)?.name || '', umpire]
         } else {
-          return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), dur, 'Practice', '', '', fieldMap.get(item.fieldId)?.name || '', '']
+          return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, 'Practice', '', '', fieldMap.get(item.fieldId)?.name || '', '']
         }
       })
       const ws = XLSX.utils.aoa_to_sheet([
         [`${team.name} — ${div.name}`], [],
-        ['Date', 'Day', 'Time', 'Duration', 'Type', 'Opponent', 'Home/Away', 'Field', 'Umpire'],
+        ['Date', 'Day', 'Start Time', 'End Time', 'Type', 'Opponent', 'Home/Away', 'Field', 'Umpire'],
         ...rows
       ])
       XLSX.utils.book_append_sheet(wb, ws, team.name.substring(0, 31))

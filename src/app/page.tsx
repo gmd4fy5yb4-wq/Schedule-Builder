@@ -30,6 +30,9 @@ function migrateState(s: AppState): AppState {
     s.schedule.practices = (s.schedule.practices ?? []).map(p => ({ ...p, durationMinutes: p.durationMinutes ?? 90 }))
   }
   s.blackoutDates = s.blackoutDates ?? []
+  // Strip legacy time slots from fields (fields are now open 8 AM–7 PM daily)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  s.fields = (s.fields ?? []).map((f: any) => ({ id: f.id, name: f.name, location: f.location ?? '' }))
   return s
 }
 

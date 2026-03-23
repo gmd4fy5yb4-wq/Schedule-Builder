@@ -28,18 +28,22 @@ function roundRobin(ids: string[]): [string, string][] {
 
 interface Slot { date: string; time: string; fieldId: string }
 
-function expandSlots(fields: Field[], startDate: string, endDate: string): Slot[] {
+// Fields are open 8 AM – 7 PM every day. Generate slots at game-duration intervals.
+function expandSlots(fields: Field[], startDate: string, endDate: string, durationMinutes: number): Slot[] {
   const slots: Slot[] = []
+  const stepMins = Math.max(durationMinutes, 60)
+  const openMins  = 8 * 60   // 8:00 AM
+  const closeMins = 19 * 60  // 7:00 PM
   const start = new Date(startDate + 'T12:00:00')
-  const end = new Date(endDate + 'T12:00:00')
+  const end   = new Date(endDate   + 'T12:00:00')
   for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dow = d.getDay()
     const dateStr = d.toISOString().split('T')[0]
     for (const field of fields) {
-      for (const slot of field.slots) {
-        if (slot.dayOfWeek === dow) {
-          slots.push({ date: dateStr, time: slot.time, fieldId: field.id })
-        }
+      for (let m = openMins; m + durationMinutes <= closeMins; m += stepMins) {
+        const h = Math.floor(m / 60)
+        const min = m % 60
+        const time = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+        slots.push({ date: dateStr, time, fieldId: field.id })
       }
     }
   }
@@ -71,7 +75,7 @@ export function generateSchedule(
   if (!season.startDate || !season.endDate) return { games, practices, warnings: ['Season dates not set.'] }
 
   const blackoutSet = new Set(blackoutDates.map(d => d.split('::')[0]))
-  const allSlots = expandSlots(fields, season.startDate, season.endDate)
+  const allSlots = expandSlots(fields, season.startDate, season.endDate, season.gameDurationMinutes || 90)
     .filter(s => !blackoutSet.has(s.date))
   const usedSlots = new Set<string>()                          // "date|time|fieldId"
   const umpireBusy = new Map<string, Set<string>>()            // umpireId -> Set<"date|time">

@@ -33,6 +33,9 @@ function fmtDateShort(s: string) {
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAY_HEADERS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
+const FIELD_OPEN  = '08:00'  // 8 AM
+const FIELD_CLOSE = '19:00'  // 7 PM
+
 interface EventForm {
   id: string | null
   type: 'game' | 'practice'
@@ -43,12 +46,19 @@ interface EventForm {
   teamId: string
   umpireId: string
   fieldId: string
-  time: string
-  durationMinutes: number
+  time: string      // start time "HH:MM"
+  endTime: string   // end time  "HH:MM"
+}
+
+function defaultEndTime(startTime: string, durationMins: number): string {
+  const end = toMins(startTime) + durationMins
+  // clamp to 7 PM
+  return minsToTime(Math.min(end, toMins(FIELD_CLOSE)))
 }
 
 function emptyForm(date = '', gameDuration = 90): EventForm {
-  return { id: null, type: 'game', date, divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '', time: '17:00', durationMinutes: gameDuration }
+  const start = '17:00'
+  return { id: null, type: 'game', date, divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '', time: start, endTime: defaultEndTime(start, gameDuration) }
 }
 
 export default function ScheduleTab({ state, setState }: Props) {
@@ -69,14 +79,30 @@ export default function ScheduleTab({ state, setState }: Props) {
   const divMap = useMemo(() => new Map(state.divisions.map(d => [d.id, d])), [state.divisions])
   const blackoutSet = useMemo(() => new Set((state.blackoutDates ?? []).map(d => d.split('::')[0])), [state.blackoutDates])
 
+  // Declare f early so conflict detection useMemo can reference it
+  const f = modal.form
+
   // ── Conflict detection ──────────────────────────────────────────────
   const conflicts = useMemo(() => {
-    type Conflict = { kind: 'field' | 'team' | 'umpire'; message: string }
+    type Conflict = { kind: 'field' | 'team' | 'umpire' | 'hours'; message: string }
     const result: Conflict[] = []
-    if (!f.date || !f.time || !f.durationMinutes) return result
+    if (!f.date || !f.time || !f.endTime) return result
 
     const fStart = toMins(f.time)
-    const fEnd   = fStart + f.durationMinutes
+    const fEnd   = toMins(f.endTime)
+
+    // Outside 8 AM – 7 PM window
+    if (fStart < toMins(FIELD_OPEN)) {
+      result.push({ kind: 'hours', message: `Start time is before 8:00 AM — fields open at 8 AM.` })
+    }
+    if (fEnd > toMins(FIELD_CLOSE)) {
+      result.push({ kind: 'hours', message: `End time is after 7:00 PM — fields close at 7 PM.` })
+    }
+    if (fEnd <= fStart) {
+      result.push({ kind: 'hours', message: `End time must be after start time.` })
+    }
+
+    if (fEnd <= fStart) return result  // skip overlap checks if times are invalid
 
     const others = [
       ...state.schedule.games,
@@ -122,7 +148,7 @@ export default function ScheduleTab({ state, setState }: Props) {
     return result
   }, [f, state.schedule, fieldMap, teamMap, umpireMap])
 
-  const hasFieldConflict = conflicts.some(c => c.kind === 'field')
+  const hasHardConflict = conflicts.some(c => c.kind === 'field' || c.kind === 'hours')
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, (ScheduledGame | ScheduledPractice)[]>()
@@ -144,26 +170,25 @@ export default function ScheduleTab({ state, setState }: Props) {
   function goToday() { setYear(today.getFullYear()); setMonth(today.getMonth()) }
 
   // Modal helpers
-  const f = modal.form
   const divTeams = divMap.get(f.divisionId)?.teams ?? []
   const homeOptions = divTeams.filter(t => t.id !== f.awayTeamId)
   const awayOptions = divTeams.filter(t => t.id !== f.homeTeamId)
 
   function openAdd(date: string) {
     setDeleteConfirm(false)
-    const firstDiv = state.divisions.find(d => d.teams.length > 0)
     setModal({ open: true, form: emptyForm(date, state.season.gameDurationMinutes || 90) })
-    if (firstDiv) setModal(m => ({ ...m, form: { ...m.form, divisionId: firstDiv.id } }))
   }
 
   function openEdit(ev: ScheduledGame | ScheduledPractice) {
     setDeleteConfirm(false)
+    const dur = ev.durationMinutes || 90
+    const endTime = minsToTime(toMins(ev.time) + dur)
     if (ev.type === 'game') {
       const g = ev as ScheduledGame
-      setModal({ open: true, form: { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, durationMinutes: g.durationMinutes || state.season.gameDurationMinutes || 90 } })
+      setModal({ open: true, form: { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, endTime } })
     } else {
       const p = ev as ScheduledPractice
-      setModal({ open: true, form: { id: p.id, type: 'practice', date: p.date, divisionId: p.divisionId, homeTeamId: '', awayTeamId: '', teamId: p.teamId, umpireId: '', fieldId: p.fieldId, time: p.time, durationMinutes: p.durationMinutes || state.season.practiceDurationMinutes || 90 } })
+      setModal({ open: true, form: { id: p.id, type: 'practice', date: p.date, divisionId: p.divisionId, homeTeamId: '', awayTeamId: '', teamId: p.teamId, umpireId: '', fieldId: p.fieldId, time: p.time, endTime } })
     }
   }
 
@@ -172,21 +197,22 @@ export default function ScheduleTab({ state, setState }: Props) {
   function upd(patch: Partial<EventForm>) { setModal(m => ({ ...m, form: { ...m.form, ...patch } })) }
 
   function canSave() {
-    if (!f.date || !f.time || !f.fieldId || !f.divisionId) return false
-    if (hasFieldConflict) return false
+    if (!f.date || !f.time || !f.endTime || !f.fieldId || !f.divisionId) return false
+    if (hasHardConflict) return false
     if (f.type === 'game') return !!(f.homeTeamId && f.awayTeamId && f.homeTeamId !== f.awayTeamId)
     return !!f.teamId
   }
 
   function save() {
     const id = f.id ?? uid()
+    const durationMinutes = toMins(f.endTime) - toMins(f.time)
     setState(s => {
       const games = s.schedule.games.filter(g => g.id !== f.id)
       const practices = s.schedule.practices.filter(p => p.id !== f.id)
       if (f.type === 'game') {
-        games.push({ id, type: 'game' as const, date: f.date, time: f.time, durationMinutes: f.durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId })
+        games.push({ id, type: 'game' as const, date: f.date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId })
       } else {
-        practices.push({ id, type: 'practice' as const, date: f.date, time: f.time, durationMinutes: f.durationMinutes, fieldId: f.fieldId, teamId: f.teamId, divisionId: f.divisionId })
+        practices.push({ id, type: 'practice' as const, date: f.date, time: f.time, durationMinutes, fieldId: f.fieldId, teamId: f.teamId, divisionId: f.divisionId })
       }
       return { ...s, schedule: { ...s.schedule, games, practices, generatedAt: new Date().toISOString() } }
     })
@@ -324,7 +350,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                           className={`w-full text-left text-xs px-1.5 py-0.5 rounded truncate border transition hover:opacity-75 ${
                             isPractice ? 'bg-gray-100 text-gray-600 border-gray-200' : `${c.bg} ${c.text} ${c.border}`
                           }`}
-                          title={`${fmtTime(ev.time)} — ${label}`}
+                          title={`${fmtTime(ev.time)}–${ev.durationMinutes ? fmtTime(minsToTime(toMins(ev.time) + ev.durationMinutes)) : '?'} — ${label}`}
                         >
                           <span className="font-medium">{fmtTime(ev.time)}</span> {label}
                         </button>
@@ -374,7 +400,7 @@ export default function ScheduleTab({ state, setState }: Props) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b text-left">
-                    {['Date','Time','Div','Type','Home / Team','Away','Field','Umpire','Duration',''].map(h => (
+                    {['Date','Start','End','Div','Type','Home / Team','Away','Field','Umpire',''].map(h => (
                       <th key={h} className="px-3 py-2 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -386,6 +412,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                       <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-700">{fmtDateShort(item.date)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{fmtTime(item.time)}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-gray-500">{item.durationMinutes ? fmtTime(minsToTime(toMins(item.time) + item.durationMinutes)) : '—'}</td>
                         <td className="px-3 py-2"><span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.pill}`}>{divMap.get(item.divisionId)?.name}</span></td>
                         <td className="px-3 py-2">
                           {item.type === 'game'
@@ -402,7 +429,6 @@ export default function ScheduleTab({ state, setState }: Props) {
                         <td className="px-3 py-2 text-gray-600">
                           {item.type === 'game' ? ((item as ScheduledGame).umpireId ? umpireMap.get((item as ScheduledGame).umpireId)?.name : 'TBD') : ''}
                         </td>
-                        <td className="px-3 py-2 text-gray-500 text-xs whitespace-nowrap">{item.durationMinutes ? `${item.durationMinutes} min` : '—'}</td>
                         <td className="px-3 py-2">
                           <button onClick={() => openEdit(item)} className="text-blue-500 hover:text-blue-700 text-xs">Edit</button>
                         </td>
@@ -410,7 +436,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                     )
                   })}
                   {allItems.length === 0 && (
-                    <tr><td colSpan={10} className="px-4 py-12 text-center text-gray-400 italic">No events yet — switch to Calendar view and click any day to add one.</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-400 italic">No events yet — switch to Calendar view and click any day to add one.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -447,11 +473,11 @@ export default function ScheduleTab({ state, setState }: Props) {
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Event Type</label>
                 <div className="grid grid-cols-2 rounded-xl border overflow-hidden">
                   <button
-                    onClick={() => upd({ type: 'game', durationMinutes: state.season.gameDurationMinutes || 90, teamId: '' })}
+                    onClick={() => upd({ type: 'game', endTime: defaultEndTime(f.time, state.season.gameDurationMinutes || 90), teamId: '' })}
                     className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                   >⚾ Game</button>
                   <button
-                    onClick={() => upd({ type: 'practice', durationMinutes: state.season.practiceDurationMinutes || 90, homeTeamId: '', awayTeamId: '', umpireId: '' })}
+                    onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '' })}
                     className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                   >🏃 Practice</button>
                 </div>
@@ -518,14 +544,31 @@ export default function ScheduleTab({ state, setState }: Props) {
                 </select>
               </Field>
 
-              {/* Time + Duration */}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Start Time">
-                  <input type="time" className="input" value={f.time} onChange={e => upd({ time: e.target.value })} />
-                </Field>
-                <Field label="Duration (minutes)">
-                  <input type="number" min={15} max={300} step={5} className="input" value={f.durationMinutes} onChange={e => upd({ durationMinutes: Number(e.target.value) })} />
-                </Field>
+              {/* Time range */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Start Time">
+                    <input
+                      type="time"
+                      className="input"
+                      min={FIELD_OPEN}
+                      max={FIELD_CLOSE}
+                      value={f.time}
+                      onChange={e => upd({ time: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="End Time">
+                    <input
+                      type="time"
+                      className="input"
+                      min={FIELD_OPEN}
+                      max={FIELD_CLOSE}
+                      value={f.endTime}
+                      onChange={e => upd({ endTime: e.target.value })}
+                    />
+                  </Field>
+                </div>
+                <p className="text-xs text-gray-400">Fields are open 8:00 AM – 7:00 PM · {f.time && f.endTime && toMins(f.endTime) > toMins(f.time) ? `${toMins(f.endTime) - toMins(f.time)} min` : '—'}</p>
               </div>
 
               {/* Conflict warnings */}
@@ -535,7 +578,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                     <div
                       key={i}
                       className={`flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border ${
-                        c.kind === 'field'
+                        c.kind === 'field' || c.kind === 'hours'
                           ? 'bg-red-50 border-red-200 text-red-700'
                           : c.kind === 'team'
                           ? 'bg-amber-50 border-amber-200 text-amber-700'
@@ -543,14 +586,16 @@ export default function ScheduleTab({ state, setState }: Props) {
                       }`}
                     >
                       <span className="mt-0.5 flex-shrink-0">
-                        {c.kind === 'field' ? '🚫' : '⚠️'}
+                        {c.kind === 'field' || c.kind === 'hours' ? '🚫' : '⚠️'}
                       </span>
                       <span>
                         <span className="font-semibold">
-                          {c.kind === 'field' ? 'Field conflict — ' : c.kind === 'team' ? 'Team conflict — ' : 'Umpire conflict — '}
+                          {c.kind === 'field' ? 'Field conflict — '
+                            : c.kind === 'hours' ? 'Outside hours — '
+                            : c.kind === 'team' ? 'Team conflict — '
+                            : 'Umpire conflict — '}
                         </span>
                         {c.message}
-                        {c.kind === 'field' && <span className="block text-xs mt-0.5 opacity-75">Change the field, time, or duration to resolve.</span>}
                       </span>
                     </div>
                   ))}
