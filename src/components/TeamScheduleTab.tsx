@@ -2,8 +2,9 @@
 import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
+import EventModal, { emptyForm, formFromEvent, type EventForm } from './EventModal'
 
-interface Props { state: AppState }
+interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
 
 function fmtDate(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -14,8 +15,24 @@ function fmtTime(t: string) {
   return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
 
-export default function TeamScheduleTab({ state }: Props) {
+export default function TeamScheduleTab({ state, setState }: Props) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
+  const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
+
+  function openAddForTeam() {
+    if (!selectedTeamId) return
+    const team = teamMap.get(selectedTeamId)
+    if (!team) return
+    const today = new Date().toISOString().split('T')[0]
+    const base = emptyForm(today, state.season.gameDurationMinutes || 90)
+    setModal({ open: true, initialForm: { ...base, divisionId: team.divisionId, homeTeamId: selectedTeamId } })
+  }
+
+  function openEditEvent(ev: ScheduledGame | ScheduledPractice) {
+    setModal({ open: true, initialForm: formFromEvent(ev) })
+  }
+
+  function closeModal() { setModal(m => ({ ...m, open: false })) }
 
   const teamMap = useMemo(() => new Map(state.divisions.flatMap(d => d.teams).map(t => [t.id, t])), [state.divisions])
   const fieldMap = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
@@ -120,12 +137,20 @@ export default function TeamScheduleTab({ state }: Props) {
                 <p className="text-sm text-gray-500 mt-0.5">{selectedDiv?.name} Division</p>
               </div>
 
-              {/* Stats row */}
-              <div className="flex gap-4 text-center">
-                <Stat label="Games" value={gameCount} />
-                <Stat label="Home" value={homeCount} />
-                <Stat label="Away" value={awayCount} />
-                <Stat label="Practices" value={practiceCount} />
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Stats row */}
+                <div className="flex gap-4 text-center">
+                  <Stat label="Games" value={gameCount} />
+                  <Stat label="Home" value={homeCount} />
+                  <Stat label="Away" value={awayCount} />
+                  <Stat label="Practices" value={practiceCount} />
+                </div>
+                <button
+                  onClick={openAddForTeam}
+                  className="ml-auto bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+                >
+                  + Add Event
+                </button>
               </div>
             </div>
 
@@ -134,7 +159,9 @@ export default function TeamScheduleTab({ state }: Props) {
               <div className="bg-white rounded-lg border p-12 text-center text-gray-400 italic">
                 No events scheduled for {selectedTeam?.name} yet.
                 <br />
-                <span className="text-sm">Add games and practices in the Schedule tab.</span>
+                <button onClick={openAddForTeam} className="mt-3 text-sm text-green-600 hover:text-green-700 font-medium underline underline-offset-2">
+                  Add their first event
+                </button>
               </div>
             ) : (
               <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
@@ -162,7 +189,7 @@ export default function TeamScheduleTab({ state }: Props) {
                         const opp = teamMap.get(oppId)
                         const umpire = g.umpireId ? umpireMap.get(g.umpireId) : null
                         return (
-                          <tr key={g.id} className="border-b last:border-0 hover:bg-green-50 transition-colors">
+                          <tr key={g.id} onClick={() => openEditEvent(g)} className="border-b last:border-0 hover:bg-green-50 transition-colors cursor-pointer">
                             <td className="px-4 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
                             <td className="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">{fmtDate(g.date)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap">{fmtTime(g.time)}</td>
@@ -183,7 +210,7 @@ export default function TeamScheduleTab({ state }: Props) {
                       } else {
                         const p = ev as ScheduledPractice
                         return (
-                          <tr key={p.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+                          <tr key={p.id} onClick={() => openEditEvent(p)} className="border-b last:border-0 hover:bg-gray-50 transition-colors cursor-pointer">
                             <td className="px-4 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
                             <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">{fmtDate(p.date)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap">{fmtTime(p.time)}</td>
@@ -206,6 +233,10 @@ export default function TeamScheduleTab({ state }: Props) {
           </div>
         )}
       </div>
+
+      {modal.open && (
+        <EventModal state={state} setState={setState} initialForm={modal.initialForm} onClose={closeModal} />
+      )}
     </div>
   )
 }

@@ -248,7 +248,7 @@ export default function Home() {
         {tab === 2 && <FieldsTab state={state} setState={setState} />}
         {tab === 3 && <UmpiresTab state={state} setState={setState} />}
         {tab === 4 && <ScheduleTab state={state} setState={setState} />}
-        {tab === 5 && <TeamScheduleTab state={state} />}
+        {tab === 5 && <TeamScheduleTab state={state} setState={setState} />}
       </main>
     </div>
   )
