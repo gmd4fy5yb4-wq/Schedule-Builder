@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { exportToExcel } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
@@ -72,6 +72,10 @@ export default function ScheduleTab({ state, setState }: Props) {
   const [filterType, setFilterType] = useState<'all' | 'game' | 'practice'>('all')
   const [exporting, setExporting] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null)
+  const [dragError, setDragError] = useState<string | null>(null)
+  const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const teamMap = useMemo(() => new Map(state.divisions.flatMap(d => d.teams).map(t => [t.id, t])), [state.divisions])
   const fieldMap = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
@@ -236,6 +240,43 @@ export default function ScheduleTab({ state, setState }: Props) {
     setClearConfirm(false)
   }
 
+  function moveEventToDate(eventId: string, newDate: string) {
+    const allEvents = [...state.schedule.games, ...state.schedule.practices]
+    const ev = allEvents.find(e => e.id === eventId)
+    if (!ev || ev.date === newDate) return
+
+    // Check field conflict on new date
+    if (ev.fieldId) {
+      const evStart = toMins(ev.time)
+      const evEnd   = evStart + (ev.durationMinutes || 90)
+      const sameDay = allEvents.filter(e => e.id !== eventId && e.date === newDate && e.fieldId === ev.fieldId)
+      for (const other of sameDay) {
+        const oStart = toMins(other.time)
+        const oEnd   = oStart + (other.durationMinutes || 90)
+        if (evStart < oEnd && oStart < evEnd) {
+          const fieldName = fieldMap.get(ev.fieldId)?.name ?? 'That field'
+          showDragError(`${fieldName} is already booked ${fmtTime(other.time)}–${fmtTime(minsToTime(oEnd))} on that day`)
+          return
+        }
+      }
+    }
+
+    setState(s => ({
+      ...s,
+      schedule: {
+        ...s.schedule,
+        games: s.schedule.games.map(g => g.id === eventId ? { ...g, date: newDate } : g),
+        practices: s.schedule.practices.map(p => p.id === eventId ? { ...p, date: newDate } : p),
+      }
+    }))
+  }
+
+  function showDragError(msg: string) {
+    setDragError(msg)
+    if (dragErrorTimer.current) clearTimeout(dragErrorTimer.current)
+    dragErrorTimer.current = setTimeout(() => setDragError(null), 4000)
+  }
+
   async function doExport() {
     setExporting(true)
     try { await exportToExcel(state.divisions, state.fields, state.umpires, state.schedule.games, state.schedule.practices) }
@@ -285,6 +326,15 @@ export default function ScheduleTab({ state, setState }: Props) {
         </div>
       </div>
 
+      {/* Drag conflict toast */}
+      {dragError && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">
+          <span>🚫</span>
+          <span><span className="font-semibold">Field conflict — </span>{dragError}</span>
+          <button onClick={() => setDragError(null)} className="ml-auto text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+        </div>
+      )}
+
       {/* ── CALENDAR VIEW ── */}
       {view === 'calendar' && (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
@@ -319,10 +369,22 @@ export default function ScheduleTab({ state, setState }: Props) {
               const col = (firstDow + i) % 7
               const events = eventsByDate.get(dateStr) ?? []
 
+              const isDragTarget = dragOverDate === dateStr && dragId !== null
               return (
                 <div
                   key={day}
-                  className={`min-h-[110px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${isBlackout ? 'bg-red-50' : 'hover:bg-slate-50 transition-colors'}`}
+                  className={`min-h-[110px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
+                    isDragTarget ? 'bg-green-50 ring-2 ring-inset ring-green-400' :
+                    isBlackout ? 'bg-red-50' : 'hover:bg-slate-50 transition-colors'
+                  }`}
+                  onDragOver={e => { e.preventDefault(); setDragOverDate(dateStr) }}
+                  onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverDate(null) }}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverDate(null)
+                    if (dragId) moveEventToDate(dragId, dateStr)
+                    setDragId(null)
+                  }}
                 >
                   {/* Date number + add button */}
                   <div className="flex items-center justify-between mb-1">
@@ -346,11 +408,18 @@ export default function ScheduleTab({ state, setState }: Props) {
                       return (
                         <button
                           key={ev.id}
-                          onClick={() => openEdit(ev)}
-                          className={`w-full text-left text-xs px-1.5 py-0.5 rounded truncate border transition hover:opacity-75 ${
+                          draggable
+                          onDragStart={e => {
+                            setDragId(ev.id)
+                            e.dataTransfer.effectAllowed = 'move'
+                            e.dataTransfer.setData('text/plain', ev.id)
+                          }}
+                          onDragEnd={() => { setDragId(null); setDragOverDate(null) }}
+                          onClick={() => { if (!dragId) openEdit(ev) }}
+                          className={`w-full text-left text-xs px-1.5 py-0.5 rounded truncate border transition hover:opacity-75 cursor-grab active:cursor-grabbing ${
                             isPractice ? 'bg-gray-100 text-gray-600 border-gray-200' : `${c.bg} ${c.text} ${c.border}`
                           }`}
-                          title={`${fmtTime(ev.time)}–${ev.durationMinutes ? fmtTime(minsToTime(toMins(ev.time) + ev.durationMinutes)) : '?'} — ${label}`}
+                          title={`${fmtTime(ev.time)}–${ev.durationMinutes ? fmtTime(minsToTime(toMins(ev.time) + ev.durationMinutes)) : '?'} — ${label} · Drag to move`}
                         >
                           <span className="font-medium">{fmtTime(ev.time)}</span> {label}
                         </button>
