@@ -74,7 +74,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
 
   // ── Conflict detection ──────────────────────────────────────────────────────
   const conflicts = useMemo(() => {
-    type Conflict = { kind: 'field' | 'team' | 'umpire' | 'hours'; message: string }
+    type Conflict = { kind: 'field' | 'team' | 'umpire' | 'hours' | 'teamblackout'; message: string }
     const result: Conflict[] = []
     if (!f.date || !f.time || !f.endTime) return result
 
@@ -112,6 +112,20 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
       if (f.type === 'game' && f.umpireId && ev.type === 'game' && (ev as ScheduledGame).umpireId === f.umpireId)
         result.push({ kind: 'umpire', message: `${umpireMap.get(f.umpireId)?.name ?? 'That umpire'} is already assigned to a game overlapping ${evRange}` })
     }
+
+    // Team blackout dates
+    if (f.date) {
+      const involvedTeamIds = (f.type === 'game' ? [f.homeTeamId, f.awayTeamId] : [f.teamId]).filter(Boolean)
+      for (const tid of involvedTeamIds) {
+        const team = teamMap.get(tid)
+        const entry = team?.blackoutDates?.find(d => d.split('::')[0] === f.date)
+        if (entry) {
+          const label = entry.split('::')[1]
+          result.push({ kind: 'teamblackout', message: `${team!.name} has a blackout on this date${label ? ` — ${label}` : ''}` })
+        }
+      }
+    }
+
     return result
   }, [f, state.schedule, fieldMap, teamMap, umpireMap])
 
@@ -270,12 +284,13 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 <div key={i} className={`flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border ${
                   c.kind === 'field' || c.kind === 'hours' ? 'bg-red-50 border-red-200 text-red-700'
                   : c.kind === 'team' ? 'bg-amber-50 border-amber-200 text-amber-700'
+                  : c.kind === 'teamblackout' ? 'bg-orange-50 border-orange-200 text-orange-700'
                   : 'bg-yellow-50 border-yellow-200 text-yellow-700'
                 }`}>
                   <span className="mt-0.5 flex-shrink-0">{c.kind === 'field' || c.kind === 'hours' ? '🚫' : '⚠️'}</span>
                   <span>
                     <span className="font-semibold">
-                      {c.kind === 'field' ? 'Field conflict — ' : c.kind === 'hours' ? 'Outside hours — ' : c.kind === 'team' ? 'Team conflict — ' : 'Umpire conflict — '}
+                      {c.kind === 'field' ? 'Field conflict — ' : c.kind === 'hours' ? 'Outside hours — ' : c.kind === 'team' ? 'Team conflict — ' : c.kind === 'teamblackout' ? 'Team blackout — ' : 'Umpire conflict — '}
                     </span>
                     {c.message}
                   </span>

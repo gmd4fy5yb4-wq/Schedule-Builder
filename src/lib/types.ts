@@ -10,6 +10,7 @@ export interface Team {
   id: string
   name: string
   divisionId: string
+  blackoutDates?: string[]  // "YYYY-MM-DD" or "YYYY-MM-DD::Label"
 }
 
 export interface Division {

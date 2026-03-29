@@ -12,6 +12,9 @@ export default function DivisionsTab({ state, setState }: Props) {
   const [newDivName, setNewDivName] = useState('')
   const [newDivGames, setNewDivGames] = useState(10)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [expandedBlackouts, setExpandedBlackouts] = useState<Record<string, boolean>>({})
+  const [newBlackoutDate, setNewBlackoutDate] = useState<Record<string, string>>({})
+  const [newBlackoutLabel, setNewBlackoutLabel] = useState<Record<string, string>>({})
 
   // ── Division actions ──────────────────────────────────────────────
   function addDivision() {
@@ -78,6 +81,30 @@ export default function DivisionsTab({ state, setState }: Props) {
         d.id === divId ? { ...d, teams: d.teams.map((t: Team) => t.id === teamId ? { ...t, name } : t) } : d
       )
     }))
+  }
+
+  function updateTeamBlackouts(divId: string, teamId: string, blackoutDates: string[]) {
+    setState(s => ({
+      ...s,
+      divisions: s.divisions.map(d =>
+        d.id === divId ? { ...d, teams: d.teams.map((t: Team) => t.id === teamId ? { ...t, blackoutDates } : t) } : d
+      )
+    }))
+  }
+
+  function addTeamBlackout(divId: string, teamId: string, existing: string[]) {
+    const date = newBlackoutDate[teamId]
+    if (!date) return
+    const label = newBlackoutLabel[teamId]?.trim()
+    const entry = label ? `${date}::${label}` : date
+    if (existing.some(d => d.split('::')[0] === date)) return  // no duplicates
+    updateTeamBlackouts(divId, teamId, [...existing, entry].sort())
+    setNewBlackoutDate(v => ({ ...v, [teamId]: '' }))
+    setNewBlackoutLabel(v => ({ ...v, [teamId]: '' }))
+  }
+
+  function removeTeamBlackout(divId: string, teamId: string, existing: string[], entry: string) {
+    updateTeamBlackouts(divId, teamId, existing.filter(d => d !== entry))
   }
 
   const totalTeams = state.divisions.reduce((sum, d) => sum + d.teams.length, 0)
@@ -186,20 +213,74 @@ export default function DivisionsTab({ state, setState }: Props) {
                   <p className="text-sm text-gray-400 italic mb-3">No teams yet</p>
                 )}
                 <div className="space-y-2 mb-3">
-                  {div.teams.map(team => (
-                    <div key={team.id} className="flex items-center gap-2">
-                      <input
-                        className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-                        value={team.name}
-                        onChange={e => updateTeamName(div.id, team.id, e.target.value)}
-                      />
-                      <button
-                        onClick={() => removeTeam(div.id, team.id)}
-                        className="text-red-400 hover:text-red-600 text-lg leading-none px-1 flex-shrink-0"
-                        title="Remove team"
-                      >×</button>
-                    </div>
-                  ))}
+                  {div.teams.map(team => {
+                    const blackouts = team.blackoutDates ?? []
+                    const isExpanded = expandedBlackouts[team.id]
+                    return (
+                      <div key={team.id} className="border rounded overflow-hidden">
+                        <div className="flex items-center gap-2 px-2 py-1">
+                          <input
+                            className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                            value={team.name}
+                            onChange={e => updateTeamName(div.id, team.id, e.target.value)}
+                          />
+                          <button
+                            onClick={() => setExpandedBlackouts(v => ({ ...v, [team.id]: !v[team.id] }))}
+                            className={`flex-shrink-0 text-xs px-2 py-1 rounded border transition ${blackouts.length > 0 ? 'border-orange-300 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                            title="Team blackout dates"
+                          >
+                            🚫 {blackouts.length > 0 ? blackouts.length : 'Blackouts'}
+                          </button>
+                          <button
+                            onClick={() => removeTeam(div.id, team.id)}
+                            className="text-red-400 hover:text-red-600 text-lg leading-none px-1 flex-shrink-0"
+                            title="Remove team"
+                          >×</button>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="border-t bg-orange-50 px-3 py-2.5 space-y-2">
+                            <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Team Blackout Dates</p>
+                            {blackouts.length === 0 && (
+                              <p className="text-xs text-gray-400 italic">No blackout dates for this team yet.</p>
+                            )}
+                            <div className="flex flex-wrap gap-1.5">
+                              {blackouts.map(entry => {
+                                const [date, label] = entry.split('::')
+                                const display = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                return (
+                                  <span key={entry} className="inline-flex items-center gap-1 text-xs bg-white border border-orange-200 text-orange-700 px-2 py-0.5 rounded-full">
+                                    {display}{label ? ` — ${label}` : ''}
+                                    <button onClick={() => removeTeamBlackout(div.id, team.id, blackouts, entry)} className="text-orange-400 hover:text-red-500 leading-none ml-0.5">×</button>
+                                  </span>
+                                )
+                              })}
+                            </div>
+                            <div className="flex gap-2 flex-wrap items-end">
+                              <input
+                                type="date"
+                                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                value={newBlackoutDate[team.id] || ''}
+                                onChange={e => setNewBlackoutDate(v => ({ ...v, [team.id]: e.target.value }))}
+                              />
+                              <input
+                                className="flex-1 min-w-[100px] border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                placeholder="Reason (optional)"
+                                value={newBlackoutLabel[team.id] || ''}
+                                onChange={e => setNewBlackoutLabel(v => ({ ...v, [team.id]: e.target.value }))}
+                                onKeyDown={e => e.key === 'Enter' && addTeamBlackout(div.id, team.id, blackouts)}
+                              />
+                              <button
+                                onClick={() => addTeamBlackout(div.id, team.id, blackouts)}
+                                disabled={!newBlackoutDate[team.id]}
+                                className="text-xs bg-orange-500 text-white px-3 py-1.5 rounded hover:bg-orange-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                              >Add</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
 
                 <div className="flex gap-2">
