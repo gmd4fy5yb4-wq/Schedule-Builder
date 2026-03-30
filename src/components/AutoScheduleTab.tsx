@@ -47,7 +47,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
   const [conflictIndex, setConflictIndex] = useState(0)
   const [showAllConflicts, setShowAllConflicts] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [commitConfirm, setCommitConfirm] = useState(false)
+  const [commitMode, setCommitMode] = useState<null | 'append' | 'replace'>(null)
 
   // Field blackout local state for UI (add form)
   const [fieldBlackoutDate, setFieldBlackoutDate] = useState<Record<string, string>>({})
@@ -242,24 +242,25 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
   // ── Preview commit / discard ─────────────────────────────────────
 
-  function commitPreview() {
+  function commitPreview(mode: 'append' | 'replace') {
     if (!preview || preview.length === 0) return
     setState(s => ({
       ...s,
       schedule: {
         ...s.schedule,
-        games: [...s.schedule.games, ...preview],
+        games: mode === 'replace' ? preview : [...s.schedule.games, ...preview],
+        practices: mode === 'replace' ? [] : s.schedule.practices,
         generatedAt: new Date().toISOString(),
       },
       autoSchedulePreview: null,
       autoScheduleConflicts: (s.autoScheduleConflicts ?? []).filter(c => c.resolution === 'pending'),
     }))
-    setCommitConfirm(false)
+    setCommitMode(null)
   }
 
   function discardPreview() {
     setState(s => ({ ...s, autoSchedulePreview: null }))
-    setCommitConfirm(false)
+    setCommitMode(null)
   }
 
   // ── Computed stats ───────────────────────────────────────────────
@@ -307,6 +308,49 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           {state.divisions.length} division{state.divisions.length !== 1 ? 's' : ''} ·{' '}
           {allTeams.length} team{allTeams.length !== 1 ? 's' : ''}
         </span>
+      </div>
+
+      {/* ── HOW THIS WORKS + WARNINGS ────────────────────────────── */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+        <div className="flex items-start gap-2">
+          <span className="text-blue-500 text-lg mt-0.5 flex-shrink-0">ℹ️</span>
+          <div>
+            <p className="font-semibold text-blue-800 text-sm" style={{ fontFamily: 'Oswald, sans-serif' }}>
+              How Auto-Schedule Works
+            </p>
+            <ol className="mt-1.5 text-sm text-blue-700 space-y-1 list-decimal list-inside">
+              <li><strong>Configure</strong> game days, preferred start times, home fields, and team preferences below.</li>
+              <li><strong>Generate</strong> — the scheduler builds a round-robin matchup list and finds the best available slot for each game based on your constraints.</li>
+              <li><strong>Resolve conflicts</strong> — any game that couldn&apos;t be placed automatically appears here for you to skip, defer, or retry with relaxed constraints.</li>
+              <li><strong>Preview &amp; commit</strong> — review the proposed schedule, then choose to <em>append</em> it to your existing games or <em>replace</em> the entire schedule.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div className="border-t border-blue-200 pt-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <span className="text-yellow-500 text-base flex-shrink-0">⚠️</span>
+            <p className="text-sm text-yellow-800">
+              <strong>Replace mode is permanent</strong> — it wipes all existing games and practices and cannot be undone from this screen.
+              Use the <strong>📸 Snapshots</strong> button in the header to save your current schedule before generating if you want a safety net.
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-yellow-500 text-base flex-shrink-0">⚠️</span>
+            <p className="text-sm text-yellow-800">
+              <strong>Append mode adds games on top of your existing schedule.</strong>{' '}
+              If you&apos;ve already run Auto-Schedule once, appending again will duplicate matchups.
+              Check your existing schedule first or use Replace instead.
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-blue-400 text-base flex-shrink-0">💡</span>
+            <p className="text-sm text-blue-700">
+              The scheduler respects league-wide blackout dates, field blackout dates, and team blackout dates
+              that you&apos;ve entered in the other tabs. Set those up <strong>before</strong> generating.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── STEP 1: CONFIGURE PARAMETERS ─────────────────────────── */}
@@ -821,41 +865,46 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
               {/* Commit / Discard */}
               <div className="px-5 py-4 border-t bg-gray-50 flex flex-wrap items-center gap-3">
-                {commitConfirm ? (
+                {commitMode === 'append' ? (
                   <>
                     <span className="text-sm font-medium text-gray-700">
-                      Add {preview.length} game{preview.length !== 1 ? 's' : ''} to your schedule?
+                      Add {preview.length} game{preview.length !== 1 ? 's' : ''} to your existing schedule?
                     </span>
-                    <button
-                      onClick={commitPreview}
-                      className="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition"
-                    >
-                      ✓ Yes, Commit
+                    <button onClick={() => commitPreview('append')} className="bg-[#cd163f] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition">
+                      ✓ Yes, Append
                     </button>
-                    <button
-                      onClick={() => setCommitConfirm(false)}
-                      className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2"
-                    >
-                      Cancel
+                    <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
+                  </>
+                ) : commitMode === 'replace' ? (
+                  <>
+                    <span className="text-sm font-medium text-red-700">
+                      ⚠️ Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? Save a snapshot first if you want a backup!
+                    </span>
+                    <button onClick={() => commitPreview('replace')} className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                      ✓ Yes, Replace Everything
                     </button>
+                    <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
                   </>
                 ) : (
                   <>
                     <button
-                      onClick={() => setCommitConfirm(true)}
-                      className="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition flex items-center gap-2"
+                      onClick={() => setCommitMode('append')}
+                      className="bg-[#cd163f] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition"
                     >
-                      ✓ Commit to Schedule
+                      ➕ Append to Existing Schedule
+                    </button>
+                    <button
+                      onClick={() => setCommitMode('replace')}
+                      className="bg-white border-2 border-red-400 text-red-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
+                    >
+                      🗑 Replace Existing Schedule
                     </button>
                     <button
                       onClick={discardPreview}
-                      className="border border-red-300 text-red-600 hover:bg-red-50 px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+                      className="border border-gray-300 text-gray-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
                     >
                       ✗ Discard Preview
                     </button>
-                    <span className="text-xs text-gray-400 ml-auto">
-                      Commit appends these games to your existing schedule
-                    </span>
                   </>
                 )}
               </div>
