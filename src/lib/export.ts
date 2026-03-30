@@ -97,15 +97,12 @@ export async function exportToExcel(
     }
   }
 
-  // Use blob download — more reliable across browsers and Next.js environments
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  const blob = new Blob([buf], { type: 'application/octet-stream' })
-  const url = URL.createObjectURL(blob)
+  // Base64 data URI — works reliably in Safari, Chrome, and Firefox
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' })
   const a = document.createElement('a')
-  a.href = url
+  a.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + buf
   a.download = 'softball-schedule.xlsx'
   document.body.appendChild(a)
   a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  setTimeout(() => document.body.removeChild(a), 100)
 }
