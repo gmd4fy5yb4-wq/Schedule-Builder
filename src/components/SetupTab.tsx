@@ -45,7 +45,7 @@ export default function SetupTab({ state, setState }: Props) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
           <input
-            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
             value={season.leagueName}
             onChange={e => update('leagueName', e.target.value)}
           />
@@ -56,7 +56,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Season Start</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
               value={season.startDate}
               onChange={e => update('startDate', e.target.value)}
             />
@@ -65,7 +65,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Season End</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
               value={season.endDate}
               onChange={e => update('endDate', e.target.value)}
             />
@@ -77,7 +77,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Game Duration (min)</label>
             <input
               type="number" min={30} max={240} step={15}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
               value={season.gameDurationMinutes}
               onChange={e => update('gameDurationMinutes', Number(e.target.value))}
             />
@@ -86,7 +86,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Practice Duration (min)</label>
             <input
               type="number" min={30} max={240} step={15}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
               value={season.practiceDurationMinutes}
               onChange={e => update('practiceDurationMinutes', Number(e.target.value))}
             />
@@ -162,9 +162,9 @@ export default function SetupTab({ state, setState }: Props) {
       </div>
 
       {/* Getting started */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
+      <div className="bg-[#f5f5fb] border border-[#eeeef6] rounded-lg p-4 text-sm text-green-800">
         <p className="font-medium mb-1">Getting started</p>
-        <ol className="list-decimal list-inside space-y-1 text-green-700">
+        <ol className="list-decimal list-inside space-y-1 text-[#cd163f]">
           <li>Fill in season dates and game duration here</li>
           <li>Add blackout dates for holidays or field closures</li>
           <li>Add teams to each division in <strong>Divisions &amp; Teams</strong></li>

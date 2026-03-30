@@ -123,7 +123,7 @@ export default function DivisionsTab({ state, setState }: Props) {
           <div className="flex-1 min-w-[160px]">
             <label className="block text-xs text-gray-500 mb-1">Division Name</label>
             <input
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
               placeholder="e.g. 6U Softball, Baseball 10U…"
               value={newDivName}
               onChange={e => setNewDivName(e.target.value)}
@@ -134,7 +134,7 @@ export default function DivisionsTab({ state, setState }: Props) {
             <label className="block text-xs text-gray-500 mb-1">Games / team</label>
             <input
               type="number" min={1} max={50}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
               value={newDivGames}
               onChange={e => setNewDivGames(Number(e.target.value))}
             />
@@ -142,7 +142,7 @@ export default function DivisionsTab({ state, setState }: Props) {
           <button
             onClick={addDivision}
             disabled={!newDivName.trim()}
-            className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-[#cd163f] text-white px-4 py-2 rounded text-sm hover:bg-[#00013a] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Add Division
           </button>
@@ -220,7 +220,7 @@ export default function DivisionsTab({ state, setState }: Props) {
                       <div key={team.id} className="border rounded overflow-hidden">
                         <div className="flex items-center gap-2 px-2 py-1">
                           <input
-                            className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+                            className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#cd163f]"
                             value={team.name}
                             onChange={e => updateTeamName(div.id, team.id, e.target.value)}
                           />
@@ -285,7 +285,7 @@ export default function DivisionsTab({ state, setState }: Props) {
 
                 <div className="flex gap-2">
                   <input
-                    className="flex-1 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="flex-1 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
                     placeholder="Team name…"
                     value={newTeam[div.id] || ''}
                     onChange={e => setNewTeam(n => ({ ...n, [div.id]: e.target.value }))}
@@ -293,7 +293,7 @@ export default function DivisionsTab({ state, setState }: Props) {
                   />
                   <button
                     onClick={() => addTeam(div.id)}
-                    className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 transition"
+                    className="bg-[#cd163f] text-white px-3 py-1.5 rounded text-sm hover:bg-[#00013a] transition"
                   >Add</button>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">{div.teams.length} team{div.teams.length !== 1 ? 's' : ''}</p>

@@ -193,10 +193,10 @@ export default function Home() {
 
   if (!hydrated) {
     return (
-      <div className="min-h-screen bg-green-700 flex items-center justify-center">
+      <div className="min-h-screen bg-[#00013a] flex items-center justify-center">
         <div className="text-white text-center">
           <div className="text-5xl mb-4">⚾</div>
-          <p className="text-green-200">Loading…</p>
+          <p className="text-[#b0c0e0]">Loading…</p>
         </div>
       </div>
     )
@@ -212,7 +212,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-green-700 text-white shadow-md">
+      <header className="bg-[#00013a] text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
           <h1 className="text-xl font-bold">⚾ {state.season.leagueName || 'Softball Scheduler'}</h1>
 
@@ -225,11 +225,11 @@ export default function Home() {
             )}
 
             {/* League code badge */}
-            <div className="flex items-center gap-2 bg-green-800 rounded-lg px-3 py-1.5">
-              <span className="text-green-300 text-xs font-medium">LEAGUE</span>
+            <div className="flex items-center gap-2 bg-[#00013a] rounded-lg px-3 py-1.5">
+              <span className="text-[#8898c0] text-xs font-medium">LEAGUE</span>
               <span className="font-mono font-bold tracking-widest">{leagueCode}</span>
               {!readOnly && (
-                <button onClick={copyCode} className="text-green-300 hover:text-white transition text-sm" title="Copy league code">
+                <button onClick={copyCode} className="text-[#8898c0] hover:text-white transition text-sm" title="Copy league code">
                   {codeCopied ? '✓' : '📋'}
                 </button>
               )}
@@ -239,7 +239,7 @@ export default function Home() {
             {!readOnly && (
               <button
                 onClick={copyReadOnlyLink}
-                className="text-xs bg-green-800 hover:bg-green-900 text-green-200 hover:text-white border border-green-600 rounded-lg px-3 py-1.5 transition"
+                className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#cd163f] rounded-lg px-3 py-1.5 transition"
                 title="Copy a view-only link for coaches/parents"
               >
                 {roLinkCopied ? '✓ Copied!' : '🔗 Share View-Only Link'}
@@ -249,34 +249,34 @@ export default function Home() {
             {/* Sync status */}
             {!readOnly && (
               <div className="text-xs">
-                {syncStatus === 'saving' && <span className="text-green-200 animate-pulse">💾 Saving…</span>}
-                {syncStatus === 'synced' && <span className="text-green-300">✓ Synced</span>}
+                {syncStatus === 'saving' && <span className="text-[#b0c0e0] animate-pulse">💾 Saving…</span>}
+                {syncStatus === 'synced' && <span className="text-[#8898c0]">✓ Synced</span>}
                 {syncStatus === 'error' && <span className="text-red-300">⚠ Save failed — check connection</span>}
               </div>
             )}
 
             {/* User name + leave */}
             {!readOnly ? (
-              <div className="flex items-center gap-2 text-sm text-green-200">
+              <div className="flex items-center gap-2 text-sm text-[#b0c0e0]">
                 <span>👤 {userName}</span>
                 <button
                   onClick={handleLeave}
-                  className="text-green-400 hover:text-white transition text-xs border border-green-600 hover:border-green-400 rounded px-2 py-0.5"
+                  className="text-[#cd163f] hover:text-white transition text-xs border border-[#cd163f] hover:border-[#cd163f] rounded px-2 py-0.5"
                   title="Leave this league"
                 >
                   Leave
                 </button>
               </div>
             ) : (
-              <span className="text-xs text-green-300">Live schedule — auto-updates every 30s</span>
+              <span className="text-xs text-[#8898c0]">Live schedule — auto-updates every 30s</span>
             )}
           </div>
         </div>
 
         {/* Last updated bar */}
         {lastUpdatedBy && (
-          <div className="max-w-7xl mx-auto px-4 pb-2 text-xs text-green-300">
-            Last saved by <strong className="text-green-200">{lastUpdatedBy}</strong>
+          <div className="max-w-7xl mx-auto px-4 pb-2 text-xs text-[#8898c0]">
+            Last saved by <strong className="text-[#b0c0e0]">{lastUpdatedBy}</strong>
             {timeSince && <> · {timeSince}</>}
           </div>
         )}
@@ -294,7 +294,7 @@ export default function Home() {
                   key={t.label}
                   onClick={() => setTab(i)}
                   className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    tab === i ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    tab === i ? 'border-[#cd163f] text-[#cd163f]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   {t.icon} {t.label}

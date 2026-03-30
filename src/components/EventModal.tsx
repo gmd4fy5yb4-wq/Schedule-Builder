@@ -200,11 +200,11 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             <div className="grid grid-cols-2 rounded-xl border overflow-hidden">
               <button
                 onClick={() => upd({ type: 'game', endTime: defaultEndTime(f.time, state.season.gameDurationMinutes || 90), teamId: '' })}
-                className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >⚾ Game</button>
               <button
                 onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '' })}
-                className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >🏃 Practice</button>
             </div>
           </div>
@@ -319,7 +319,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             <button
               onClick={save}
               disabled={!canSave()}
-              className="px-5 py-2 text-sm font-semibold bg-green-600 text-white rounded-xl hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2 text-sm font-semibold bg-[#cd163f] text-white rounded-xl hover:bg-[#00013a] transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {f.id ? 'Save Changes' : 'Add Event'}
             </button>

@@ -132,8 +132,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}</span>
           <div className="flex rounded border overflow-hidden text-sm">
-            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>📅 Calendar</button>
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>☰ List</button>
+            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>📅 Calendar</button>
+            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>☰ List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
             <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50">
@@ -173,7 +173,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             <button onClick={prevMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
             <h3 className="font-semibold text-gray-800 flex-1 text-center">{MONTHS[month]} {year}</h3>
             <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
-            <button onClick={goToday} className="text-xs text-green-700 hover:text-green-800 border border-green-300 rounded px-2 py-1 hover:bg-green-50 transition">Today</button>
+            <button onClick={goToday} className="text-xs text-[#cd163f] hover:text-[#a8102e] border border-[#cd163f] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
           </div>
 
           {/* Day-of-week headers */}
@@ -204,7 +204,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                 <div
                   key={day}
                   className={`min-h-[110px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
-                    isDragTarget ? 'bg-green-50 ring-2 ring-inset ring-green-400' :
+                    isDragTarget ? 'bg-[#f5f5fb] ring-2 ring-inset ring-green-400' :
                     isBlackout ? 'bg-red-50' : 'hover:bg-slate-50 transition-colors'
                   }`}
                   onDragOver={e => { e.preventDefault(); setDragOverDate(dateStr) }}
@@ -219,11 +219,11 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                   {/* Date number + add button */}
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
-                      isToday ? 'bg-green-600 text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
+                      isToday ? 'bg-[#cd163f] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
                     }`}>{day}</span>
                     {isBlackout
                       ? <span className="text-xs text-red-300 italic">closed</span>
-                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition text-base leading-none" title="Add event">+</button>
+                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[#cd163f] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
                     }
                   </div>
 
@@ -315,7 +315,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         <td className="px-3 py-2"><span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.pill}`}>{divMap.get(item.divisionId)?.name}</span></td>
                         <td className="px-3 py-2">
                           {item.type === 'game'
-                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">Game</span>
+                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-[#eeeef6] text-[#cd163f] font-medium">Game</span>
                             : <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">Practice</span>}
                         </td>
                         <td className="px-3 py-2 font-medium">

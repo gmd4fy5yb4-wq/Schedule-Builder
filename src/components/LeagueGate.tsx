@@ -48,14 +48,14 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-green-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#00013a] flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
 
         {/* Logo / title */}
         <div className="text-center">
           <div className="text-6xl mb-3">⚾</div>
           <h1 className="text-3xl font-bold text-white">Softball Scheduler</h1>
-          <p className="text-green-200 mt-1">Collaborative league scheduling</p>
+          <p className="text-[#b0c0e0] mt-1">Collaborative league scheduling</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -65,13 +65,13 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
             <div className="p-8 space-y-3">
               <button
                 onClick={() => { setMode('create'); setError('') }}
-                className="w-full bg-green-600 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-green-700 transition"
+                className="w-full bg-[#cd163f] text-white py-3.5 rounded-xl font-semibold text-base hover:bg-[#00013a] transition"
               >
                 Create New League
               </button>
               <button
                 onClick={() => { setMode('join'); setError('') }}
-                className="w-full border-2 border-green-600 text-green-700 py-3.5 rounded-xl font-semibold text-base hover:bg-green-50 transition"
+                className="w-full border-2 border-[#cd163f] text-[#cd163f] py-3.5 rounded-xl font-semibold text-base hover:bg-[#f5f5fb] transition"
               >
                 Join Existing League
               </button>
@@ -89,7 +89,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                 <input
                   autoFocus
-                  className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
                   placeholder="e.g. Coach Johnson"
                   value={name}
                   onChange={e => setName(e.target.value)}
@@ -100,7 +100,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               <button
                 onClick={handleCreate}
                 disabled={loading || !name.trim()}
-                className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#cd163f] text-white py-3 rounded-xl font-semibold hover:bg-[#00013a] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Creating league…' : 'Create League'}
               </button>
@@ -119,7 +119,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
                   <input
                     autoFocus
-                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
                     placeholder="e.g. Assistant Coach"
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -128,7 +128,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">League Code</label>
                   <input
-                    className="w-full border rounded-lg px-3 py-2.5 font-mono text-xl tracking-[0.3em] text-center uppercase focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full border rounded-lg px-3 py-2.5 font-mono text-xl tracking-[0.3em] text-center uppercase focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
                     placeholder="ABC123"
                     value={joinCode}
                     onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
@@ -141,7 +141,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               <button
                 onClick={handleJoin}
                 disabled={loading || !name.trim() || joinCode.length !== 6}
-                className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#cd163f] text-white py-3 rounded-xl font-semibold hover:bg-[#00013a] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Joining…' : 'Join League'}
               </button>

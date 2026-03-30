@@ -95,17 +95,17 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
               onClick={() => setSelectedFieldId(field.id)}
               className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition ${
                 isSelected
-                  ? 'bg-green-600 text-white border-green-700 font-semibold shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:bg-green-50'
+                  ? 'bg-[#cd163f] text-white border-[#00013a] font-semibold shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-[#cd163f] hover:bg-[#f5f5fb]'
               }`}
             >
               <div className="font-medium truncate">{field.name}</div>
               {field.location && (
-                <div className={`text-xs mt-0.5 truncate ${isSelected ? 'text-green-100' : 'text-gray-400'}`}>
+                <div className={`text-xs mt-0.5 truncate ${isSelected ? 'text-[#d0d8f0]' : 'text-gray-400'}`}>
                   📍 {field.location}
                 </div>
               )}
-              <div className={`text-xs mt-1 ${isSelected ? 'text-green-200' : 'text-gray-400'}`}>
+              <div className={`text-xs mt-1 ${isSelected ? 'text-[#b0c0e0]' : 'text-gray-400'}`}>
                 {count > 0 ? `${count} event${count !== 1 ? 's' : ''}` : 'No events yet'}
               </div>
             </button>
@@ -146,7 +146,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                 <button onClick={prevMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
                 <h3 className="font-semibold text-gray-800 flex-1 text-center">{MONTHS[month]} {year}</h3>
                 <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
-                <button onClick={goToday} className="text-xs text-green-700 hover:text-green-800 border border-green-300 rounded px-2 py-1 hover:bg-green-50 transition">Today</button>
+                <button onClick={goToday} className="text-xs text-[#cd163f] hover:text-[#a8102e] border border-[#cd163f] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
               </div>
 
               {/* Day-of-week headers */}
@@ -195,7 +195,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                       {/* Date number + indicators */}
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
-                          isToday ? 'bg-green-600 text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
+                          isToday ? 'bg-[#cd163f] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
                         }`}>{day}</span>
 
                         <div className="flex items-center gap-1">
@@ -206,7 +206,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                             ? <span className="text-xs text-red-300 italic">closed</span>
                             : !readOnly && <button
                                 onClick={() => openAdd(dateStr)}
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition text-base leading-none"
+                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[#cd163f] hover:bg-[#eeeef6] transition text-base leading-none"
                                 title="Add event at this field"
                               >+</button>
                           }

@@ -148,7 +148,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                 {!readOnly && (
                   <button
                     onClick={openAddForTeam}
-                    className="ml-auto bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+                    className="ml-auto bg-[#cd163f] hover:bg-[#00013a] text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
                   >
                     + Add Event
                   </button>
@@ -161,7 +161,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
               <div className="bg-white rounded-lg border p-12 text-center text-gray-400 italic">
                 No events scheduled for {selectedTeam?.name} yet.
                 <br />
-                <button onClick={openAddForTeam} className="mt-3 text-sm text-green-600 hover:text-green-700 font-medium underline underline-offset-2">
+                <button onClick={openAddForTeam} className="mt-3 text-sm text-[#cd163f] hover:text-[#cd163f] font-medium underline underline-offset-2">
                   Add their first event
                 </button>
               </div>
@@ -191,12 +191,12 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                         const opp = teamMap.get(oppId)
                         const umpire = g.umpireId ? umpireMap.get(g.umpireId) : null
                         return (
-                          <tr key={g.id} onClick={() => openEditEvent(g)} className="border-b last:border-0 hover:bg-green-50 transition-colors cursor-pointer">
+                          <tr key={g.id} onClick={() => openEditEvent(g)} className="border-b last:border-0 hover:bg-[#f5f5fb] transition-colors cursor-pointer">
                             <td className="px-4 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
                             <td className="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">{fmtDate(g.date)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap">{fmtTime(g.time)}</td>
                             <td className="px-4 py-2.5">
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-green-100 text-green-700">Game</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[#cd163f]">Game</span>
                             </td>
                             <td className="px-4 py-2.5 font-medium text-gray-800">{opp?.name ?? <span className="text-gray-400 italic">Unknown</span>}</td>
                             <td className="px-4 py-2.5">

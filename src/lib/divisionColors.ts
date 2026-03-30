@@ -6,7 +6,7 @@ const PALETTE = [
   { bg: 'bg-purple-50', text: 'text-purple-800', border: 'border-purple-200', pill: 'bg-purple-100 text-purple-700', header: 'bg-purple-600', accent: 'border-purple-400' },
   { bg: 'bg-amber-50',  text: 'text-amber-800',  border: 'border-amber-200',  pill: 'bg-amber-100 text-amber-700',  header: 'bg-amber-500',  accent: 'border-amber-400' },
   { bg: 'bg-red-50',    text: 'text-red-800',    border: 'border-red-200',    pill: 'bg-red-100 text-red-700',    header: 'bg-red-600',    accent: 'border-red-400' },
-  { bg: 'bg-green-50',  text: 'text-green-800',  border: 'border-green-200',  pill: 'bg-green-100 text-green-700',  header: 'bg-green-700',  accent: 'border-green-400' },
+  { bg: 'bg-[#f5f5fb]',  text: 'text-green-800',  border: 'border-[#eeeef6]',  pill: 'bg-[#eeeef6] text-[#cd163f]',  header: 'bg-[#00013a]',  accent: 'border-[#cd163f]' },
   { bg: 'bg-teal-50',   text: 'text-teal-800',   border: 'border-teal-200',   pill: 'bg-teal-100 text-teal-700',   header: 'bg-teal-600',   accent: 'border-teal-400' },
   { bg: 'bg-pink-50',   text: 'text-pink-800',   border: 'border-pink-200',   pill: 'bg-pink-100 text-pink-700',   header: 'bg-pink-600',   accent: 'border-pink-400' },
   { bg: 'bg-indigo-50', text: 'text-indigo-800', border: 'border-indigo-200', pill: 'bg-indigo-100 text-indigo-700', header: 'bg-indigo-600', accent: 'border-indigo-400' },
