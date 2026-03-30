@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx'
 import type { Division, Field, Umpire, ScheduledGame, ScheduledPractice } from './types'
 
 function fmtDate(s: string) {
@@ -17,92 +18,107 @@ function endTime(startTime: string, durationMinutes: number): string {
   return fmtTime(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
 }
 
-export async function exportToExcel(
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  // dispatchEvent is more reliable than .click() across browsers
+  a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+  // Delay revocation so the browser has time to start the download
+  setTimeout(() => {
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, 10000)
+}
+
+export function exportToExcel(
   divisions: Division[],
   fields: Field[],
   umpires: Umpire[],
   games: ScheduledGame[],
   practices: ScheduledPractice[]
 ) {
-  const XLSX = await import('xlsx')
+  try {
+    const divMap    = new Map(divisions.map(d => [d.id, d]))
+    const teamMap   = new Map(divisions.flatMap(d => d.teams).map(t => [t.id, t]))
+    const fieldMap  = new Map(fields.map(f => [f.id, f]))
+    const umpireMap = new Map(umpires.map(u => [u.id, u]))
 
-  const divMap = new Map(divisions.map(d => [d.id, d]))
-  const teamMap = new Map(divisions.flatMap(d => d.teams).map(t => [t.id, t]))
-  const fieldMap = new Map(fields.map(f => [f.id, f]))
-  const umpireMap = new Map(umpires.map(u => [u.id, u]))
+    const allItems = ([...games, ...practices] as (ScheduledGame | ScheduledPractice)[]).sort((a, b) => {
+      const dc = a.date.localeCompare(b.date)
+      return dc !== 0 ? dc : a.time.localeCompare(b.time)
+    })
 
-  const allItems = ([...games, ...practices] as (ScheduledGame | ScheduledPractice)[]).sort((a, b) => {
-    const dc = a.date.localeCompare(b.date)
-    return dc !== 0 ? dc : a.time.localeCompare(b.time)
-  })
+    const wb = XLSX.utils.book_new()
+    const HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Division', 'Type', 'Home / Team', 'Away', 'Field', 'Umpire']
 
-  const wb = XLSX.utils.book_new()
-
-  const HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Division', 'Type', 'Home / Team', 'Away', 'Field', 'Umpire']
-
-  function buildRow(item: ScheduledGame | ScheduledPractice): string[] {
-    const div = divMap.get(item.divisionId)?.name || ''
-    const field = fieldMap.get(item.fieldId)?.name || ''
-    const end = item.durationMinutes ? endTime(item.time, item.durationMinutes) : ''
-    if (item.type === 'game') {
-      const g = item as ScheduledGame
-      const umpire = g.umpireId ? (umpireMap.get(g.umpireId)?.name || '') : 'TBD'
-      return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Game',
-        teamMap.get(g.homeTeamId)?.name || '', teamMap.get(g.awayTeamId)?.name || '', field, umpire]
-    } else {
-      const p = item as ScheduledPractice
-      return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Practice',
-        teamMap.get(p.teamId)?.name || '', '', field, '']
+    function buildRow(item: ScheduledGame | ScheduledPractice): string[] {
+      const div   = divMap.get(item.divisionId)?.name || ''
+      const field = fieldMap.get(item.fieldId)?.name  || ''
+      const end   = item.durationMinutes ? endTime(item.time, item.durationMinutes) : ''
+      if (item.type === 'game') {
+        const g      = item as ScheduledGame
+        const umpire = g.umpireId ? (umpireMap.get(g.umpireId)?.name || '') : 'TBD'
+        return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Game',
+          teamMap.get(g.homeTeamId)?.name || '', teamMap.get(g.awayTeamId)?.name || '', field, umpire]
+      } else {
+        const p = item as ScheduledPractice
+        return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Practice',
+          teamMap.get(p.teamId)?.name || '', '', field, '']
+      }
     }
-  }
 
-  // Full schedule sheet
-  const ws1 = XLSX.utils.aoa_to_sheet([HEADERS, ...allItems.map(buildRow)])
-  XLSX.utils.book_append_sheet(wb, ws1, 'Full Schedule')
+    // Full schedule sheet
+    const ws1 = XLSX.utils.aoa_to_sheet([HEADERS, ...allItems.map(buildRow)])
+    XLSX.utils.book_append_sheet(wb, ws1, 'Full Schedule')
 
-  // Per-division sheets
-  for (const div of divisions) {
-    const rows = allItems.filter(i => i.divisionId === div.id).map(buildRow)
-    if (!rows.length) continue
-    const ws = XLSX.utils.aoa_to_sheet([[`${div.name} Schedule`], [], HEADERS, ...rows])
-    XLSX.utils.book_append_sheet(wb, ws, div.name)
-  }
-
-  // Per-team sheets
-  for (const div of divisions) {
-    for (const team of div.teams) {
-      const teamItems = allItems.filter(i =>
-        (i.type === 'game' && ((i as ScheduledGame).homeTeamId === team.id || (i as ScheduledGame).awayTeamId === team.id)) ||
-        (i.type === 'practice' && (i as ScheduledPractice).teamId === team.id)
-      )
-      if (!teamItems.length) continue
-      const rows = teamItems.map(item => {
-        const end = item.durationMinutes ? endTime(item.time, item.durationMinutes) : ''
-        if (item.type === 'game') {
-          const g = item as ScheduledGame
-          const isHome = g.homeTeamId === team.id
-          const opp = teamMap.get(isHome ? g.awayTeamId : g.homeTeamId)?.name || ''
-          const umpire = g.umpireId ? (umpireMap.get(g.umpireId)?.name || '') : 'TBD'
-          return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, 'Game', opp, isHome ? 'Home' : 'Away', fieldMap.get(item.fieldId)?.name || '', umpire]
-        } else {
-          return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, 'Practice', '', '', fieldMap.get(item.fieldId)?.name || '', '']
-        }
-      })
-      const ws = XLSX.utils.aoa_to_sheet([
-        [`${team.name} — ${div.name}`], [],
-        ['Date', 'Day', 'Start Time', 'End Time', 'Type', 'Opponent', 'Home/Away', 'Field', 'Umpire'],
-        ...rows
-      ])
-      XLSX.utils.book_append_sheet(wb, ws, team.name.substring(0, 31))
+    // Per-division sheets
+    for (const div of divisions) {
+      const rows = allItems.filter(i => i.divisionId === div.id).map(buildRow)
+      if (!rows.length) continue
+      const ws = XLSX.utils.aoa_to_sheet([[`${div.name} Schedule`], [], HEADERS, ...rows])
+      XLSX.utils.book_append_sheet(wb, ws, div.name)
     }
-  }
 
-  // Base64 data URI — works reliably in Safari, Chrome, and Firefox
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' })
-  const a = document.createElement('a')
-  a.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + buf
-  a.download = 'softball-schedule.xlsx'
-  document.body.appendChild(a)
-  a.click()
-  setTimeout(() => document.body.removeChild(a), 100)
+    // Per-team sheets
+    for (const div of divisions) {
+      for (const team of div.teams) {
+        const teamItems = allItems.filter(i =>
+          (i.type === 'game' && ((i as ScheduledGame).homeTeamId === team.id || (i as ScheduledGame).awayTeamId === team.id)) ||
+          (i.type === 'practice' && (i as ScheduledPractice).teamId === team.id)
+        )
+        if (!teamItems.length) continue
+        const rows = teamItems.map(item => {
+          const end = item.durationMinutes ? endTime(item.time, item.durationMinutes) : ''
+          if (item.type === 'game') {
+            const g      = item as ScheduledGame
+            const isHome = g.homeTeamId === team.id
+            const opp    = teamMap.get(isHome ? g.awayTeamId : g.homeTeamId)?.name || ''
+            const umpire = g.umpireId ? (umpireMap.get(g.umpireId)?.name || '') : 'TBD'
+            return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, 'Game', opp, isHome ? 'Home' : 'Away', fieldMap.get(item.fieldId)?.name || '', umpire]
+          } else {
+            return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, 'Practice', '', '', fieldMap.get(item.fieldId)?.name || '', '']
+          }
+        })
+        const ws = XLSX.utils.aoa_to_sheet([
+          [`${team.name} — ${div.name}`], [],
+          ['Date', 'Day', 'Start Time', 'End Time', 'Type', 'Opponent', 'Home/Away', 'Field', 'Umpire'],
+          ...rows
+        ])
+        XLSX.utils.book_append_sheet(wb, ws, team.name.substring(0, 31))
+      }
+    }
+
+    // Write to ArrayBuffer and download as blob (works in Chrome, Firefox, and Safari)
+    const buf  = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    triggerDownload(blob, 'softball-schedule.xlsx')
+
+  } catch (err) {
+    console.error('Export error:', err)
+    alert('Export failed: ' + String(err) + '\n\nCheck the browser console for details.')
+  }
 }

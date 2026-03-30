@@ -107,9 +107,9 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
     dragErrorTimer.current = setTimeout(() => setDragError(null), 4000)
   }
 
-  async function doExport() {
+  function doExport() {
     setExporting(true)
-    try { await exportToExcel(state.divisions, state.fields, state.umpires, state.schedule.games, state.schedule.practices) }
+    try { exportToExcel(state.divisions, state.fields, state.umpires, state.schedule.games, state.schedule.practices) }
     finally { setExporting(false) }
   }
 
