@@ -5,7 +5,7 @@ import { exportToExcel } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { type EventForm, emptyForm, formFromEvent, toMins, minsToTime, fmtTime } from './EventModal'
 
-interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
+interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; readOnly?: boolean }
 
 function fmtDateShort(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -14,7 +14,7 @@ function fmtDateShort(s: string) {
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAY_HEADERS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-export default function ScheduleTab({ state, setState }: Props) {
+export default function ScheduleTab({ state, setState, readOnly = false }: Props) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -59,6 +59,7 @@ export default function ScheduleTab({ state, setState }: Props) {
   }
 
   function openEdit(ev: ScheduledGame | ScheduledPractice) {
+    if (readOnly) return
     setModal({ open: true, initialForm: formFromEvent(ev) })
   }
 
@@ -134,12 +135,12 @@ export default function ScheduleTab({ state, setState }: Props) {
             <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>📅 Calendar</button>
             <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>☰ List</button>
           </div>
-          {(totalGames + totalPractices) > 0 && (
+          {(totalGames + totalPractices) > 0 && !readOnly && (
             <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50">
               {exporting ? 'Exporting…' : '⬇ Export Excel'}
             </button>
           )}
-          {(totalGames + totalPractices) > 0 && (
+          {(totalGames + totalPractices) > 0 && !readOnly && (
             clearConfirm ? (
               <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded px-2 py-1">
                 <span className="text-xs text-red-700 font-medium">Clear all events?</span>
@@ -222,7 +223,7 @@ export default function ScheduleTab({ state, setState }: Props) {
                     }`}>{day}</span>
                     {isBlackout
                       ? <span className="text-xs text-red-300 italic">closed</span>
-                      : <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition text-base leading-none" title="Add event">+</button>
+                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition text-base leading-none" title="Add event">+</button>
                     }
                   </div>
 

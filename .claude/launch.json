@@ -3,10 +3,10 @@
   "configurations": [
     {
       "name": "softball-scheduler",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "--port", "3001"],
       "cwd": "/Users/gregoryamundson/Desktop/CLAUDE/softball-scheduler",
-      "port": 3000
+      "port": 3001
     }
   ]
 }

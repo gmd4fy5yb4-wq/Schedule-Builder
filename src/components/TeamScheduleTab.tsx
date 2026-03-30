@@ -4,7 +4,7 @@ import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { emptyForm, formFromEvent, type EventForm } from './EventModal'
 
-interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
+interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; readOnly?: boolean }
 
 function fmtDate(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -15,7 +15,7 @@ function fmtTime(t: string) {
   return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
 
-export default function TeamScheduleTab({ state, setState }: Props) {
+export default function TeamScheduleTab({ state, setState, readOnly = false }: Props) {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
 
@@ -145,12 +145,14 @@ export default function TeamScheduleTab({ state, setState }: Props) {
                   <Stat label="Away" value={awayCount} />
                   <Stat label="Practices" value={practiceCount} />
                 </div>
-                <button
-                  onClick={openAddForTeam}
-                  className="ml-auto bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
-                >
-                  + Add Event
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={openAddForTeam}
+                    className="ml-auto bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+                  >
+                    + Add Event
+                  </button>
+                )}
               </div>
             </div>
 

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
 import { loadLeague, saveLeague } from '@/lib/sync'
 import SetupTab from '@/components/SetupTab'
@@ -59,14 +59,37 @@ export default function Home() {
   const [lastUpdatedBy, setLastUpdatedBy] = useState('')
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [codeCopied, setCodeCopied] = useState(false)
+  const [readOnly, setReadOnly] = useState(false)
+  const [roLinkCopied, setRoLinkCopied] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastSyncedRef = useRef('') // JSON of last confirmed-synced state
+  const lastSyncedRef = useRef('')
   const isSavingRef = useRef(false)
   const localUserRef = useRef('Unknown')
 
-  // On mount: check localStorage for saved league code
+  // On mount: check URL params for read-only share link, then localStorage
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlCode = params.get('code')?.toUpperCase()
+    const isReadOnly = params.get('view') === 'readonly'
+
+    if (urlCode) {
+      // Shared read-only link — load league without requiring login
+      setReadOnly(isReadOnly)
+      loadLeague(urlCode).then(result => {
+        if (result) {
+          const s = migrateState(result.data)
+          setState(s)
+          lastSyncedRef.current = JSON.stringify(s)
+          setLeagueCode(urlCode)
+          setLastUpdatedBy(result.updatedBy)
+          setLastUpdatedAt(result.updatedAt)
+        }
+        setHydrated(true)
+      })
+      return
+    }
+
     const code = localStorage.getItem('sb-league-code')
     const name = localStorage.getItem('sb-user-name')
     if (code && name) {
@@ -88,9 +111,9 @@ export default function Home() {
     }
   }, [])
 
-  // Auto-save on state change — debounced 800ms
+  // Auto-save on state change — debounced 800ms (skip in read-only mode)
   useEffect(() => {
-    if (!hydrated || !leagueCode) return
+    if (!hydrated || !leagueCode || readOnly) return
     const current = JSON.stringify(state)
     if (current === lastSyncedRef.current) return
 
@@ -129,9 +152,9 @@ export default function Home() {
         setLastUpdatedAt(result.updatedAt)
         setSyncStatus('synced')
       }
-    }, 5000)
+    }, readOnly ? 30000 : 5000)  // read-only viewers poll every 30s
     return () => clearInterval(poll)
-  }, [leagueCode, hydrated])
+  }, [leagueCode, hydrated, readOnly])
 
   function handleJoin(code: string, data: AppState, name: string) {
     localStorage.setItem('sb-league-code', code)
@@ -160,6 +183,14 @@ export default function Home() {
     setTimeout(() => setCodeCopied(false), 2000)
   }
 
+  function copyReadOnlyLink() {
+    if (!leagueCode) return
+    const url = `${window.location.origin}${window.location.pathname}?code=${leagueCode}&view=readonly`
+    navigator.clipboard.writeText(url)
+    setRoLinkCopied(true)
+    setTimeout(() => setRoLinkCopied(false), 2500)
+  }
+
   if (!hydrated) {
     return (
       <div className="min-h-screen bg-green-700 flex items-center justify-center">
@@ -186,33 +217,59 @@ export default function Home() {
           <h1 className="text-xl font-bold">⚾ {state.season.leagueName || 'Softball Scheduler'}</h1>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Read-only badge */}
+            {readOnly && (
+              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">
+                👁 View Only
+              </span>
+            )}
+
             {/* League code badge */}
             <div className="flex items-center gap-2 bg-green-800 rounded-lg px-3 py-1.5">
               <span className="text-green-300 text-xs font-medium">LEAGUE</span>
               <span className="font-mono font-bold tracking-widest">{leagueCode}</span>
-              <button onClick={copyCode} className="text-green-300 hover:text-white transition text-sm" title="Copy code">
-                {codeCopied ? '✓' : '📋'}
-              </button>
+              {!readOnly && (
+                <button onClick={copyCode} className="text-green-300 hover:text-white transition text-sm" title="Copy league code">
+                  {codeCopied ? '✓' : '📋'}
+                </button>
+              )}
             </div>
+
+            {/* Share read-only link (admins only) */}
+            {!readOnly && (
+              <button
+                onClick={copyReadOnlyLink}
+                className="text-xs bg-green-800 hover:bg-green-900 text-green-200 hover:text-white border border-green-600 rounded-lg px-3 py-1.5 transition"
+                title="Copy a view-only link for coaches/parents"
+              >
+                {roLinkCopied ? '✓ Copied!' : '🔗 Share View-Only Link'}
+              </button>
+            )}
 
             {/* Sync status */}
-            <div className="text-xs">
-              {syncStatus === 'saving' && <span className="text-green-200 animate-pulse">💾 Saving…</span>}
-              {syncStatus === 'synced' && <span className="text-green-300">✓ Synced</span>}
-              {syncStatus === 'error' && <span className="text-red-300">⚠ Save failed — check connection</span>}
-            </div>
+            {!readOnly && (
+              <div className="text-xs">
+                {syncStatus === 'saving' && <span className="text-green-200 animate-pulse">💾 Saving…</span>}
+                {syncStatus === 'synced' && <span className="text-green-300">✓ Synced</span>}
+                {syncStatus === 'error' && <span className="text-red-300">⚠ Save failed — check connection</span>}
+              </div>
+            )}
 
             {/* User name + leave */}
-            <div className="flex items-center gap-2 text-sm text-green-200">
-              <span>👤 {userName}</span>
-              <button
-                onClick={handleLeave}
-                className="text-green-400 hover:text-white transition text-xs border border-green-600 hover:border-green-400 rounded px-2 py-0.5"
-                title="Leave this league"
-              >
-                Leave
-              </button>
-            </div>
+            {!readOnly ? (
+              <div className="flex items-center gap-2 text-sm text-green-200">
+                <span>👤 {userName}</span>
+                <button
+                  onClick={handleLeave}
+                  className="text-green-400 hover:text-white transition text-xs border border-green-600 hover:border-green-400 rounded px-2 py-0.5"
+                  title="Leave this league"
+                >
+                  Leave
+                </button>
+              </div>
+            ) : (
+              <span className="text-xs text-green-300">Live schedule — auto-updates every 30s</span>
+            )}
           </div>
         </div>
 
@@ -225,21 +282,25 @@ export default function Home() {
         )}
       </header>
 
-      {/* Tab nav */}
+      {/* Tab nav — hide setup/admin tabs in read-only mode */}
       <div className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
-            {TABS.map((t, i) => (
-              <button
-                key={t.label}
-                onClick={() => setTab(i)}
-                className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  tab === i ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {t.icon} {t.label}
-              </button>
-            ))}
+            {TABS.map((t, i) => {
+              // Hide setup/admin tabs for read-only viewers
+              if (readOnly && i < 4) return null
+              return (
+                <button
+                  key={t.label}
+                  onClick={() => setTab(i)}
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    tab === i ? 'border-green-600 text-green-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {t.icon} {t.label}
+                </button>
+              )
+            })}
           </nav>
         </div>
       </div>
@@ -249,9 +310,9 @@ export default function Home() {
         {tab === 1 && <DivisionsTab state={state} setState={setState} />}
         {tab === 2 && <FieldsTab state={state} setState={setState} />}
         {tab === 3 && <UmpiresTab state={state} setState={setState} />}
-        {tab === 4 && <ScheduleTab state={state} setState={setState} />}
-        {tab === 5 && <TeamScheduleTab state={state} setState={setState} />}
-        {tab === 6 && <FieldCalendarTab state={state} setState={setState} />}
+        {tab === 4 && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
+        {tab === 5 && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
+        {tab === 6 && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
       </main>
     </div>
   )

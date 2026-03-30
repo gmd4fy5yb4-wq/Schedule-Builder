@@ -4,12 +4,12 @@ import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { emptyForm, formFromEvent, type EventForm, toMins, minsToTime, fmtTime } from './EventModal'
 
-interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
+interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; readOnly?: boolean }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAY_HEADERS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-export default function FieldCalendarTab({ state, setState }: Props) {
+export default function FieldCalendarTab({ state, setState, readOnly = false }: Props) {
   const today = new Date()
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [year, setYear] = useState(today.getFullYear())
@@ -60,6 +60,7 @@ export default function FieldCalendarTab({ state, setState }: Props) {
   }
 
   function openEdit(ev: ScheduledGame | ScheduledPractice) {
+    if (readOnly) return
     setModal({ open: true, initialForm: formFromEvent(ev) })
   }
 
@@ -203,7 +204,7 @@ export default function FieldCalendarTab({ state, setState }: Props) {
                           )}
                           {isBlackout
                             ? <span className="text-xs text-red-300 italic">closed</span>
-                            : <button
+                            : !readOnly && <button
                                 onClick={() => openAdd(dateStr)}
                                 className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition text-base leading-none"
                                 title="Add event at this field"
