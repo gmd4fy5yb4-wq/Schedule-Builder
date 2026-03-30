@@ -71,16 +71,28 @@ export function exportToExcel(
       }
     }
 
+    // Sanitize sheet names — Excel forbids : \ / ? * [ ] and limits to 31 chars
+    const usedSheetNames = new Set<string>()
+    function sheetName(raw: string): string {
+      let name = raw.replace(/[:\\/?\*\[\]]/g, '-').substring(0, 31).trim()
+      if (!name) name = 'Sheet'
+      let unique = name
+      let i = 2
+      while (usedSheetNames.has(unique)) unique = name.substring(0, 28) + ` ${i++}`
+      usedSheetNames.add(unique)
+      return unique
+    }
+
     // Full schedule sheet
     const ws1 = XLSX.utils.aoa_to_sheet([HEADERS, ...allItems.map(buildRow)])
-    XLSX.utils.book_append_sheet(wb, ws1, 'Full Schedule')
+    XLSX.utils.book_append_sheet(wb, ws1, sheetName('Full Schedule'))
 
     // Per-division sheets
     for (const div of divisions) {
       const rows = allItems.filter(i => i.divisionId === div.id).map(buildRow)
       if (!rows.length) continue
       const ws = XLSX.utils.aoa_to_sheet([[`${div.name} Schedule`], [], HEADERS, ...rows])
-      XLSX.utils.book_append_sheet(wb, ws, div.name)
+      XLSX.utils.book_append_sheet(wb, ws, sheetName(div.name))
     }
 
     // Per-team sheets
@@ -108,7 +120,7 @@ export function exportToExcel(
           ['Date', 'Day', 'Start Time', 'End Time', 'Type', 'Opponent', 'Home/Away', 'Field', 'Umpire'],
           ...rows
         ])
-        XLSX.utils.book_append_sheet(wb, ws, team.name.substring(0, 31))
+        XLSX.utils.book_append_sheet(wb, ws, sheetName(team.name))
       }
     }
 
