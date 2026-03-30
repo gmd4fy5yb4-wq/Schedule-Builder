@@ -8,6 +8,7 @@ import FieldsTab from '@/components/FieldsTab'
 import UmpiresTab from '@/components/UmpiresTab'
 import ScheduleTab from '@/components/ScheduleTab'
 import TeamScheduleTab from '@/components/TeamScheduleTab'
+import FieldCalendarTab from '@/components/FieldCalendarTab'
 import LeagueGate from '@/components/LeagueGate'
 
 const DEFAULT: AppState = {
@@ -43,6 +44,7 @@ const TABS = [
   { label: 'Umpires', icon: '👮' },
   { label: 'Schedule', icon: '📅' },
   { label: 'Team Schedules', icon: '🏅' },
+  { label: 'Field Calendar', icon: '🏟️' },
 ]
 
 type SyncStatus = 'synced' | 'saving' | 'error'
@@ -249,6 +251,7 @@ export default function Home() {
         {tab === 3 && <UmpiresTab state={state} setState={setState} />}
         {tab === 4 && <ScheduleTab state={state} setState={setState} />}
         {tab === 5 && <TeamScheduleTab state={state} setState={setState} />}
+        {tab === 6 && <FieldCalendarTab state={state} setState={setState} />}
       </main>
     </div>
   )
