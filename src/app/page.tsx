@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
-import { loadLeague, saveLeague } from '@/lib/sync'
+import { loadLeague, saveLeague, saveSnapshot } from '@/lib/sync'
+import SnapshotModal from '@/components/SnapshotModal'
 import SetupTab from '@/components/SetupTab'
 import DivisionsTab from '@/components/DivisionsTab'
 import FieldsTab from '@/components/FieldsTab'
@@ -61,11 +62,18 @@ export default function Home() {
   const [codeCopied, setCodeCopied] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
   const [roLinkCopied, setRoLinkCopied] = useState(false)
+  const [showSnapshots, setShowSnapshots] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
   const isSavingRef = useRef(false)
   const localUserRef = useRef('Unknown')
+
+  // ── Undo stack ────────────────────────────────────────────────────
+  const undoStackRef = useRef<AppState[]>([])
+  const isUndoingRef = useRef(false)
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [canUndo, setCanUndo] = useState(false)
 
   // On mount: check URL params for read-only share link, then localStorage
   useEffect(() => {
@@ -110,6 +118,21 @@ export default function Home() {
       setHydrated(true)
     }
   }, [])
+
+  // Push to undo stack on state change (debounced 1s, skipped during undo)
+  useEffect(() => {
+    if (!hydrated || isUndoingRef.current) return
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
+    undoTimerRef.current = setTimeout(() => {
+      const current = JSON.stringify(state)
+      const last = undoStackRef.current[undoStackRef.current.length - 1]
+      if (last && JSON.stringify(last) === current) return  // no change
+      undoStackRef.current = [...undoStackRef.current.slice(-19), state]
+      setCanUndo(undoStackRef.current.length > 1)
+    }, 1000)
+    return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, hydrated])
 
   // Auto-save on state change — debounced 800ms (skip in read-only mode)
   useEffect(() => {
@@ -183,6 +206,27 @@ export default function Home() {
     setTimeout(() => setCodeCopied(false), 2000)
   }
 
+  function handleUndo() {
+    const stack = undoStackRef.current
+    if (stack.length < 2) return
+    const prev = stack[stack.length - 2]
+    undoStackRef.current = stack.slice(0, -1)
+    setCanUndo(undoStackRef.current.length > 1)
+    isUndoingRef.current = true
+    setState(prev)
+    setTimeout(() => { isUndoingRef.current = false }, 100)
+  }
+
+  function handleRestore(restoredState: AppState, snapshotName: string) {
+    // Push current state to undo stack before restoring
+    undoStackRef.current = [...undoStackRef.current.slice(-19), state]
+    setCanUndo(true)
+    isUndoingRef.current = true
+    setState(migrateState({ ...restoredState }))
+    setTimeout(() => { isUndoingRef.current = false }, 100)
+    void saveSnapshot(leagueCode!, `[Auto] Before restoring "${snapshotName}"`, state, localUserRef.current)
+  }
+
   function copyReadOnlyLink() {
     if (!leagueCode) return
     const url = `${window.location.origin}${window.location.pathname}?code=${leagueCode}&view=readonly`
@@ -234,6 +278,29 @@ export default function Home() {
                 </button>
               )}
             </div>
+
+            {/* Undo button */}
+            {!readOnly && (
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#8898c0] rounded-lg px-3 py-1.5 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Undo last change"
+              >
+                ↩ Undo
+              </button>
+            )}
+
+            {/* Snapshots button */}
+            {!readOnly && (
+              <button
+                onClick={() => setShowSnapshots(true)}
+                className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#8898c0] rounded-lg px-3 py-1.5 transition"
+                title="Save or restore a schedule snapshot"
+              >
+                📸 Snapshots
+              </button>
+            )}
 
             {/* Share read-only link (admins only) */}
             {!readOnly && (
@@ -314,6 +381,16 @@ export default function Home() {
         {tab === 5 && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
         {tab === 6 && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
       </main>
+
+      {showSnapshots && leagueCode && (
+        <SnapshotModal
+          leagueCode={leagueCode}
+          userName={userName}
+          currentState={state}
+          onRestore={handleRestore}
+          onClose={() => setShowSnapshots(false)}
+        />
+      )}
     </div>
   )
 }
