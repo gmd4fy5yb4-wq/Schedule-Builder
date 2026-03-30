@@ -11,6 +11,8 @@ export interface Team {
   name: string
   divisionId: string
   blackoutDates?: string[]  // "YYYY-MM-DD" or "YYYY-MM-DD::Label"
+  homeFieldId?: string
+  preferredDays?: number[]  // coach preferred days, 0-6
 }
 
 export interface Division {
@@ -18,13 +20,16 @@ export interface Division {
   name: string
   teams: Team[]
   gamesPerTeam: number
+  gameDays?: number[]          // 0=Sun through 6=Sat
+  preferredStartTime?: string  // "HH:MM"
 }
 
 export interface Field {
   id: string
   name: string
   location: string
-  // Fields are open 8 AM – 7 PM every day; no slot configuration needed.
+  blackoutDates?: string[]  // "YYYY-MM-DD" or "YYYY-MM-DD::Label"
+  // Fields are open 8 AM – 8 PM every day; no slot configuration needed.
 }
 
 export interface Umpire {
@@ -60,6 +65,17 @@ export interface ScheduledPractice {
 
 export type ScheduledItem = ScheduledGame | ScheduledPractice
 
+export interface ScheduleConflict {
+  id: string
+  divisionId: string
+  homeTeamId: string
+  awayTeamId: string
+  reason: string
+  details: string[]
+  suggestions: string[]
+  resolution: 'pending' | 'skipped' | 'deferred' | 'resolved'
+}
+
 export interface AppState {
   season: SeasonConfig
   blackoutDates: string[]   // YYYY-MM-DD
@@ -72,4 +88,6 @@ export interface AppState {
     generatedAt: string | null
     warnings: string[]
   }
+  autoScheduleConflicts?: ScheduleConflict[]
+  autoSchedulePreview?: ScheduledGame[] | null
 }

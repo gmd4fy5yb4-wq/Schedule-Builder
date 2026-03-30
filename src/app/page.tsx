@@ -10,6 +10,7 @@ import UmpiresTab from '@/components/UmpiresTab'
 import ScheduleTab from '@/components/ScheduleTab'
 import TeamScheduleTab from '@/components/TeamScheduleTab'
 import FieldCalendarTab from '@/components/FieldCalendarTab'
+import AutoScheduleTab from '@/components/AutoScheduleTab'
 import LeagueGate from '@/components/LeagueGate'
 
 const DEFAULT: AppState = {
@@ -32,9 +33,12 @@ function migrateState(s: AppState): AppState {
     s.schedule.practices = (s.schedule.practices ?? []).map(p => ({ ...p, durationMinutes: p.durationMinutes ?? 90 }))
   }
   s.blackoutDates = s.blackoutDates ?? []
-  // Strip legacy time slots from fields (fields are now open 8 AM–7 PM daily)
+  // Strip legacy time slots from fields (fields are now open 8 AM–8 PM daily), preserve blackoutDates
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  s.fields = (s.fields ?? []).map((f: any) => ({ id: f.id, name: f.name, location: f.location ?? '' }))
+  s.fields = (s.fields ?? []).map((f: any) => ({ id: f.id, name: f.name, location: f.location ?? '', blackoutDates: f.blackoutDates ?? undefined }))
+  // Auto-schedule state
+  s.autoScheduleConflicts = s.autoScheduleConflicts ?? undefined
+  s.autoSchedulePreview = s.autoSchedulePreview ?? undefined
   return s
 }
 
@@ -46,6 +50,7 @@ const TABS = [
   { label: 'Schedule', icon: '📅' },
   { label: 'Team Schedules', icon: '🏅' },
   { label: 'Field Calendar', icon: '🏟️' },
+  { label: 'Auto-Schedule', icon: '🤖' },
 ]
 
 type SyncStatus = 'synced' | 'saving' | 'error'
@@ -380,6 +385,7 @@ export default function Home() {
         {tab === 4 && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
         {tab === 5 && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
         {tab === 6 && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
+        {tab === 7 && <AutoScheduleTab state={state} setState={setState} />}
       </main>
 
       {showSnapshots && leagueCode && (
