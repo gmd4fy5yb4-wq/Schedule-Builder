@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo, useRef } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
-import { exportToExcel } from '@/lib/export'
+import { exportToExcel, exportToCSV } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { type EventForm, emptyForm, formFromEvent, toMins, minsToTime, fmtTime } from './EventModal'
 
@@ -23,6 +23,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const [filterDiv, setFilterDiv] = useState('all')
   const [filterType, setFilterType] = useState<'all' | 'game' | 'practice'>('all')
   const [exporting, setExporting] = useState(false)
+  const [exportingCsv, setExportingCsv] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
@@ -113,6 +114,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
     finally { setExporting(false) }
   }
 
+  function doExportCSV() {
+    setExportingCsv(true)
+    try { exportToCSV(state.season, state.divisions, state.fields, state.schedule.games) }
+    finally { setExportingCsv(false) }
+  }
+
   // List view
   const allItems = useMemo(() => {
     return ([...state.schedule.games, ...state.schedule.practices] as (ScheduledGame | ScheduledPractice)[])
@@ -138,6 +145,11 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           {(totalGames + totalPractices) > 0 && !readOnly && (
             <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50">
               {exporting ? 'Exporting…' : '⬇ Export Excel'}
+            </button>
+          )}
+          {totalGames > 0 && !readOnly && (
+            <button onClick={doExportCSV} disabled={exportingCsv} className="bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700 transition disabled:opacity-50">
+              {exportingCsv ? 'Exporting…' : '⬇ Export CSV'}
             </button>
           )}
           {(totalGames + totalPractices) > 0 && !readOnly && (
