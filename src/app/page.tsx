@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
-import { loadLeague, saveLeague, saveSnapshot } from '@/lib/sync'
+import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
 import SnapshotModal from '@/components/SnapshotModal'
 import SetupTab from '@/components/SetupTab'
 import DivisionsTab from '@/components/DivisionsTab'
@@ -83,12 +83,28 @@ export default function Home() {
   // On mount: check URL params for read-only share link, then localStorage
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const viewToken = params.get('token')
     const urlCode = params.get('code')?.toUpperCase()
     const isReadOnly = params.get('view') === 'readonly'
 
+    if (viewToken && isReadOnly) {
+      // Token-based read-only share link — never exposes the admin code
+      setReadOnly(true)
+      loadLeagueByViewToken(viewToken).then(result => {
+        if (result) {
+          const s = migrateState(result.data)
+          setState(s)
+          lastSyncedRef.current = JSON.stringify(s)
+          setLastUpdatedBy(result.updatedBy)
+          setLastUpdatedAt(result.updatedAt)
+        }
+        setHydrated(true)
+      })
+      return
+    }
+
     if (urlCode) {
-      // Shared read-only link — load league without requiring login
-      setReadOnly(isReadOnly)
+      // Legacy: code in URL — load as admin (no read-only via code anymore)
       loadLeague(urlCode).then(result => {
         if (result) {
           const s = migrateState(result.data)
@@ -232,9 +248,11 @@ export default function Home() {
     void saveSnapshot(leagueCode!, `[Auto] Before restoring "${snapshotName}"`, state, localUserRef.current)
   }
 
-  function copyReadOnlyLink() {
+  async function copyReadOnlyLink() {
     if (!leagueCode) return
-    const url = `${window.location.origin}${window.location.pathname}?code=${leagueCode}&view=readonly`
+    const token = await getOrCreateViewToken(leagueCode)
+    if (!token) { alert('Could not generate share link — check your connection.'); return }
+    const url = `${window.location.origin}${window.location.pathname}?token=${token}&view=readonly`
     navigator.clipboard.writeText(url)
     setRoLinkCopied(true)
     setTimeout(() => setRoLinkCopied(false), 2500)
