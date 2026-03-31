@@ -302,7 +302,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-800" style={{ fontFamily: 'Oswald, sans-serif' }}>
-          🤖 Auto-Schedule
+          Auto-Schedule
         </h2>
         <span className="text-sm text-gray-500">
           {state.divisions.length} division{state.divisions.length !== 1 ? 's' : ''} ·{' '}
@@ -313,7 +313,6 @@ export default function AutoScheduleTab({ state, setState }: Props) {
       {/* ── HOW THIS WORKS + WARNINGS ────────────────────────────── */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
         <div className="flex items-start gap-2">
-          <span className="text-blue-500 text-lg mt-0.5 flex-shrink-0">ℹ️</span>
           <div>
             <p className="font-semibold text-blue-800 text-sm" style={{ fontFamily: 'Oswald, sans-serif' }}>
               How Auto-Schedule Works
@@ -329,14 +328,12 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
         <div className="border-t border-blue-200 pt-3 space-y-2">
           <div className="flex items-start gap-2">
-            <span className="text-yellow-500 text-base flex-shrink-0">⚠️</span>
             <p className="text-sm text-yellow-800">
               <strong>Replace mode is permanent</strong> — it wipes all existing games and practices and cannot be undone from this screen.
-              Use the <strong>📸 Snapshots</strong> button in the header to save your current schedule before generating if you want a safety net.
+              Use the <strong>Snapshots</strong> button in the header to save your current schedule before generating if you want a safety net.
             </p>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-yellow-500 text-base flex-shrink-0">⚠️</span>
             <p className="text-sm text-yellow-800">
               <strong>Append mode adds games on top of your existing schedule.</strong>{' '}
               If you&apos;ve already run Auto-Schedule once, appending again will duplicate matchups.
@@ -344,7 +341,6 @@ export default function AutoScheduleTab({ state, setState }: Props) {
             </p>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-blue-400 text-base flex-shrink-0">💡</span>
             <p className="text-sm text-blue-700">
               The scheduler respects league-wide blackout dates, field blackout dates, and team blackout dates
               that you&apos;ve entered in the other tabs. Set those up <strong>before</strong> generating.
@@ -569,7 +565,6 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
         {hasExistingGames && (
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 text-sm text-amber-800">
-            <span className="flex-shrink-0 mt-0.5">⚠</span>
             <span>
               Your schedule already has <strong>{state.schedule.games.length} game{state.schedule.games.length !== 1 ? 's' : ''}</strong>.
               This will generate a <strong>preview</strong> — your current schedule won&apos;t change until you commit.
@@ -580,14 +575,12 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
         {(!state.season.startDate || !state.season.endDate) && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-800">
-            <span className="flex-shrink-0 mt-0.5">✗</span>
             <span>Set a season start and end date in the <strong>Setup</strong> tab before generating.</span>
           </div>
         )}
 
         {state.fields.length === 0 && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-800">
-            <span className="flex-shrink-0 mt-0.5">✗</span>
             <span>Add at least one field in the <strong>Fields</strong> tab before generating.</span>
           </div>
         )}
@@ -604,7 +597,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
               Generating…
             </>
           ) : (
-            <>🤖 Generate Schedule</>
+            <>Generate Schedule</>
           )}
         </button>
 
@@ -667,7 +660,6 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-red-400 text-xl flex-shrink-0">⚠</span>
                   <div>
                     <p className="font-semibold text-red-800 text-sm">
                       {getTeamName(currentConflict.homeTeamId)} vs {getTeamName(currentConflict.awayTeamId)}
@@ -703,19 +695,19 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                   onClick={() => resolveConflict(currentConflict.id, 'skipped')}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition"
                 >
-                  ⏭ Skip this game
+                  Skip this game
                 </button>
                 <button
                   onClick={() => resolveConflict(currentConflict.id, 'deferred')}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-300 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
                 >
-                  📅 Schedule manually
+                  Schedule manually
                 </button>
                 <button
                   onClick={() => tryRelaxedConstraints(currentConflict)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#00013a] text-sm text-[#00013a] bg-[#f5f5fb] hover:bg-[#eeeef6] transition"
                 >
-                  ↩ Try relaxed constraints
+                  Try relaxed constraints
                 </button>
               </div>
               <p className="text-xs text-gray-400 mt-2">
@@ -871,17 +863,17 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                       Add {preview.length} game{preview.length !== 1 ? 's' : ''} to your existing schedule?
                     </span>
                     <button onClick={() => commitPreview('append')} className="bg-[#cd163f] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition">
-                      ✓ Yes, Append
+                      Yes, Append
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
                   </>
                 ) : commitMode === 'replace' ? (
                   <>
                     <span className="text-sm font-medium text-red-700">
-                      ⚠️ Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? Save a snapshot first if you want a backup!
+                      Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? Save a snapshot first if you want a backup!
                     </span>
                     <button onClick={() => commitPreview('replace')} className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
-                      ✓ Yes, Replace Everything
+                      Yes, Replace Everything
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
                   </>
@@ -891,19 +883,19 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                       onClick={() => setCommitMode('append')}
                       className="bg-[#cd163f] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition"
                     >
-                      ➕ Append to Existing Schedule
+                      Append to Existing Schedule
                     </button>
                     <button
                       onClick={() => setCommitMode('replace')}
                       className="bg-white border-2 border-red-400 text-red-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
                     >
-                      🗑 Replace Existing Schedule
+                      Replace Existing Schedule
                     </button>
                     <button
                       onClick={discardPreview}
                       className="border border-gray-300 text-gray-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
                     >
-                      ✗ Discard Preview
+                      Discard Preview
                     </button>
                   </>
                 )}
@@ -916,7 +908,6 @@ export default function AutoScheduleTab({ state, setState }: Props) {
       {/* Empty state */}
       {preview === null && conflicts.length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          <p className="text-5xl mb-3">🤖</p>
           <p className="font-medium text-gray-600">Ready to auto-schedule</p>
           <p className="text-sm mt-1">Configure parameters above, then click &ldquo;Generate Schedule&rdquo;.</p>
         </div>

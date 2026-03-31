@@ -53,7 +53,6 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
 
         {/* Logo / title */}
         <div className="text-center">
-          <div className="text-6xl mb-3">⚾</div>
           <h1 className="text-3xl font-bold text-white">Softball Scheduler</h1>
           <p className="text-[#b0c0e0] mt-1">Collaborative league scheduling</p>
         </div>
@@ -82,7 +81,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
           {mode === 'create' && (
             <div className="p-8 space-y-5">
               <button onClick={() => { setMode('choose'); setError('') }} className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1">
-                ← Back
+                Back
               </button>
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Create a new league</h2>
@@ -111,7 +110,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
           {mode === 'join' && (
             <div className="p-8 space-y-5">
               <button onClick={() => { setMode('choose'); setError('') }} className="text-sm text-gray-400 hover:text-gray-600">
-                ← Back
+                Back
               </button>
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-gray-800">Join an existing league</h2>

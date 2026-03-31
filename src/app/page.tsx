@@ -244,7 +244,6 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-[#00013a] flex items-center justify-center">
         <div className="text-white text-center">
-          <div className="text-5xl mb-4">⚾</div>
           <p className="text-[#b0c0e0]">Loading…</p>
         </div>
       </div>
@@ -263,13 +262,13 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-[#00013a] text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <h1 className="text-xl font-bold">⚾ {state.season.leagueName || 'Softball Scheduler'}</h1>
+          <h1 className="text-xl font-bold">{state.season.leagueName || 'Softball Scheduler'}</h1>
 
           <div className="flex items-center gap-3 flex-wrap">
             {/* Read-only badge */}
             {readOnly && (
               <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">
-                👁 View Only
+                View Only
               </span>
             )}
 
@@ -279,7 +278,7 @@ export default function Home() {
                 <span className="text-[#8898c0] text-xs font-medium">LEAGUE</span>
                 <span className="font-mono font-bold tracking-widest">{leagueCode}</span>
                 <button onClick={copyCode} className="text-[#8898c0] hover:text-white transition text-sm" title="Copy league code">
-                  {codeCopied ? '✓' : '📋'}
+                  {codeCopied ? 'Copied' : 'Copy'}
                 </button>
               </div>
             )}
@@ -292,7 +291,7 @@ export default function Home() {
                 className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#8898c0] rounded-lg px-3 py-1.5 transition disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Undo last change"
               >
-                ↩ Undo
+                Undo
               </button>
             )}
 
@@ -303,7 +302,7 @@ export default function Home() {
                 className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#8898c0] rounded-lg px-3 py-1.5 transition"
                 title="Save or restore a schedule snapshot"
               >
-                📸 Snapshots
+                Snapshots
               </button>
             )}
 
@@ -314,23 +313,23 @@ export default function Home() {
                 className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#cd163f] rounded-lg px-3 py-1.5 transition"
                 title="Copy a view-only link for coaches/parents"
               >
-                {roLinkCopied ? '✓ Copied!' : '🔗 Share View-Only Link'}
+                {roLinkCopied ? 'Copied!' : 'Share View-Only Link'}
               </button>
             )}
 
             {/* Sync status */}
             {!readOnly && (
               <div className="text-xs">
-                {syncStatus === 'saving' && <span className="text-[#b0c0e0] animate-pulse">💾 Saving…</span>}
-                {syncStatus === 'synced' && <span className="text-[#8898c0]">✓ Synced</span>}
-                {syncStatus === 'error' && <span className="text-red-300">⚠ Save failed — check connection</span>}
+                {syncStatus === 'saving' && <span className="text-[#b0c0e0] animate-pulse">Saving…</span>}
+                {syncStatus === 'synced' && <span className="text-[#8898c0]">Synced</span>}
+                {syncStatus === 'error' && <span className="text-red-300">Save failed — check connection</span>}
               </div>
             )}
 
             {/* User name + leave */}
             {!readOnly ? (
               <div className="flex items-center gap-2 text-sm text-[#b0c0e0]">
-                <span>👤 {userName}</span>
+                <span>{userName}</span>
                 <button
                   onClick={handleLeave}
                   className="text-[#cd163f] hover:text-white transition text-xs border border-[#cd163f] hover:border-[#cd163f] rounded px-2 py-0.5"

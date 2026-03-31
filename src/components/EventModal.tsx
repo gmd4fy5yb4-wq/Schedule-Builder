@@ -201,11 +201,11 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
               <button
                 onClick={() => upd({ type: 'game', endTime: defaultEndTime(f.time, state.season.gameDurationMinutes || 90), teamId: '' })}
                 className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-              >⚾ Game</button>
+              >Game</button>
               <button
                 onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '' })}
                 className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-              >🏃 Practice</button>
+              >Practice</button>
             </div>
           </div>
 
@@ -287,7 +287,6 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                   : c.kind === 'teamblackout' ? 'bg-orange-50 border-orange-200 text-orange-700'
                   : 'bg-yellow-50 border-yellow-200 text-yellow-700'
                 }`}>
-                  <span className="mt-0.5 flex-shrink-0">{c.kind === 'field' || c.kind === 'hours' ? '🚫' : '⚠️'}</span>
                   <span>
                     <span className="font-semibold">
                       {c.kind === 'field' ? 'Field conflict — ' : c.kind === 'hours' ? 'Outside hours — ' : c.kind === 'team' ? 'Team conflict — ' : c.kind === 'teamblackout' ? 'Team blackout — ' : 'Umpire conflict — '}

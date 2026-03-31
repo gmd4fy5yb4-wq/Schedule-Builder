@@ -116,7 +116,6 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
       <div className="flex-1 min-w-0">
         {!selectedTeamId ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-24 text-gray-400">
-            <span className="text-5xl mb-4">👈</span>
             <p className="text-lg font-medium text-gray-500">Select a team</p>
             <p className="text-sm mt-1">Click any team name to see their full schedule</p>
           </div>

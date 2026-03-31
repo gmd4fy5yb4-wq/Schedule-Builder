@@ -90,7 +90,7 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
               disabled={!newName.trim() || saving}
               className="bg-[#cd163f] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
             >
-              {saving ? 'Saving…' : '💾 Save'}
+              {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
           <p className="text-xs text-gray-400 mt-1.5">
@@ -107,7 +107,6 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
             </div>
           ) : snapshots.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400 text-center">
-              <span className="text-4xl mb-3">📸</span>
               <p className="font-medium">No snapshots yet</p>
               <p className="text-sm mt-1">Save your first snapshot above to protect your work.</p>
             </div>
@@ -141,7 +140,7 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
                           onClick={() => setRestoreConfirm(snap.id)}
                           className="text-xs border border-[#cd163f] text-[#cd163f] hover:bg-[#cd163f] hover:text-white px-3 py-1.5 rounded-lg transition font-medium"
                         >
-                          ↩ Restore
+                          Restore
                         </button>
                       )}
 

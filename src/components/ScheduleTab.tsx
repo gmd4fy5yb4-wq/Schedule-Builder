@@ -139,17 +139,17 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}</span>
           <div className="flex rounded border overflow-hidden text-sm">
-            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>📅 Calendar</button>
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>☰ List</button>
+            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
+            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
             <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50">
-              {exporting ? 'Exporting…' : '⬇ Export Excel'}
+              {exporting ? 'Exporting…' : 'Export Excel'}
             </button>
           )}
           {totalGames > 0 && !readOnly && (
             <button onClick={doExportCSV} disabled={exportingCsv} className="bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700 transition disabled:opacity-50">
-              {exportingCsv ? 'Exporting…' : '⬇ Export CSV'}
+              {exportingCsv ? 'Exporting…' : 'Export CSV'}
             </button>
           )}
           {(totalGames + totalPractices) > 0 && !readOnly && (
@@ -161,7 +161,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               </div>
             ) : (
               <button onClick={() => setClearConfirm(true)} className="text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded transition">
-                🗑 Clear All
+                Clear All
               </button>
             )
           )}
@@ -171,7 +171,6 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       {/* Drag conflict toast */}
       {dragError && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">
-          <span>🚫</span>
           <span><span className="font-semibold">Field conflict — </span>{dragError}</span>
           <button onClick={() => setDragError(null)} className="ml-auto text-red-400 hover:text-red-600 text-lg leading-none">×</button>
         </div>

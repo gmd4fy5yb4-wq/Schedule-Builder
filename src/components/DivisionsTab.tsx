@@ -152,7 +152,6 @@ export default function DivisionsTab({ state, setState }: Props) {
       {/* ── Division list ── */}
       {state.divisions.length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          <p className="text-4xl mb-3">👥</p>
           <p className="font-medium">No divisions yet</p>
           <p className="text-sm mt-1">Add your first division above — softball, baseball, whatever you need.</p>
         </div>
@@ -229,7 +228,7 @@ export default function DivisionsTab({ state, setState }: Props) {
                             className={`flex-shrink-0 text-xs px-2 py-1 rounded border transition ${blackouts.length > 0 ? 'border-orange-300 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
                             title="Team blackout dates"
                           >
-                            🚫 {blackouts.length > 0 ? blackouts.length : 'Blackouts'}
+                            {blackouts.length > 0 ? blackouts.length + ' Blackouts' : 'Blackouts'}
                           </button>
                           <button
                             onClick={() => removeTeam(div.id, team.id)}

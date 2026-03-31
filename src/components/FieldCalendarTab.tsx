@@ -102,7 +102,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
               <div className="font-medium truncate">{field.name}</div>
               {field.location && (
                 <div className={`text-xs mt-0.5 truncate ${isSelected ? 'text-[#d0d8f0]' : 'text-gray-400'}`}>
-                  📍 {field.location}
+                  {field.location}
                 </div>
               )}
               <div className={`text-xs mt-1 ${isSelected ? 'text-[#b0c0e0]' : 'text-gray-400'}`}>
@@ -117,7 +117,6 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
       <div className="flex-1 min-w-0">
         {!selectedFieldId ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-24 text-gray-400">
-            <span className="text-5xl mb-4">🏟️</span>
             <p className="text-lg font-medium text-gray-500">Select a field</p>
             <p className="text-sm mt-1">Click a field to view its calendar and book events</p>
           </div>
@@ -129,11 +128,11 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{selectedField?.name}</h2>
                 {selectedField?.location && (
-                  <p className="text-sm text-gray-500 mt-0.5">📍 {selectedField.location}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{selectedField.location}</p>
                 )}
               </div>
               <div className="flex items-center gap-4 text-sm text-gray-500">
-                <span>🕗 Open 8:00 AM – 8:00 PM</span>
+                <span>Open 8:00 AM – 8:00 PM</span>
                 <span className="font-medium text-gray-700">{fieldEvents.length} event{fieldEvents.length !== 1 ? 's' : ''} this season</span>
               </div>
             </div>
