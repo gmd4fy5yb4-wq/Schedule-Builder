@@ -273,16 +273,16 @@ export default function Home() {
               </span>
             )}
 
-            {/* League code badge */}
-            <div className="flex items-center gap-2 bg-[#00013a] rounded-lg px-3 py-1.5">
-              <span className="text-[#8898c0] text-xs font-medium">LEAGUE</span>
-              <span className="font-mono font-bold tracking-widest">{leagueCode}</span>
-              {!readOnly && (
+            {/* League code badge — hidden from read-only viewers */}
+            {!readOnly && (
+              <div className="flex items-center gap-2 bg-[#00013a] rounded-lg px-3 py-1.5">
+                <span className="text-[#8898c0] text-xs font-medium">LEAGUE</span>
+                <span className="font-mono font-bold tracking-widest">{leagueCode}</span>
                 <button onClick={copyCode} className="text-[#8898c0] hover:text-white transition text-sm" title="Copy league code">
                   {codeCopied ? '✓' : '📋'}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Undo button */}
             {!readOnly && (
