@@ -43,14 +43,14 @@ function migrateState(s: AppState): AppState {
 }
 
 const TABS = [
-  { label: 'Setup', icon: '⚙️' },
-  { label: 'Divisions & Teams', icon: '👥' },
-  { label: 'Fields', icon: '🏟️' },
-  { label: 'Umpires', icon: '👮' },
-  { label: 'Schedule', icon: '📅' },
-  { label: 'Team Schedules', icon: '🏅' },
-  { label: 'Field Calendar', icon: '🏟️' },
-  { label: 'Auto-Schedule', icon: '🤖' },
+  { label: 'Setup' },
+  { label: 'Divisions & Teams' },
+  { label: 'Fields' },
+  { label: 'Umpires' },
+  { label: 'Schedule' },
+  { label: 'Team Schedules' },
+  { label: 'Field Calendar' },
+  { label: 'Auto-Schedule' },
 ]
 
 type SyncStatus = 'synced' | 'saving' | 'error'
@@ -369,7 +369,7 @@ export default function Home() {
                     tab === i ? 'border-[#cd163f] text-[#cd163f]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  {t.icon} {t.label}
+                  {t.label}
                 </button>
               )
             })}
