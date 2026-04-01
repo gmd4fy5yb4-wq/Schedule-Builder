@@ -185,18 +185,17 @@ export function exportToCSV(
   games: ScheduledGame[]
 ) {
   try {
+    const divMap   = new Map(divisions.map(d => [d.id, d]))
     const teamMap  = new Map(divisions.flatMap(d => d.teams).map(t => [t.id, t]))
     const fieldMap = new Map(fields.map(f => [f.id, f]))
-    const sorted   = [...games].sort(byDateTime)
 
-    // Pre-compute season start once — reused for every game's RoundNo
     const seasonStartMs = new Date(season.startDate + 'T12:00:00').getTime()
 
-    const HEADERS = ['SortOrder', 'RoundNo', 'HomeTeam', 'AwayTeam', 'MatchDate', 'StartTime', 'EndTime', 'Location', 'Field']
-    const rows: string[] = [csvRow(HEADERS)]
+    const HEADERS = ['SortOrder', 'RoundNo', 'Division', 'HomeTeam', 'AwayTeam', 'MatchDate', 'StartTime', 'EndTime', 'Location', 'Field']
 
-    for (const g of sorted) {
+    function gameRow(g: ScheduledGame): (string | number)[] {
       const field     = fieldMap.get(g.fieldId)
+      const division  = divMap.get(g.divisionId)?.name ?? ''
       const homeTeam  = teamMap.get(g.homeTeamId)?.name ?? ''
       const awayTeam  = teamMap.get(g.awayTeamId)?.name ?? ''
       const matchDate = fmtDateMMDDYYYY(g.date)
@@ -205,8 +204,21 @@ export function exportToCSV(
       const fieldName = field?.name     ?? ''
       const gameMs    = new Date(g.date + 'T12:00:00').getTime()
       const round     = Math.floor(Math.max(0, Math.round((gameMs - seasonStartMs) / 86400000)) / 7) + 1
+      return ['', round, division, homeTeam, awayTeam, matchDate, g.time, endT, location, fieldName]
+    }
 
-      rows.push(csvRow(['', round, homeTeam, awayTeam, matchDate, g.time, endT, location, fieldName]))
+    const rows: string[] = [csvRow(HEADERS)]
+
+    // Group by division — each division gets a blank line + division label before its rows
+    for (const div of divisions) {
+      const divGames = games.filter(g => g.divisionId === div.id).sort(byDateTime)
+      if (!divGames.length) continue
+      rows.push('')  // blank separator row
+      rows.push(csvField(div.name))  // division label row
+      rows.push(csvRow(HEADERS))     // repeat headers under each division
+      for (const g of divGames) {
+        rows.push(csvRow(gameRow(g)))
+      }
     }
 
     const csvContent = rows.join('\r\n')
