@@ -42,16 +42,7 @@ function migrateState(s: AppState): AppState {
   return s
 }
 
-const TABS = [
-  { label: 'Setup' },
-  { label: 'Divisions & Teams' },
-  { label: 'Fields' },
-  { label: 'Umpires' },
-  { label: 'Schedule' },
-  { label: 'Team Schedules' },
-  { label: 'Field Calendar' },
-  { label: 'Auto-Schedule' },
-]
+const TABS = ['Setup', 'Divisions & Teams', 'Fields', 'Umpires', 'Schedule', 'Team Schedules', 'Field Calendar', 'Auto-Schedule']
 
 type SyncStatus = 'synced' | 'saving' | 'error'
 
@@ -73,6 +64,7 @@ export default function Home() {
   const lastSyncedRef = useRef('')
   const isSavingRef = useRef(false)
   const localUserRef = useRef('Unknown')
+  const viewTokenRef = useRef<string | null>(null)
 
   // ── Undo stack ────────────────────────────────────────────────────
   const undoStackRef = useRef<AppState[]>([])
@@ -250,20 +242,24 @@ export default function Home() {
 
   async function copyReadOnlyLink() {
     if (!leagueCode) return
-    const token = await getOrCreateViewToken(leagueCode)
-    if (!token) { alert('Could not generate share link — check your connection.'); return }
-    const url = `${window.location.origin}${window.location.pathname}?token=${token}&view=readonly`
-    navigator.clipboard.writeText(url)
-    setRoLinkCopied(true)
-    setTimeout(() => setRoLinkCopied(false), 2500)
+    if (!viewTokenRef.current) {
+      viewTokenRef.current = await getOrCreateViewToken(leagueCode)
+    }
+    if (!viewTokenRef.current) { alert('Could not generate share link — check your connection.'); return }
+    const url = `${window.location.origin}${window.location.pathname}?token=${viewTokenRef.current}&view=readonly`
+    try {
+      await navigator.clipboard.writeText(url)
+      setRoLinkCopied(true)
+      setTimeout(() => setRoLinkCopied(false), 2500)
+    } catch {
+      alert('Could not copy to clipboard. Link: ' + url)
+    }
   }
 
   if (!hydrated) {
     return (
       <div className="min-h-screen bg-[#00013a] flex items-center justify-center">
-        <div className="text-white text-center">
-          <p className="text-[#b0c0e0]">Loading…</p>
-        </div>
+        <p className="text-[#b0c0e0]">Loading…</p>
       </div>
     )
   }
@@ -375,18 +371,17 @@ export default function Home() {
       <div className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
-            {TABS.map((t, i) => {
-              // Hide setup/admin tabs for read-only viewers
+            {TABS.map((label, i) => {
               if (readOnly && i < 4) return null
               return (
                 <button
-                  key={t.label}
+                  key={label}
                   onClick={() => setTab(i)}
                   className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     tab === i ? 'border-[#cd163f] text-[#cd163f]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  {t.label}
+                  {label}
                 </button>
               )
             })}

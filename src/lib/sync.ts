@@ -42,20 +42,11 @@ export function generateCode(): string {
 // A view_token is a random UUID stored alongside the league. It is completely
 // separate from the admin code and cannot be used to modify the league.
 
-function randomToken(): string {
-  // Use crypto.randomUUID if available, otherwise fall back to a hex string
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
-}
-
 /** Returns the existing view token for a league, or creates and saves a new one. */
 export async function getOrCreateViewToken(leagueCode: string): Promise<string | null> {
   const sb = getSupabase()
   const code = leagueCode.toUpperCase()
 
-  // Check if one already exists
   const { data } = await sb
     .from('leagues')
     .select('view_token')
@@ -64,8 +55,7 @@ export async function getOrCreateViewToken(leagueCode: string): Promise<string |
 
   if (data?.view_token) return data.view_token as string
 
-  // Generate and save a new token
-  const token = randomToken()
+  const token = crypto.randomUUID()
   const { error } = await sb
     .from('leagues')
     .update({ view_token: token })
