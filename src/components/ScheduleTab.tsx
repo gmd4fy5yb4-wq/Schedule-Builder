@@ -29,6 +29,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const [dragError, setDragError] = useState<string | null>(null)
   const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [tooltip, setTooltip] = useState<{ ev: ScheduledGame | ScheduledPractice; x: number; y: number } | null>(null)
 
   const teamMap   = useMemo(() => new Map(state.divisions.flatMap(d => d.teams).map(t => [t.id, t])), [state.divisions])
   const fieldMap  = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
@@ -252,15 +253,20 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                           draggable
                           onDragStart={e => {
                             setDragId(ev.id)
+                            setTooltip(null)
                             e.dataTransfer.effectAllowed = 'move'
                             e.dataTransfer.setData('text/plain', ev.id)
                           }}
                           onDragEnd={() => { setDragId(null); setDragOverDate(null) }}
                           onClick={() => { if (!dragId) openEdit(ev) }}
+                          onMouseEnter={e => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setTooltip({ ev, x: rect.left, y: rect.top })
+                          }}
+                          onMouseLeave={() => setTooltip(null)}
                           className={`w-full text-left text-xs px-1.5 py-0.5 rounded truncate border transition hover:opacity-75 cursor-grab active:cursor-grabbing ${
                             isPractice ? 'bg-gray-100 text-gray-600 border-gray-200' : `${c.bg} ${c.text} ${c.border}`
                           }`}
-                          title={`${fmtTime(ev.time)}–${ev.durationMinutes ? fmtTime(minsToTime(toMins(ev.time) + ev.durationMinutes)) : '?'} — ${label} · Drag to move`}
                         >
                           <span className="font-medium">{fmtTime(ev.time)}</span> {label}
                         </button>
@@ -365,6 +371,66 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       {modal.open && (
         <EventModal state={state} setState={setState} initialForm={modal.initialForm} onClose={closeModal} />
       )}
+
+      {/* Hover tooltip — fixed so it escapes the calendar's overflow:hidden */}
+      {tooltip && (() => {
+        const ev = tooltip.ev
+        const isGame = ev.type === 'game'
+        const g = ev as ScheduledGame
+        const p = ev as ScheduledPractice
+        const startFmt = fmtTime(ev.time)
+        const endFmt   = ev.durationMinutes ? fmtTime(minsToTime(toMins(ev.time) + ev.durationMinutes)) : null
+        const field    = fieldMap.get(ev.fieldId)
+        const div      = divMap.get(ev.divisionId)
+        const c        = getDivisionColor(ev.divisionId, state.divisions)
+        return (
+          <div
+            className="fixed z-50 pointer-events-none"
+            style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
+          >
+            <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs w-52">
+              <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${c.text}`}>
+                {div?.name ?? ''} {isGame ? 'Game' : 'Practice'}
+              </div>
+              {isGame ? (
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Home</span>
+                    <span className="font-medium text-gray-800">{teamMap.get(g.homeTeamId)?.name ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Away</span>
+                    <span className="font-medium text-gray-800">{teamMap.get(g.awayTeamId)?.name ?? '—'}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Team</span>
+                  <span className="font-medium text-gray-800">{teamMap.get(p.teamId)?.name ?? '—'}</span>
+                </div>
+              )}
+              <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Time</span>
+                  <span className="font-medium text-gray-800">{startFmt}{endFmt ? `–${endFmt}` : ''}</span>
+                </div>
+                {field && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Field</span>
+                    <span className="font-medium text-gray-800">{field.name}</span>
+                  </div>
+                )}
+                {field?.location && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Location</span>
+                    <span className="font-medium text-gray-800 text-right max-w-[120px] truncate">{field.location}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
