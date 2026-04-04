@@ -1,6 +1,7 @@
 export interface SeasonConfig {
   leagueName: string
   sport: string           // sport id from sports.ts, e.g. 'softball'
+  theme?: string          // theme id from themes.ts, e.g. 'fieldday'
   startDate: string
   endDate: string
   gameDurationMinutes: number

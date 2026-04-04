@@ -79,7 +79,7 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Save Current State</p>
           <div className="flex gap-2">
             <input
-              className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+              className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder='e.g. "Before Opening Weekend", "Week 3 Final"'
               value={newName}
               onChange={e => setNewName(e.target.value)}
@@ -88,7 +88,7 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
             <button
               onClick={handleSave}
               disabled={!newName.trim() || saving}
-              className="bg-[#cd163f] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>
@@ -138,7 +138,7 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
                       ) : (
                         <button
                           onClick={() => setRestoreConfirm(snap.id)}
-                          className="text-xs border border-[#cd163f] text-[#cd163f] hover:bg-[#cd163f] hover:text-white px-3 py-1.5 rounded-lg transition font-medium"
+                          className="text-xs border border-[var(--fd-accent)] text-[var(--fd-accent)] hover:bg-[var(--fd-accent)] hover:text-white px-3 py-1.5 rounded-lg transition font-medium"
                         >
                           Restore
                         </button>

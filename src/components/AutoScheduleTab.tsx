@@ -359,7 +359,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           onClick={() => setConfigOpen(v => !v)}
         >
           <div className="flex items-center gap-3">
-            <span className="w-7 h-7 rounded-full bg-[#00013a] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">1</span>
+            <span className="w-7 h-7 rounded-full bg-[var(--fd-primary)] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">1</span>
             <span className="font-semibold text-gray-800" style={{ fontFamily: 'Oswald, sans-serif' }}>
               Configure Parameters
             </span>
@@ -371,7 +371,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           <div className="border-t px-5 py-5 space-y-8">
             {/* Division settings */}
             <div>
-              <h3 className="font-semibold text-[#00013a] mb-4 text-sm uppercase tracking-wide" style={{ fontFamily: 'Oswald, sans-serif' }}>
+              <h3 className="font-semibold text-[var(--fd-primary)] mb-4 text-sm uppercase tracking-wide" style={{ fontFamily: 'Oswald, sans-serif' }}>
                 Division Game Days &amp; Preferred Start Time
               </h3>
               {state.divisions.length === 0 && (
@@ -398,8 +398,8 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                                 onClick={() => toggleDivisionDay(div.id, i)}
                                 className={`text-xs px-2 py-1 rounded border font-medium transition ${
                                   checked
-                                    ? 'bg-[#00013a] text-white border-[#00013a]'
-                                    : 'bg-white text-gray-500 border-gray-300 hover:border-[#00013a] hover:text-[#00013a]'
+                                    ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]'
+                                    : 'bg-white text-gray-500 border-gray-300 hover:border-[var(--fd-primary)] hover:text-[var(--fd-primary)]'
                                 }`}
                               >
                                 {name}
@@ -415,7 +415,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">Start time:</span>
                           <select
-                            className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+                            className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
                             value={div.preferredStartTime ?? ''}
                             onChange={e => setDivisionStartTime(div.id, e.target.value)}
                           >
@@ -439,7 +439,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs text-gray-500">Home field:</span>
                                 <select
-                                  className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[#cd163f]"
+                                  className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)]"
                                   value={team.homeFieldId ?? ''}
                                   onChange={e => setTeamHomeField(div.id, team.id, e.target.value)}
                                 >
@@ -461,7 +461,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                                       onClick={() => toggleTeamPreferredDay(div.id, team.id, i)}
                                       className={`text-xs px-1.5 py-0.5 rounded border transition ${
                                         checked
-                                          ? 'bg-[#cd163f] text-white border-[#cd163f]'
+                                          ? 'bg-[var(--fd-accent)] text-white border-[var(--fd-accent)]'
                                           : 'bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-400'
                                       }`}
                                     >
@@ -482,7 +482,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
             {/* Field blackout dates */}
             <div>
-              <h3 className="font-semibold text-[#00013a] mb-4 text-sm uppercase tracking-wide" style={{ fontFamily: 'Oswald, sans-serif' }}>
+              <h3 className="font-semibold text-[var(--fd-primary)] mb-4 text-sm uppercase tracking-wide" style={{ fontFamily: 'Oswald, sans-serif' }}>
                 {sc.venueSingular} Blackout Dates
               </h3>
               {state.fields.length === 0 && (
@@ -560,7 +560,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
       {/* ── STEP 2: GENERATE ─────────────────────────────────────── */}
       <div className="bg-white rounded-lg border shadow-sm px-5 py-5">
         <div className="flex items-center gap-3 mb-4">
-          <span className="w-7 h-7 rounded-full bg-[#00013a] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">2</span>
+          <span className="w-7 h-7 rounded-full bg-[var(--fd-primary)] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">2</span>
           <span className="font-semibold text-gray-800" style={{ fontFamily: 'Oswald, sans-serif' }}>
             Generate Schedule
           </span>
@@ -591,7 +591,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
         <button
           onClick={handleGenerate}
           disabled={generating || !state.season.startDate || !state.season.endDate || state.fields.length === 0}
-          className="bg-[#cd163f] text-white px-8 py-3 rounded-lg font-semibold text-base hover:bg-[#00013a] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+          className="bg-[var(--fd-accent)] text-white px-8 py-3 rounded-lg font-semibold text-base hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           style={{ fontFamily: 'Oswald, sans-serif' }}
         >
           {generating ? (
@@ -620,12 +620,12 @@ export default function AutoScheduleTab({ state, setState }: Props) {
       {conflicts.length > 0 && (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b bg-[#f5f5fb] flex items-center gap-3">
-            <span className="w-7 h-7 rounded-full bg-[#cd163f] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">3</span>
+            <span className="w-7 h-7 rounded-full bg-[var(--fd-accent)] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">3</span>
             <span className="font-semibold text-gray-800" style={{ fontFamily: 'Oswald, sans-serif' }}>
               Conflict Resolution
             </span>
             {pendingConflicts.length > 0 && (
-              <span className="ml-auto bg-[#cd163f] text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              <span className="ml-auto bg-[var(--fd-accent)] text-white text-xs font-bold px-2.5 py-1 rounded-full">
                 {pendingConflicts.length} to resolve
               </span>
             )}
@@ -708,7 +708,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                 </button>
                 <button
                   onClick={() => tryRelaxedConstraints(currentConflict)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#00013a] text-sm text-[#00013a] bg-[#f5f5fb] hover:bg-[#eeeef6] transition"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--fd-primary)] text-sm text-[var(--fd-primary)] bg-[#f5f5fb] hover:bg-[#eeeef6] transition"
                 >
                   Try relaxed constraints
                 </button>
@@ -723,7 +723,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           <div className="border-t px-5 py-3">
             <button
               onClick={() => setShowAllConflicts(v => !v)}
-              className="text-xs text-[#cd163f] hover:underline"
+              className="text-xs text-[var(--fd-accent)] hover:underline"
             >
               {showAllConflicts ? '▲ Hide all conflicts' : `▼ View all conflicts (${conflicts.length})`}
             </button>
@@ -776,7 +776,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
       {preview !== null && (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b bg-[#f5f5fb] flex items-center gap-3">
-            <span className="w-7 h-7 rounded-full bg-[#00013a] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">4</span>
+            <span className="w-7 h-7 rounded-full bg-[var(--fd-primary)] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">4</span>
             <span className="font-semibold text-gray-800" style={{ fontFamily: 'Oswald, sans-serif' }}>
               Preview
             </span>
@@ -797,13 +797,13 @@ export default function AutoScheduleTab({ state, setState }: Props) {
               {previewStats && (
                 <div className="px-5 py-4 border-b bg-gray-50 flex flex-wrap gap-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-[#00013a]" style={{ fontFamily: 'Oswald, sans-serif' }}>
+                    <div className="text-2xl font-bold text-[var(--fd-primary)]" style={{ fontFamily: 'Oswald, sans-serif' }}>
                       {previewStats.total}
                     </div>
                     <div className="text-xs text-gray-500">Total Games</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-[#cd163f]" style={{ fontFamily: 'Oswald, sans-serif' }}>
+                    <div className="text-2xl font-bold text-[var(--fd-accent)]" style={{ fontFamily: 'Oswald, sans-serif' }}>
                       {previewStats.coverage}%
                     </div>
                     <div className="text-xs text-gray-500">Coverage</div>
@@ -865,7 +865,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                     <span className="text-sm font-medium text-gray-700">
                       Add {preview.length} game{preview.length !== 1 ? 's' : ''} to your existing schedule?
                     </span>
-                    <button onClick={() => commitPreview('append')} className="bg-[#cd163f] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition">
+                    <button onClick={() => commitPreview('append')} className="bg-[var(--fd-accent)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary)] transition">
                       Yes, Append
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
@@ -884,7 +884,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                   <>
                     <button
                       onClick={() => setCommitMode('append')}
-                      className="bg-[#cd163f] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[#00013a] transition"
+                      className="bg-[var(--fd-accent)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary)] transition"
                     >
                       Append to Existing Schedule
                     </button>

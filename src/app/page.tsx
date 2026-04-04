@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
+import { getTheme, buildThemeVars } from '@/lib/themes'
 import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
 import SnapshotModal from '@/components/SnapshotModal'
 import SetupTab from '@/components/SetupTab'
@@ -253,11 +254,12 @@ export default function Home() {
 
   const sc = getSportConfig(state.season.sport)
   const TABS = ['Setup', 'Divisions & Teams', sc.venuePlural, sc.officialPlural, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule']
+  const themeStyle = buildThemeVars(getTheme(state.season.theme))
 
   if (!hydrated) {
     return (
-      <div className="min-h-screen bg-[#00013a] flex items-center justify-center">
-        <p className="text-[#b0c0e0]">Loading…</p>
+      <div className="min-h-screen bg-[var(--fd-primary)] flex items-center justify-center">
+        <p className="text-[var(--fd-primary-light)]">Loading…</p>
       </div>
     )
   }
@@ -271,8 +273,8 @@ export default function Home() {
     : ''
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-[#00013a] text-white shadow-md">
+    <div className="min-h-screen bg-gray-50" style={themeStyle}>
+      <header className="bg-[var(--fd-primary)] text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
           <h1 className="text-xl font-bold">{state.season.leagueName || 'FieldDay Planner'}</h1>
 
@@ -286,10 +288,10 @@ export default function Home() {
 
             {/* League code badge — hidden from read-only viewers */}
             {!readOnly && (
-              <div className="flex items-center gap-2 bg-[#00013a] rounded-lg px-3 py-1.5">
-                <span className="text-[#8898c0] text-xs font-medium">LEAGUE</span>
+              <div className="flex items-center gap-2 bg-[var(--fd-primary)] rounded-lg px-3 py-1.5">
+                <span className="text-[var(--fd-primary-muted)] text-xs font-medium">LEAGUE</span>
                 <span className="font-mono font-bold tracking-widest">{leagueCode}</span>
-                <button onClick={copyCode} className="text-[#8898c0] hover:text-white transition text-sm" title="Copy league code">
+                <button onClick={copyCode} className="text-[var(--fd-primary-muted)] hover:text-white transition text-sm" title="Copy league code">
                   {codeCopied ? 'Copied' : 'Copy'}
                 </button>
               </div>
@@ -300,7 +302,7 @@ export default function Home() {
               <button
                 onClick={handleUndo}
                 disabled={!canUndo}
-                className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#8898c0] rounded-lg px-3 py-1.5 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Undo last change"
               >
                 Undo
@@ -311,7 +313,7 @@ export default function Home() {
             {!readOnly && (
               <button
                 onClick={() => setShowSnapshots(true)}
-                className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#8898c0] rounded-lg px-3 py-1.5 transition"
+                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
                 title="Save or restore a schedule snapshot"
               >
                 Snapshots
@@ -322,7 +324,7 @@ export default function Home() {
             {!readOnly && (
               <button
                 onClick={copyReadOnlyLink}
-                className="text-xs bg-[#00013a] hover:bg-[#000128] text-[#b0c0e0] hover:text-white border border-[#cd163f] rounded-lg px-3 py-1.5 transition"
+                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-accent)] rounded-lg px-3 py-1.5 transition"
                 title="Copy a view-only link for coaches/parents"
               >
                 {roLinkCopied ? 'Copied!' : 'Share View-Only Link'}
@@ -332,34 +334,34 @@ export default function Home() {
             {/* Sync status */}
             {!readOnly && (
               <div className="text-xs">
-                {syncStatus === 'saving' && <span className="text-[#b0c0e0] animate-pulse">Saving…</span>}
-                {syncStatus === 'synced' && <span className="text-[#8898c0]">Synced</span>}
+                {syncStatus === 'saving' && <span className="text-[var(--fd-primary-light)] animate-pulse">Saving…</span>}
+                {syncStatus === 'synced' && <span className="text-[var(--fd-primary-muted)]">Synced</span>}
                 {syncStatus === 'error' && <span className="text-red-300">Save failed — check connection</span>}
               </div>
             )}
 
             {/* User name + leave */}
             {!readOnly ? (
-              <div className="flex items-center gap-2 text-sm text-[#b0c0e0]">
+              <div className="flex items-center gap-2 text-sm text-[var(--fd-primary-light)]">
                 <span>{userName}</span>
                 <button
                   onClick={handleLeave}
-                  className="text-[#cd163f] hover:text-white transition text-xs border border-[#cd163f] hover:border-[#cd163f] rounded px-2 py-0.5"
+                  className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] hover:border-[var(--fd-accent)] rounded px-2 py-0.5"
                   title="Leave this league"
                 >
                   Leave
                 </button>
               </div>
             ) : (
-              <span className="text-xs text-[#8898c0]">Live schedule — auto-updates every 30s</span>
+              <span className="text-xs text-[var(--fd-primary-muted)]">Live schedule — auto-updates every 30s</span>
             )}
           </div>
         </div>
 
         {/* Last updated bar */}
         {lastUpdatedBy && (
-          <div className="max-w-7xl mx-auto px-4 pb-2 text-xs text-[#8898c0]">
-            Last saved by <strong className="text-[#b0c0e0]">{lastUpdatedBy}</strong>
+          <div className="max-w-7xl mx-auto px-4 pb-2 text-xs text-[var(--fd-primary-muted)]">
+            Last saved by <strong className="text-[var(--fd-primary-light)]">{lastUpdatedBy}</strong>
             {timeSince && <> · {timeSince}</>}
           </div>
         )}
@@ -376,7 +378,7 @@ export default function Home() {
                   key={label}
                   onClick={() => setTab(i)}
                   className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    tab === i ? 'border-[#cd163f] text-[#cd163f]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    tab === i ? 'border-[var(--fd-accent)] text-[var(--fd-accent)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
                   {label}

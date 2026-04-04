@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { AppState } from '@/lib/types'
 import { SPORTS, getSportConfig } from '@/lib/sports'
+import { THEMES } from '@/lib/themes'
 import type { ImportResult } from '@/lib/importCSV'
 import ImportModal from './ImportModal'
 
@@ -51,7 +52,7 @@ export default function SetupTab({ state, setState }: Props) {
         <h2 className="text-xl font-semibold text-gray-800">League Setup</h2>
         <button
           onClick={() => setShowImport(true)}
-          className="text-sm font-medium text-[#cd163f] border border-[#cd163f] rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
+          className="text-sm font-medium text-[var(--fd-accent)] border border-[var(--fd-accent)] rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
         >
           Import from CSV
         </button>
@@ -62,7 +63,7 @@ export default function SetupTab({ state, setState }: Props) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
           <select
-            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
             value={season.sport ?? 'softball'}
             onChange={e => update('sport', e.target.value)}
           >
@@ -70,9 +71,32 @@ export default function SetupTab({ state, setState }: Props) {
           </select>
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Theme</label>
+          <div className="flex gap-2 flex-wrap">
+            {THEMES.map(t => {
+              const active = (season.theme ?? 'fieldday') === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => update('theme', t.id)}
+                  title={t.name}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${
+                    active ? 'border-gray-400 shadow-sm ring-2 ring-offset-1' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  style={{}}
+                >
+                  <span className="w-4 h-4 rounded-full flex-shrink-0 border border-white/30 shadow-sm" style={{ background: t.accent }} />
+                  <span style={{ color: active ? t.accent : undefined }}>{t.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
           <input
-            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
             value={season.leagueName}
             onChange={e => update('leagueName', e.target.value)}
           />
@@ -83,7 +107,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Season Start</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.startDate}
               onChange={e => update('startDate', e.target.value)}
             />
@@ -92,7 +116,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Season End</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.endDate}
               onChange={e => update('endDate', e.target.value)}
             />
@@ -104,7 +128,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Game Duration (min)</label>
             <input
               type="number" min={30} max={240} step={15}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.gameDurationMinutes}
               onChange={e => update('gameDurationMinutes', Number(e.target.value))}
             />
@@ -113,7 +137,7 @@ export default function SetupTab({ state, setState }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Practice Duration (min)</label>
             <input
               type="number" min={30} max={240} step={15}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.practiceDurationMinutes}
               onChange={e => update('practiceDurationMinutes', Number(e.target.value))}
             />
@@ -198,7 +222,7 @@ export default function SetupTab({ state, setState }: Props) {
         return (
           <div className="bg-[#f5f5fb] border border-[#eeeef6] rounded-lg p-4 text-sm text-green-800">
             <p className="font-medium mb-1">Getting started</p>
-            <ol className="list-decimal list-inside space-y-1 text-[#cd163f]">
+            <ol className="list-decimal list-inside space-y-1 text-[var(--fd-accent)]">
               <li>Fill in season dates and game duration here</li>
               <li>Add blackout dates for holidays or field closures</li>
               <li>Add teams to each division in <strong>Divisions &amp; Teams</strong></li>

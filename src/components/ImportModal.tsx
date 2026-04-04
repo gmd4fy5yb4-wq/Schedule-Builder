@@ -104,7 +104,7 @@ export default function ImportModal({ state, onImport, onClose }: Props) {
             onClick={() => fileRef.current?.click()}
             className={`border-2 border-dashed rounded-lg px-4 py-10 text-center cursor-pointer transition-colors ${
               dragging
-                ? 'border-[#cd163f] bg-red-50'
+                ? 'border-[var(--fd-accent)] bg-red-50'
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
           >
@@ -197,7 +197,7 @@ export default function ImportModal({ state, onImport, onClose }: Props) {
           <button
             onClick={() => canImport && onImport(result!)}
             disabled={!canImport}
-            className="px-4 py-2 text-sm rounded bg-[#cd163f] text-white hover:bg-[#b01235] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm rounded bg-[var(--fd-accent)] text-white hover:bg-[var(--fd-accent-hover)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {hasExistingData ? 'Replace & Import' : 'Import'}
           </button>
