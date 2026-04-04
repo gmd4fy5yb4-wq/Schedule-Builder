@@ -124,7 +124,7 @@ export default function DivisionsTab({ state, setState }: Props) {
             <label className="block text-xs text-gray-500 mb-1">Division Name</label>
             <input
               className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
-              placeholder="e.g. 6U Softball, Baseball 10U…"
+              placeholder="e.g. 6U Minors, 10U Majors…"
               value={newDivName}
               onChange={e => setNewDivName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addDivision()}
@@ -153,7 +153,7 @@ export default function DivisionsTab({ state, setState }: Props) {
       {state.divisions.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           <p className="font-medium">No divisions yet</p>
-          <p className="text-sm mt-1">Add your first division above — softball, baseball, whatever you need.</p>
+          <p className="text-sm mt-1">Add your first division above — Minors, Majors, whatever fits your league.</p>
         </div>
       )}
 

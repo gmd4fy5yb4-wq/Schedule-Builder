@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { Division, Field, Umpire, ScheduledGame, ScheduledPractice, SeasonConfig } from './types'
+import { getSportConfig } from './sports'
 
 function fmtDate(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -70,6 +71,7 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 export function exportToExcel(
+  season: SeasonConfig,
   divisions: Division[],
   fields: Field[],
   umpires: Umpire[],
@@ -77,6 +79,7 @@ export function exportToExcel(
   practices: ScheduledPractice[]
 ) {
   try {
+    const sc        = getSportConfig(season.sport)
     const divMap    = new Map(divisions.map(d => [d.id, d]))
     const teamMap   = new Map(divisions.flatMap(d => d.teams).map(t => [t.id, t]))
     const fieldMap  = new Map(fields.map(f => [f.id, f]))
@@ -85,7 +88,7 @@ export function exportToExcel(
     const allItems = ([...games, ...practices] as (ScheduledGame | ScheduledPractice)[]).sort(byDateTime)
 
     const wb = XLSX.utils.book_new()
-    const HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Division', 'Type', 'Home / Team', 'Away', 'Field', 'Location', 'Umpire']
+    const HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Division', 'Type', 'Home / Team', 'Away', sc.venueSingular, 'Location', sc.officialSingular]
 
     function buildRow(item: ScheduledGame | ScheduledPractice): string[] {
       const div      = divMap.get(item.divisionId)?.name     || ''
@@ -154,7 +157,7 @@ export function exportToExcel(
         })
         const ws = XLSX.utils.aoa_to_sheet([
           [`${team.name} — ${div.name}`], [],
-          ['Date', 'Day', 'Start Time', 'End Time', 'Type', 'Opponent', 'Home/Away', 'Field', 'Location', 'Umpire'],
+          ['Date', 'Day', 'Start Time', 'End Time', 'Type', 'Opponent', 'Home/Away', sc.venueSingular, 'Location', sc.officialSingular],
           ...rows
         ])
         XLSX.utils.book_append_sheet(wb, ws, sheetName(team.name))
@@ -164,7 +167,7 @@ export function exportToExcel(
     // Write to ArrayBuffer and download as blob (works in Chrome, Firefox, and Safari)
     const buf  = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    triggerDownload(blob, 'softball-schedule.xlsx')
+    triggerDownload(blob, `${sc.name.toLowerCase()}-schedule.xlsx`)
 
   } catch (err) {
     console.error('Export error:', err)
@@ -185,13 +188,14 @@ export function exportToCSV(
   games: ScheduledGame[]
 ) {
   try {
+    const sc       = getSportConfig(season.sport)
     const divMap   = new Map(divisions.map(d => [d.id, d]))
     const teamMap  = new Map(divisions.flatMap(d => d.teams).map(t => [t.id, t]))
     const fieldMap = new Map(fields.map(f => [f.id, f]))
 
     const seasonStartMs = new Date(season.startDate + 'T12:00:00').getTime()
 
-    const HEADERS = ['SortOrder', 'RoundNo', 'Division', 'HomeTeam', 'AwayTeam', 'MatchDate', 'StartTime', 'EndTime', 'Location', 'Field']
+    const HEADERS = ['SortOrder', 'RoundNo', 'Division', 'HomeTeam', 'AwayTeam', 'MatchDate', 'StartTime', 'EndTime', 'Location', sc.venueSingular]
 
     function gameRow(g: ScheduledGame): (string | number)[] {
       const field     = fieldMap.get(g.fieldId)
@@ -223,7 +227,7 @@ export function exportToCSV(
 
     const csvContent = rows.join('\r\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    triggerDownload(blob, 'softball-schedule.csv')
+    triggerDownload(blob, `${sc.name.toLowerCase()}-schedule.csv`)
 
   } catch (err) {
     console.error('CSV export error:', err)

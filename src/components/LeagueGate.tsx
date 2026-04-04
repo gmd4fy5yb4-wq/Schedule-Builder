@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { leagueExists, loadLeague, saveLeague, generateCode } from '@/lib/sync'
 import type { AppState } from '@/lib/types'
+import { SPORTS } from '@/lib/sports'
 
 interface Props {
   defaultState: AppState
@@ -13,6 +14,7 @@ type Mode = 'choose' | 'create' | 'join'
 export default function LeagueGate({ defaultState, onJoin }: Props) {
   const [mode, setMode] = useState<Mode>('choose')
   const [name, setName] = useState('')
+  const [sport, setSport] = useState('softball')
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -24,9 +26,10 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     let code = generateCode()
     let exists = await leagueExists(code)
     while (exists) { code = generateCode(); exists = await leagueExists(code) }
-    const ok = await saveLeague(code, defaultState, name.trim())
+    const initialState = { ...defaultState, season: { ...defaultState.season, sport } }
+    const ok = await saveLeague(code, initialState, name.trim())
     if (ok) {
-      onJoin(code, defaultState, name.trim())
+      onJoin(code, initialState, name.trim())
     } else {
       setError('Could not create league — check your connection and try again.')
     }
@@ -53,8 +56,8 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
 
         {/* Logo / title */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-white">Softball Scheduler</h1>
-          <p className="text-[#b0c0e0] mt-1">Collaborative league scheduling</p>
+          <h1 className="text-3xl font-bold text-white">FieldDay Planner</h1>
+          <p className="text-[#b0c0e0] mt-1">Schedule any sport, any league</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -94,6 +97,16 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                   onChange={e => setName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleCreate()}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+                  value={sport}
+                  onChange={e => setSport(e.target.value)}
+                >
+                  {SPORTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <button

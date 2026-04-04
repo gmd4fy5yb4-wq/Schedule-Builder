@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
+import { getSportConfig } from '@/lib/sports'
 import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
 import SnapshotModal from '@/components/SnapshotModal'
 import SetupTab from '@/components/SetupTab'
@@ -14,7 +15,7 @@ import AutoScheduleTab from '@/components/AutoScheduleTab'
 import LeagueGate from '@/components/LeagueGate'
 
 const DEFAULT: AppState = {
-  season: { leagueName: 'My Softball League', startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
+  season: { leagueName: 'My League', sport: 'softball', startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
   divisions: [
     { id: '6u', name: '6U', teams: [], gamesPerTeam: 10 },
     { id: '8u', name: '8U', teams: [], gamesPerTeam: 10 },
@@ -32,6 +33,7 @@ function migrateState(s: AppState): AppState {
     s.schedule.games = (s.schedule.games ?? []).map(g => ({ ...g, durationMinutes: g.durationMinutes ?? 90 }))
     s.schedule.practices = (s.schedule.practices ?? []).map(p => ({ ...p, durationMinutes: p.durationMinutes ?? 90 }))
   }
+  s.season.sport = s.season.sport ?? 'softball'
   s.blackoutDates = s.blackoutDates ?? []
   // Strip legacy time slots from fields (fields are now open 8 AM–8 PM daily), preserve blackoutDates
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,8 +43,6 @@ function migrateState(s: AppState): AppState {
   s.autoSchedulePreview = s.autoSchedulePreview ?? undefined
   return s
 }
-
-const TABS = ['Setup', 'Divisions & Teams', 'Fields', 'Umpires', 'Schedule', 'Team Schedules', 'Field Calendar', 'Auto-Schedule']
 
 type SyncStatus = 'synced' | 'saving' | 'error'
 
@@ -256,6 +256,9 @@ export default function Home() {
     }
   }
 
+  const sc = getSportConfig(state.season.sport)
+  const TABS = ['Setup', 'Divisions & Teams', sc.venuePlural, sc.officialPlural, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule']
+
   if (!hydrated) {
     return (
       <div className="min-h-screen bg-[#00013a] flex items-center justify-center">
@@ -276,7 +279,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-[#00013a] text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <h1 className="text-xl font-bold">{state.season.leagueName || 'Softball Scheduler'}</h1>
+          <h1 className="text-xl font-bold">{state.season.leagueName || 'FieldDay Planner'}</h1>
 
           <div className="flex items-center gap-3 flex-wrap">
             {/* Read-only badge */}

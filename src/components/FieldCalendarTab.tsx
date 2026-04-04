@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
+import { getSportConfig } from '@/lib/sports'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { emptyForm, formFromEvent, type EventForm, toMins, minsToTime, fmtTime } from './EventModal'
 
@@ -10,6 +11,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const DAY_HEADERS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 export default function FieldCalendarTab({ state, setState, readOnly = false }: Props) {
+  const sc = getSportConfig(state.season.sport)
   const today = new Date()
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [year, setYear] = useState(today.getFullYear())
@@ -82,9 +84,9 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
 
       {/* ── Sidebar ── */}
       <div className="w-48 flex-shrink-0 space-y-2">
-        <h2 className="text-base font-semibold text-gray-700">Fields</h2>
+        <h2 className="text-base font-semibold text-gray-700">{sc.venuePlural}</h2>
         {state.fields.length === 0 && (
-          <p className="text-sm text-gray-400 italic">No fields added yet. Go to the Fields tab to add some.</p>
+          <p className="text-sm text-gray-400 italic">No {sc.venuePlural.toLowerCase()} added yet. Go to the {sc.venuePlural} tab to add some.</p>
         )}
         {state.fields.map(field => {
           const isSelected = selectedFieldId === field.id
@@ -117,8 +119,8 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
       <div className="flex-1 min-w-0">
         {!selectedFieldId ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-24 text-gray-400">
-            <p className="text-lg font-medium text-gray-500">Select a field</p>
-            <p className="text-sm mt-1">Click a field to view its calendar and book events</p>
+            <p className="text-lg font-medium text-gray-500">Select a {sc.venueSingular.toLowerCase()}</p>
+            <p className="text-sm mt-1">Click a {sc.venueSingular.toLowerCase()} to view its calendar and book events</p>
           </div>
         ) : (
           <div className="space-y-4">

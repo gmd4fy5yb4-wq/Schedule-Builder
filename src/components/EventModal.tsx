@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
+import { getSportConfig } from '@/lib/sports'
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 export interface EventForm {
@@ -56,6 +57,7 @@ interface Props {
 }
 
 export default function EventModal({ state, setState, initialForm, onClose }: Props) {
+  const sc = getSportConfig(state.season.sport)
   const [form, setForm] = useState<EventForm>(initialForm)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
@@ -201,7 +203,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
               <button
                 onClick={() => upd({ type: 'game', endTime: defaultEndTime(f.time, state.season.gameDurationMinutes || 90), teamId: '' })}
                 className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-              >Game</button>
+              >{sc.eventSingular}</button>
               <button
                 onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '' })}
                 className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-[#cd163f] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
@@ -235,7 +237,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 </FF>
               </div>
 
-              <FF label="Umpire">
+              <FF label={sc.officialSingular}>
                 <select className="input" value={f.umpireId} onChange={e => upd({ umpireId: e.target.value })}>
                   <option value="">TBD / Unassigned</option>
                   {state.umpires.map(u => <option key={u.id} value={u.id}>{u.name}{u.phone ? ` — ${u.phone}` : ''}</option>)}
@@ -255,7 +257,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
           )}
 
           {/* Field */}
-          <FF label="Field">
+          <FF label={sc.venueSingular}>
             <select className="input" value={f.fieldId} onChange={e => upd({ fieldId: e.target.value })}>
               <option value="">— select field —</option>
               {state.fields.map(fld => <option key={fld.id} value={fld.id}>{fld.name}{fld.location ? ` — ${fld.location}` : ''}</option>)}
@@ -289,7 +291,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 }`}>
                   <span>
                     <span className="font-semibold">
-                      {c.kind === 'field' ? 'Field conflict — ' : c.kind === 'hours' ? 'Outside hours — ' : c.kind === 'team' ? 'Team conflict — ' : c.kind === 'teamblackout' ? 'Team blackout — ' : 'Umpire conflict — '}
+                      {c.kind === 'field' ? `${sc.venueSingular} conflict — ` : c.kind === 'hours' ? 'Outside hours — ' : c.kind === 'team' ? 'Team conflict — ' : c.kind === 'teamblackout' ? 'Team blackout — ' : `${sc.officialSingular} conflict — `}
                     </span>
                     {c.message}
                   </span>

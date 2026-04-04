@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import type { AppState, ScheduleConflict, ScheduledGame } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import { generateSchedule, rescheduleMatchupRelaxed } from '@/lib/autoScheduler'
+import { getSportConfig } from '@/lib/sports'
 
 interface Props {
   state: AppState
@@ -289,6 +290,8 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
   const fieldMap = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
 
+  const sc = getSportConfig(state.season.sport)
+
   const getTeamName = (id: string) => {
     for (const t of allTeams) {
       if (t.id === id) return t.name
@@ -480,10 +483,10 @@ export default function AutoScheduleTab({ state, setState }: Props) {
             {/* Field blackout dates */}
             <div>
               <h3 className="font-semibold text-[#00013a] mb-4 text-sm uppercase tracking-wide" style={{ fontFamily: 'Oswald, sans-serif' }}>
-                Field Blackout Dates
+                {sc.venueSingular} Blackout Dates
               </h3>
               {state.fields.length === 0 && (
-                <p className="text-sm text-gray-400 italic">No fields configured yet. Add fields in the Fields tab.</p>
+                <p className="text-sm text-gray-400 italic">No {sc.venuePlural.toLowerCase()} configured yet. Add {sc.venuePlural} in the {sc.venuePlural} tab.</p>
               )}
               <div className="space-y-4">
                 {state.fields.map(field => {
@@ -581,7 +584,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
         {state.fields.length === 0 && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-800">
-            <span>Add at least one field in the <strong>Fields</strong> tab before generating.</span>
+            <span>Add at least one {sc.venueSingular.toLowerCase()} in the <strong>{sc.venuePlural}</strong> tab before generating.</span>
           </div>
         )}
 
@@ -829,7 +832,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                       <th className="px-4 py-2 font-medium text-gray-600">Time</th>
                       <th className="px-4 py-2 font-medium text-gray-600">Home</th>
                       <th className="px-4 py-2 font-medium text-gray-600">Away</th>
-                      <th className="px-4 py-2 font-medium text-gray-600">Field</th>
+                      <th className="px-4 py-2 font-medium text-gray-600">{sc.venueSingular}</th>
                       <th className="px-4 py-2 font-medium text-gray-600">Division</th>
                     </tr>
                   </thead>

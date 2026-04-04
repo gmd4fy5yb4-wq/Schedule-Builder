@@ -1,12 +1,14 @@
 'use client'
 import { useState } from 'react'
 import type { AppState, Field } from '@/lib/types'
+import { getSportConfig } from '@/lib/sports'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
 
 function uid() { return Math.random().toString(36).slice(2) }
 
 export default function FieldsTab({ state, setState }: Props) {
+  const sc = getSportConfig(state.season.sport)
   const [newField, setNewField] = useState({ name: '', location: '' })
 
   function addField() {
@@ -27,20 +29,20 @@ export default function FieldsTab({ state, setState }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-800">Fields</h2>
+        <h2 className="text-xl font-semibold text-gray-800">{sc.venuePlural}</h2>
         <p className="text-sm text-gray-500 mt-1">
-          All fields are available <strong>8:00 AM – 8:00 PM every day</strong>. When scheduling an event
-          you choose the field, start time, and end time — the system automatically checks for conflicts.
+          All {sc.venuePlural.toLowerCase()} are available <strong>8:00 AM – 8:00 PM every day</strong>. When scheduling an event
+          you choose the {sc.venueSingular.toLowerCase()}, start time, and end time — the system automatically checks for conflicts.
         </p>
       </div>
 
       {/* Add field */}
       <div className="bg-white rounded-lg border p-4">
-        <h3 className="font-medium text-gray-700 mb-3">Add Field</h3>
+        <h3 className="font-medium text-gray-700 mb-3">Add {sc.venueSingular}</h3>
         <div className="flex gap-3 flex-wrap">
           <input
             className="border rounded px-3 py-2 text-sm flex-1 min-w-[140px] focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
-            placeholder="Field name (e.g. Field 1)"
+            placeholder={`${sc.venueSingular} name (e.g. ${sc.venueSingular} 1)`}
             value={newField.name}
             onChange={e => setNewField(f => ({ ...f, name: e.target.value }))}
             onKeyDown={e => e.key === 'Enter' && addField()}
@@ -55,12 +57,12 @@ export default function FieldsTab({ state, setState }: Props) {
           <button
             onClick={addField}
             className="bg-[#cd163f] text-white px-4 py-2 rounded text-sm hover:bg-[#00013a] transition"
-          >Add Field</button>
+          >Add {sc.venueSingular}</button>
         </div>
       </div>
 
       {state.fields.length === 0 && (
-        <p className="text-sm text-gray-400 italic">No fields added yet.</p>
+        <p className="text-sm text-gray-400 italic">No {sc.venuePlural.toLowerCase()} added yet.</p>
       )}
 
       <div className="space-y-3">
@@ -70,7 +72,7 @@ export default function FieldsTab({ state, setState }: Props) {
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
                 className="border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
-                placeholder="Field name"
+                placeholder={`${sc.venueSingular} name`}
                 value={field.name}
                 onChange={e => updateField(field.id, { name: e.target.value })}
               />

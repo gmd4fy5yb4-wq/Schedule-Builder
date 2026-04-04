@@ -4,6 +4,7 @@ import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { exportToExcel, exportToCSV } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { type EventForm, emptyForm, formFromEvent, toMins, minsToTime, fmtTime } from './EventModal'
+import { getSportConfig } from '@/lib/sports'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; readOnly?: boolean }
 
@@ -15,6 +16,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 const DAY_HEADERS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 export default function ScheduleTab({ state, setState, readOnly = false }: Props) {
+  const sc = getSportConfig(state.season.sport)
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -111,7 +113,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
 
   function doExport() {
     setExporting(true)
-    try { exportToExcel(state.divisions, state.fields, state.umpires, state.schedule.games, state.schedule.practices) }
+    try { exportToExcel(state.season, state.divisions, state.fields, state.umpires, state.schedule.games, state.schedule.practices) }
     finally { setExporting(false) }
   }
 
@@ -172,7 +174,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       {/* Drag conflict toast */}
       {dragError && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg">
-          <span><span className="font-semibold">Field conflict — </span>{dragError}</span>
+          <span><span className="font-semibold">{sc.venueSingular} conflict — </span>{dragError}</span>
           <button onClick={() => setDragError(null)} className="ml-auto text-red-400 hover:text-red-600 text-lg leading-none">×</button>
         </div>
       )}
@@ -301,7 +303,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             <span className="text-sm font-medium text-gray-600">Filter:</span>
             <select className="border rounded px-2 py-1.5 text-sm" value={filterType} onChange={e => setFilterType(e.target.value as 'all' | 'game' | 'practice')}>
               <option value="all">All Types</option>
-              <option value="game">Games Only</option>
+              <option value="game">{sc.eventPlural} Only</option>
               <option value="practice">Practices Only</option>
             </select>
             <select className="border rounded px-2 py-1.5 text-sm" value={filterDiv} onChange={e => setFilterDiv(e.target.value)}>
@@ -316,7 +318,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b text-left">
-                    {['Date','Start','End','Div','Type','Home / Team','Away','Field','Umpire',''].map(h => (
+                    {['Date','Start','End','Div','Type','Home / Team','Away',sc.venueSingular,sc.officialSingular,''].map(h => (
                       <th key={h} className="px-3 py-2 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -332,7 +334,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         <td className="px-3 py-2"><span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.pill}`}>{divMap.get(item.divisionId)?.name}</span></td>
                         <td className="px-3 py-2">
                           {item.type === 'game'
-                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-[#eeeef6] text-[#cd163f] font-medium">Game</span>
+                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-[#eeeef6] text-[#cd163f] font-medium">{sc.eventSingular}</span>
                             : <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">Practice</span>}
                         </td>
                         <td className="px-3 py-2 font-medium">
@@ -363,7 +365,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2 text-xs">
-        {state.divisions.map(d => { const c = getDivisionColor(d.id, state.divisions); return <span key={d.id} className={`px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>{d.name} game</span> })}
+        {state.divisions.map(d => { const c = getDivisionColor(d.id, state.divisions); return <span key={d.id} className={`px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>{d.name} {sc.eventSingular.toLowerCase()}</span> })}
         <span className="px-2 py-0.5 rounded border bg-gray-100 text-gray-600 border-gray-200">Practice</span>
         <span className="px-2 py-0.5 rounded border bg-red-50 text-red-400 border-red-200">Blackout date</span>
       </div>
@@ -390,7 +392,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           >
             <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs w-52">
               <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${c.text}`}>
-                {div?.name ?? ''} {isGame ? 'Game' : 'Practice'}
+                {div?.name ?? ''} {isGame ? sc.eventSingular : 'Practice'}
               </div>
               {isGame ? (
                 <div className="space-y-1">
@@ -416,7 +418,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                 </div>
                 {field && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Field</span>
+                    <span className="text-gray-500">{sc.venueSingular}</span>
                     <span className="font-medium text-gray-800">{field.name}</span>
                   </div>
                 )}

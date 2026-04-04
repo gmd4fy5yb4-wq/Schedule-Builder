@@ -1,12 +1,14 @@
 'use client'
 import { useState } from 'react'
 import type { AppState, Umpire } from '@/lib/types'
+import { getSportConfig } from '@/lib/sports'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
 
 function uid() { return Math.random().toString(36).slice(2) }
 
 export default function UmpiresTab({ state, setState }: Props) {
+  const sc = getSportConfig(state.season.sport)
   const [form, setForm] = useState({ name: '', phone: '', email: '' })
 
   function add() {
@@ -32,12 +34,12 @@ export default function UmpiresTab({ state, setState }: Props) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-800">Umpire Pool</h2>
-      <p className="text-sm text-gray-500">Add all umpires available for the season. The scheduler will distribute games fairly across the pool.</p>
+      <h2 className="text-xl font-semibold text-gray-800">{sc.officialPlural} Pool</h2>
+      <p className="text-sm text-gray-500">Add all {sc.officialPlural.toLowerCase()} available for the season. The scheduler will distribute games fairly across the pool.</p>
 
       {/* Add form */}
       <div className="bg-white rounded-lg border p-4">
-        <h3 className="font-medium text-gray-700 mb-3">Add Umpire</h3>
+        <h3 className="font-medium text-gray-700 mb-3">Add {sc.officialSingular}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input
             className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
@@ -62,11 +64,11 @@ export default function UmpiresTab({ state, setState }: Props) {
         <button
           onClick={add}
           className="mt-3 bg-[#cd163f] text-white px-4 py-2 rounded text-sm hover:bg-[#00013a] transition"
-        >Add Umpire</button>
+        >Add {sc.officialSingular}</button>
       </div>
 
       {/* List */}
-      {state.umpires.length === 0 && <p className="text-sm text-gray-400 italic">No umpires added yet.</p>}
+      {state.umpires.length === 0 && <p className="text-sm text-gray-400 italic">No {sc.officialPlural.toLowerCase()} added yet.</p>}
       {state.umpires.length > 0 && (
         <div className="bg-white rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
@@ -115,7 +117,7 @@ export default function UmpiresTab({ state, setState }: Props) {
               ))}
             </tbody>
           </table>
-          <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500">{state.umpires.length} umpire{state.umpires.length !== 1 ? 's' : ''}</div>
+          <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500">{state.umpires.length} {state.umpires.length !== 1 ? sc.officialPlural.toLowerCase() : sc.officialSingular.toLowerCase()}</div>
         </div>
       )}
     </div>

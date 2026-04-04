@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Softball Scheduler',
-  description: 'League scheduling tool',
+  title: 'FieldDay Planner',
+  description: 'Schedule any sport, any league',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { AppState } from '@/lib/types'
+import { SPORTS, getSportConfig } from '@/lib/sports'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
 
@@ -42,6 +43,16 @@ export default function SetupTab({ state, setState }: Props) {
 
       {/* Season config */}
       <div className="bg-white rounded-lg border p-6 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
+          <select
+            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#cd163f]"
+            value={season.sport ?? 'softball'}
+            onChange={e => update('sport', e.target.value)}
+          >
+            {SPORTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
           <input
@@ -162,17 +173,22 @@ export default function SetupTab({ state, setState }: Props) {
       </div>
 
       {/* Getting started */}
-      <div className="bg-[#f5f5fb] border border-[#eeeef6] rounded-lg p-4 text-sm text-green-800">
-        <p className="font-medium mb-1">Getting started</p>
-        <ol className="list-decimal list-inside space-y-1 text-[#cd163f]">
-          <li>Fill in season dates and game duration here</li>
-          <li>Add blackout dates for holidays or field closures</li>
-          <li>Add teams to each division in <strong>Divisions &amp; Teams</strong></li>
-          <li>Add fields and their weekly availability in <strong>Fields</strong></li>
-          <li>Add umpires in <strong>Umpires</strong></li>
-          <li>Generate and export your schedule in <strong>Schedule</strong></li>
-        </ol>
-      </div>
+      {(() => {
+        const sc = getSportConfig(season.sport)
+        return (
+          <div className="bg-[#f5f5fb] border border-[#eeeef6] rounded-lg p-4 text-sm text-green-800">
+            <p className="font-medium mb-1">Getting started</p>
+            <ol className="list-decimal list-inside space-y-1 text-[#cd163f]">
+              <li>Fill in season dates and game duration here</li>
+              <li>Add blackout dates for holidays or field closures</li>
+              <li>Add teams to each division in <strong>Divisions &amp; Teams</strong></li>
+              <li>Add {sc.venuePlural.toLowerCase()} in <strong>{sc.venuePlural}</strong></li>
+              <li>Add {sc.officialPlural.toLowerCase()} in <strong>{sc.officialPlural}</strong></li>
+              <li>Generate and export your schedule in <strong>Schedule</strong></li>
+            </ol>
+          </div>
+        )
+      })()}
     </div>
   )
 }

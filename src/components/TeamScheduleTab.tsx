@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { emptyForm, formFromEvent, type EventForm } from './EventModal'
+import { getSportConfig } from '@/lib/sports'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; readOnly?: boolean }
 
@@ -16,6 +17,7 @@ function fmtTime(t: string) {
 }
 
 export default function TeamScheduleTab({ state, setState, readOnly = false }: Props) {
+  const sc = getSportConfig(state.season.sport)
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
 
@@ -175,8 +177,8 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                       <th className="px-4 py-2.5 font-medium text-gray-600">Type</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">Opponent / Note</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">Home / Away</th>
-                      <th className="px-4 py-2.5 font-medium text-gray-600">Field</th>
-                      <th className="px-4 py-2.5 font-medium text-gray-600">Umpire</th>
+                      <th className="px-4 py-2.5 font-medium text-gray-600">{sc.venueSingular}</th>
+                      <th className="px-4 py-2.5 font-medium text-gray-600">{sc.officialSingular}</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">Duration</th>
                     </tr>
                   </thead>
@@ -195,7 +197,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                             <td className="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">{fmtDate(g.date)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap">{fmtTime(g.time)}</td>
                             <td className="px-4 py-2.5">
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[#cd163f]">Game</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[#cd163f]">{sc.eventSingular}</span>
                             </td>
                             <td className="px-4 py-2.5 font-medium text-gray-800">{opp?.name ?? <span className="text-gray-400 italic">Unknown</span>}</td>
                             <td className="px-4 py-2.5">
