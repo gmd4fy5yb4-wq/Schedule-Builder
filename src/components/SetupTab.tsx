@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import type { AppState } from '@/lib/types'
 import { SPORTS, getSportConfig } from '@/lib/sports'
+import type { ImportResult } from '@/lib/importCSV'
+import ImportModal from './ImportModal'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
 
@@ -14,6 +16,12 @@ export default function SetupTab({ state, setState }: Props) {
   const blackouts = state.blackoutDates ?? []
   const [newBlackout, setNewBlackout] = useState('')
   const [blackoutLabel, setBlackoutLabel] = useState('')
+  const [showImport, setShowImport] = useState(false)
+
+  function handleImport(result: ImportResult) {
+    setState(s => ({ ...s, divisions: result.divisions, fields: result.fields, umpires: result.umpires }))
+    setShowImport(false)
+  }
 
   function update(key: keyof typeof season, value: string | number) {
     setState(s => ({ ...s, season: { ...s.season, [key]: value } }))
@@ -39,7 +47,15 @@ export default function SetupTab({ state, setState }: Props) {
 
   return (
     <div className="max-w-xl space-y-6">
-      <h2 className="text-xl font-semibold text-gray-800">League Setup</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-800">League Setup</h2>
+        <button
+          onClick={() => setShowImport(true)}
+          className="text-sm font-medium text-[#cd163f] border border-[#cd163f] rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
+        >
+          Import from CSV
+        </button>
+      </div>
 
       {/* Season config */}
       <div className="bg-white rounded-lg border p-6 space-y-4">
@@ -171,6 +187,10 @@ export default function SetupTab({ state, setState }: Props) {
           <p className="text-xs text-gray-400">{blackouts.length} blackout date{blackouts.length !== 1 ? 's' : ''} — regenerate the schedule to apply changes.</p>
         )}
       </div>
+
+      {showImport && (
+        <ImportModal state={state} onImport={handleImport} onClose={() => setShowImport(false)} />
+      )}
 
       {/* Getting started */}
       {(() => {
