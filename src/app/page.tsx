@@ -16,12 +16,7 @@ import LeagueGate from '@/components/LeagueGate'
 
 const DEFAULT: AppState = {
   season: { leagueName: 'My League', sport: 'softball', startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
-  divisions: [
-    { id: '6u', name: '6U', teams: [], gamesPerTeam: 10 },
-    { id: '8u', name: '8U', teams: [], gamesPerTeam: 10 },
-    { id: '10u', name: '10U', teams: [], gamesPerTeam: 10 },
-    { id: '12u', name: '12U', teams: [], gamesPerTeam: 10 },
-  ],
+  divisions: [],
   blackoutDates: [],
   fields: [],
   umpires: [],
