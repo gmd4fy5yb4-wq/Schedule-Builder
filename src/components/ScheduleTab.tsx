@@ -241,45 +241,48 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     }
                   </div>
 
-                  {/* Events */}
-                  <div className="flex-1 space-y-0.5">
-                    {events.slice(0, 4).map(ev => {
-                      const c = getDivisionColor(ev.divisionId, state.divisions)
-                      const isPractice = ev.type === 'practice'
-                      const label = ev.type === 'game'
-                        ? `${teamMap.get((ev as ScheduledGame).homeTeamId)?.name ?? '?'} vs ${teamMap.get((ev as ScheduledGame).awayTeamId)?.name ?? '?'}`
-                        : `${teamMap.get((ev as ScheduledPractice).teamId)?.name ?? '?'} practice`
-                      return (
-                        <button
-                          key={ev.id}
-                          draggable
-                          onDragStart={e => {
-                            setDragId(ev.id)
-                            setTooltip(null)
-                            e.dataTransfer.effectAllowed = 'move'
-                            e.dataTransfer.setData('text/plain', ev.id)
-                          }}
-                          onDragEnd={() => { setDragId(null); setDragOverDate(null) }}
-                          onClick={() => { if (!dragId) openEdit(ev) }}
-                          onMouseEnter={e => {
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            setTooltip({ ev, x: rect.left, y: rect.top })
-                          }}
-                          onMouseLeave={() => setTooltip(null)}
-                          className={`w-full text-left text-xs px-1.5 py-0.5 rounded truncate border transition hover:opacity-75 cursor-grab active:cursor-grabbing ${
-                            isPractice ? 'bg-gray-100 text-gray-600 border-gray-200' : `${c.bg} ${c.text} ${c.border}`
-                          }`}
-                        >
-                          <span className="font-medium">{fmtTime(ev.time)}</span> {label}
-                        </button>
-                      )
-                    })}
-                    {events.length > 4 && (
-                      <button onClick={() => openAdd(dateStr)} className="text-xs text-gray-400 hover:text-gray-600 px-1.5">
-                        +{events.length - 4} more
-                      </button>
-                    )}
-                  </div>
+                  {/* Events — shrink font/spacing as count grows so all fit */}
+                  {(() => {
+                    const n = events.length
+                    const textSize = n <= 4 ? 'text-xs' : n <= 6 ? 'text-[10px]' : 'text-[9px]'
+                    const gap      = n <= 6 ? 'space-y-0.5' : 'space-y-px'
+                    const pad      = n <= 6 ? 'px-1.5 py-0.5' : 'px-1 py-px'
+                    return (
+                      <div className={`flex-1 ${gap}`}>
+                        {events.map(ev => {
+                          const c = getDivisionColor(ev.divisionId, state.divisions)
+                          const isPractice = ev.type === 'practice'
+                          const label = ev.type === 'game'
+                            ? `${teamMap.get((ev as ScheduledGame).homeTeamId)?.name ?? '?'} vs ${teamMap.get((ev as ScheduledGame).awayTeamId)?.name ?? '?'}`
+                            : `${teamMap.get((ev as ScheduledPractice).teamId)?.name ?? '?'} practice`
+                          return (
+                            <button
+                              key={ev.id}
+                              draggable
+                              onDragStart={e => {
+                                setDragId(ev.id)
+                                setTooltip(null)
+                                e.dataTransfer.effectAllowed = 'move'
+                                e.dataTransfer.setData('text/plain', ev.id)
+                              }}
+                              onDragEnd={() => { setDragId(null); setDragOverDate(null) }}
+                              onClick={() => { if (!dragId) openEdit(ev) }}
+                              onMouseEnter={e => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setTooltip({ ev, x: rect.left, y: rect.top })
+                              }}
+                              onMouseLeave={() => setTooltip(null)}
+                              className={`w-full text-left ${textSize} ${pad} rounded truncate border transition hover:opacity-75 cursor-grab active:cursor-grabbing ${
+                                isPractice ? 'bg-gray-100 text-gray-600 border-gray-200' : `${c.bg} ${c.text} ${c.border}`
+                              }`}
+                            >
+                              <span className="font-medium">{fmtTime(ev.time)}</span> {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })}
