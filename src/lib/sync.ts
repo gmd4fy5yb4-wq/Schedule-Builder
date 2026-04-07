@@ -17,11 +17,47 @@ export async function loadLeague(code: string): Promise<LeagueRecord | null> {
   return { data: data.data as AppState, updatedAt: data.updated_at, updatedBy: data.updated_by }
 }
 
-export async function saveLeague(code: string, state: AppState, userName: string): Promise<boolean> {
-  const { error } = await getSupabase()
-    .from('leagues')
-    .upsert({ id: code.toUpperCase(), data: state, updated_at: new Date().toISOString(), updated_by: userName })
-  return !error
+/**
+ * Save a league through the authenticated server route.
+ * The server validates the user's subscription limits before saving.
+ * Returns { success: true } or { success: false, error, limitType? }
+ */
+export async function saveLeague(
+  code: string,
+  state: AppState,
+  userName: string
+): Promise<{ success: boolean; error?: string; limitType?: string }> {
+  const res = await fetch('/api/leagues/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code.toUpperCase(), state, userName }),
+  })
+  const data = await res.json()
+  if (!res.ok) {
+    return { success: false, error: data.error, limitType: data.limitType }
+  }
+  return { success: true }
+}
+
+/**
+ * Create a new league through the authenticated server route.
+ * Sets owner_id atomically and enforces subscription limits.
+ * Returns the generated code on success, or null on failure.
+ */
+export async function createLeague(
+  state: AppState,
+  userName: string
+): Promise<{ code: string } | { error: string; limitType?: string }> {
+  const res = await fetch('/api/leagues/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state, userName }),
+  })
+  const data = await res.json()
+  if (!res.ok) {
+    return { error: data.error ?? 'Failed to create league.', limitType: data.limitType }
+  }
+  return { code: data.code }
 }
 
 export async function leagueExists(code: string): Promise<boolean> {
@@ -33,6 +69,7 @@ export async function leagueExists(code: string): Promise<boolean> {
   return !!data
 }
 
+/** @deprecated Use createLeague() instead — it sets owner_id and enforces limits. */
 export function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
@@ -64,14 +101,14 @@ export async function getOrCreateViewToken(leagueCode: string): Promise<string |
   return error ? null : token
 }
 
-/** Loads a league by its read-only view token (never exposes the admin code). */
+/**
+ * Loads a league by its read-only view token.
+ * Uses the server API route (service role) to bypass RLS.
+ */
 export async function loadLeagueByViewToken(token: string): Promise<LeagueRecord | null> {
-  const { data, error } = await getSupabase()
-    .from('leagues')
-    .select('data, updated_at, updated_by')
-    .eq('view_token', token)
-    .single()
-  if (error || !data) return null
+  const res = await fetch(`/api/league/view?token=${encodeURIComponent(token)}`)
+  if (!res.ok) return null
+  const data = await res.json()
   return { data: data.data as AppState, updatedAt: data.updated_at, updatedBy: data.updated_by }
 }
 

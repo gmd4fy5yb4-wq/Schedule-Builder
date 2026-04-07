@@ -4,6 +4,8 @@ import type { AppState } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
 import { getTheme, buildThemeVars } from '@/lib/themes'
 import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
+import { getSupabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 import SnapshotModal from '@/components/SnapshotModal'
 import SetupTab from '@/components/SetupTab'
 import DivisionsTab from '@/components/DivisionsTab'
@@ -55,6 +57,8 @@ export default function Home() {
   const [readOnly, setReadOnly] = useState(false)
   const [roLinkCopied, setRoLinkCopied] = useState(false)
   const [showSnapshots, setShowSnapshots] = useState(false)
+
+  const [user, setUser] = useState<User | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
@@ -128,6 +132,16 @@ export default function Home() {
     }
   }, [])
 
+  // Track auth state
+  useEffect(() => {
+    const sb = getSupabase()
+    sb.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null))
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
   // Push to undo stack on state change (debounced 1s, skipped during undo)
   useEffect(() => {
     if (!hydrated || isUndoingRef.current) return
@@ -154,8 +168,8 @@ export default function Home() {
     saveTimerRef.current = setTimeout(async () => {
       if (isSavingRef.current) return
       isSavingRef.current = true
-      const ok = await saveLeague(leagueCode, state, localUserRef.current)
-      if (ok) {
+      const result = await saveLeague(leagueCode, state, localUserRef.current)
+      if (result.success) {
         lastSyncedRef.current = current
         setSyncStatus('synced')
       } else {
@@ -206,6 +220,11 @@ export default function Home() {
     setLeagueCode(null)
     setState(DEFAULT)
     lastSyncedRef.current = ''
+  }
+
+  async function handleSignOut() {
+    await getSupabase().auth.signOut()
+    handleLeave()
   }
 
   function copyCode() {
@@ -340,17 +359,36 @@ export default function Home() {
               </div>
             )}
 
-            {/* User name + leave */}
+            {/* User name + leave + account */}
             {!readOnly ? (
               <div className="flex items-center gap-2 text-sm text-[var(--fd-primary-light)]">
                 <span>{userName}</span>
-                <button
-                  onClick={handleLeave}
-                  className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] hover:border-[var(--fd-accent)] rounded px-2 py-0.5"
-                  title="Leave this league"
-                >
-                  Leave
-                </button>
+                {user && (
+                  <a
+                    href="/account"
+                    className="text-[var(--fd-primary-light)] hover:text-white transition text-xs border border-[var(--fd-primary-muted)] rounded px-2 py-0.5"
+                    title="Account & billing"
+                  >
+                    Account
+                  </a>
+                )}
+                {user ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] rounded px-2 py-0.5"
+                    title="Sign out"
+                  >
+                    Sign Out
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleLeave}
+                    className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] hover:border-[var(--fd-accent)] rounded px-2 py-0.5"
+                    title="Leave this league"
+                  >
+                    Leave
+                  </button>
+                )}
               </div>
             ) : (
               <span className="text-xs text-[var(--fd-primary-muted)]">Live schedule — auto-updates every 30s</span>

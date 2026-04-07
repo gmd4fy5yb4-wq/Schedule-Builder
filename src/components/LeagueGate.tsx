@@ -1,8 +1,10 @@
 'use client'
-import { useState } from 'react'
-import { leagueExists, loadLeague, saveLeague, generateCode } from '@/lib/sync'
+import { useState, useEffect } from 'react'
+import { leagueExists, loadLeague, createLeague } from '@/lib/sync'
 import type { AppState } from '@/lib/types'
 import { SPORTS } from '@/lib/sports'
+import { getSupabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 
 interface Props {
   defaultState: AppState
@@ -18,20 +20,26 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [user, setUser] = useState<User | null | undefined>(undefined) // undefined = loading
+
+  // Resolve auth state once on mount
+  useEffect(() => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+    })
+  }, [])
 
   async function handleCreate() {
     if (!name.trim()) { setError('Please enter your name'); return }
     setLoading(true); setError('')
-    let code = generateCode()
-    let exists = await leagueExists(code)
-    while (exists) { code = generateCode(); exists = await leagueExists(code) }
+
     const initialState = { ...defaultState, season: { ...defaultState.season, sport } }
-    const ok = await saveLeague(code, initialState, name.trim())
-    if (ok) {
-      onJoin(code, initialState, name.trim())
+    const result = await createLeague(initialState, name.trim())
+
+    if ('code' in result) {
+      onJoin(result.code, initialState, name.trim())
     } else {
-      setError('Could not create league — check your connection and try again.')
+      setError(result.error ?? 'Could not create league — check your connection and try again.')
     }
     setLoading(false)
   }
@@ -50,6 +58,15 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     setLoading(false)
   }
 
+  // While resolving auth, show nothing (avoids flash)
+  if (user === undefined) {
+    return (
+      <div className="min-h-screen bg-[var(--fd-primary)] flex items-center justify-center">
+        <div className="text-white/50 text-sm">Loading…</div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[var(--fd-primary)] flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
@@ -65,8 +82,17 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
           {/* Choose mode */}
           {mode === 'choose' && (
             <div className="p-8 space-y-3">
+              {/* If not logged in, show sign-in prompt for create */}
+              {!user && (
+                <div className="mb-2 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm text-center">
+                  <a href="/login" className="font-semibold underline">Sign in</a> to create or manage a league.
+                </div>
+              )}
               <button
-                onClick={() => { setMode('create'); setError('') }}
+                onClick={() => {
+                  if (!user) { window.location.href = '/login'; return }
+                  setMode('create'); setError('')
+                }}
                 className="w-full bg-[var(--fd-accent)] text-white py-3.5 rounded-xl font-semibold text-base hover:bg-[var(--fd-primary)] transition"
               >
                 Create New League
@@ -77,6 +103,14 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               >
                 Join Existing League
               </button>
+              {user && (
+                <a
+                  href="/account"
+                  className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-2"
+                >
+                  My Account
+                </a>
+              )}
             </div>
           )}
 
@@ -84,7 +118,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
           {mode === 'create' && (
             <div className="p-8 space-y-5">
               <button onClick={() => { setMode('choose'); setError('') }} className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1">
-                Back
+                ← Back
               </button>
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">Create a new league</h2>
@@ -123,7 +157,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
           {mode === 'join' && (
             <div className="p-8 space-y-5">
               <button onClick={() => { setMode('choose'); setError('') }} className="text-sm text-gray-400 hover:text-gray-600">
-                Back
+                ← Back
               </button>
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-gray-800">Join an existing league</h2>
@@ -157,8 +191,26 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               >
                 {loading ? 'Joining…' : 'Join League'}
               </button>
+              {/* Claim prompt for authenticated users */}
+              {user && (
+                <p className="text-xs text-gray-400 text-center pt-2">
+                  Is this your league?{' '}
+                  <a href="/account" className="underline text-gray-500">Claim it</a> in My Account to link it to your profile.
+                </p>
+              )}
             </div>
           )}
+        </div>
+
+        {/* Footer links */}
+        <div className="text-center text-sm text-[var(--fd-primary-light)] space-x-4">
+          {user ? (
+            <span>Signed in as <span className="font-medium text-white">{user.email}</span></span>
+          ) : (
+            <a href="/login" className="underline hover:text-white">Sign in</a>
+          )}
+          <span>·</span>
+          <a href="/pricing" className="underline hover:text-white">Plans & pricing</a>
         </div>
       </div>
     </div>
