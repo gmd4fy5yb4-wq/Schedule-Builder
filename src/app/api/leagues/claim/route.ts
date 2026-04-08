@@ -22,31 +22,27 @@ export async function POST(req: NextRequest) {
   const code = parsed.data.code.toUpperCase()
   const serviceSupabase = getSupabaseServiceRole()
 
-  const { data: league, error: fetchError } = await serviceSupabase
-    .from('leagues')
-    .select('id, owner_id')
-    .eq('id', code)
-    .single()
-
-  if (fetchError || !league) {
-    return NextResponse.json({ error: 'League not found.' }, { status: 404 })
-  }
-
-  if (league.owner_id && league.owner_id !== session.user.id) {
-    return NextResponse.json(
-      { error: 'This league is already claimed by another account.' },
-      { status: 409 }
-    )
-  }
-
-  const { error: updateError } = await serviceSupabase
+  // Atomic conditional UPDATE — eliminates SELECT-then-UPDATE race condition.
+  // Only sets owner_id if the league is unclaimed (NULL) or already owned by this user.
+  const { data, error } = await serviceSupabase
     .from('leagues')
     .update({ owner_id: session.user.id })
     .eq('id', code)
+    .or(`owner_id.is.null,owner_id.eq.${session.user.id}`)
+    .select('id, owner_id')
+    .single()
 
-  if (updateError) {
-    return NextResponse.json({ error: 'Failed to claim league.' }, { status: 500 })
+  if (error || !data) {
+    // No row returned = league not found OR already claimed by someone else
+    const { data: exists } = await serviceSupabase
+      .from('leagues')
+      .select('id')
+      .eq('id', code)
+      .single()
+
+    if (!exists) return NextResponse.json({ error: 'League not found.' }, { status: 404 })
+    return NextResponse.json({ error: 'This league is already claimed by another account.' }, { status: 409 })
   }
 
-  return NextResponse.json({ success: true, code })
+  return NextResponse.json({ success: true, code: data.id })
 }

@@ -2,12 +2,19 @@
 import { useState } from 'react'
 import type { AppState, Team } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
+import UpgradePrompt from './UpgradePrompt'
+import type { PlanLimits } from '@/lib/plans'
+import { getPlan } from '@/lib/plans'
 
-interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
+interface Props {
+  state: AppState
+  setState: React.Dispatch<React.SetStateAction<AppState>>
+  planLimits?: PlanLimits & { planTier?: string }
+}
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36) }
 
-export default function DivisionsTab({ state, setState }: Props) {
+export default function DivisionsTab({ state, setState, planLimits }: Props) {
   const [newTeam, setNewTeam] = useState<Record<string, string>>({})
   const [newDivName, setNewDivName] = useState('')
   const [newDivGames, setNewDivGames] = useState(10)
@@ -108,6 +115,9 @@ export default function DivisionsTab({ state, setState }: Props) {
   }
 
   const totalTeams = state.divisions.reduce((sum, d) => sum + d.teams.length, 0)
+  const divisionsAtLimit = planLimits ? state.divisions.length >= planLimits.divisionsLimit : false
+  const teamsAtLimit = planLimits ? totalTeams >= planLimits.teamsLimit : false
+  const planName = getPlan((planLimits?.planTier ?? 'trial') as Parameters<typeof getPlan>[0]).name
 
   return (
     <div className="space-y-6">
@@ -141,12 +151,13 @@ export default function DivisionsTab({ state, setState }: Props) {
           </div>
           <button
             onClick={addDivision}
-            disabled={!newDivName.trim()}
+            disabled={!newDivName.trim() || divisionsAtLimit}
             className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Add Division
           </button>
         </div>
+        {divisionsAtLimit && <UpgradePrompt limitType="divisions" planName={planName} />}
       </div>
 
       {/* ── Division list ── */}
@@ -292,9 +303,11 @@ export default function DivisionsTab({ state, setState }: Props) {
                   />
                   <button
                     onClick={() => addTeam(div.id)}
-                    className="bg-[var(--fd-accent)] text-white px-3 py-1.5 rounded text-sm hover:bg-[var(--fd-primary)] transition"
+                    disabled={teamsAtLimit}
+                    className="bg-[var(--fd-accent)] text-white px-3 py-1.5 rounded text-sm hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >Add</button>
                 </div>
+                {teamsAtLimit && <UpgradePrompt limitType="teams" planName={planName} />}
                 <p className="text-xs text-gray-400 mt-2">{div.teams.length} team{div.teams.length !== 1 ? 's' : ''}</p>
               </div>
             </div>

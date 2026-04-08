@@ -10,14 +10,16 @@ export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   if (!stripe) {
-    return NextResponse.json({ error: 'Not configured.' }, { status: 503 })
+    // Return 200 so Stripe doesn't retry — log internally
+    console.error('[webhook] Stripe not configured')
+    return NextResponse.json({ received: true })
   }
 
   const sig = req.headers.get('stripe-signature')
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
   if (!sig || !webhookSecret) {
-    return NextResponse.json({ error: 'Missing signature.' }, { status: 400 })
+    return NextResponse.json({ error: 'Bad request.' }, { status: 400 })
   }
 
   const rawBody = await req.text()
@@ -26,7 +28,7 @@ export async function POST(req: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret)
   } catch {
-    return NextResponse.json({ error: 'Signature verification failed.' }, { status: 400 })
+    return NextResponse.json({ error: 'Bad request.' }, { status: 400 })
   }
 
   const supabase = getSupabaseServiceRole()
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
       const customerId = session.customer as string
       const subscriptionId = session.subscription as string
 
-      if (!userId) break
+      if (!userId || !subscriptionId) break
 
       const sub = await stripe.subscriptions.retrieve(subscriptionId)
       const firstItem = sub.items.data[0]
@@ -46,14 +48,14 @@ export async function POST(req: NextRequest) {
       const plan = PLANS.find(p => p.stripePriceId === priceId)
       const tier = (plan?.tier ?? 'small') as PlanTier
 
-      // In Stripe basil API, current_period_end is on each item; fall back to billing_cycle_anchor
+      // In Stripe basil API, current_period_end is on each item
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const itemAny = firstItem as any
-      const periodEnd: number = itemAny?.current_period_end ?? sub.billing_cycle_anchor
+      const periodEnd: number = (firstItem as any)?.current_period_end ?? sub.billing_cycle_anchor
 
       await supabase.from('user_subscriptions').upsert({
         user_id: userId,
         stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
         plan_tier: tier,
         subscription_status: 'active',
         subscription_end: new Date(periodEnd * 1000).toISOString(),
@@ -68,20 +70,20 @@ export async function POST(req: NextRequest) {
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
       const sub = event.data.object as Stripe.Subscription
-      const customerId = sub.customer as string
+      const subscriptionId = sub.id
 
+      // Match by subscription ID — more precise than customer ID alone
       const { data: existing } = await supabase
         .from('user_subscriptions')
         .select('user_id')
-        .eq('stripe_customer_id', customerId)
+        .eq('stripe_subscription_id', subscriptionId)
         .single()
 
       if (existing) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const subAny = sub as any
-        const periodEnd: number = sub.items.data[0] && (sub.items.data[0] as any).current_period_end
-          ? (sub.items.data[0] as any).current_period_end
-          : (subAny.current_period_end ?? sub.billing_cycle_anchor)
+        const periodEnd: number = (sub.items.data[0] as any)?.current_period_end
+          ?? (sub as any).current_period_end
+          ?? sub.billing_cycle_anchor
 
         await supabase
           .from('user_subscriptions')

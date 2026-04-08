@@ -8,7 +8,7 @@ import type { AppState } from '@/lib/types'
 const schema = z.object({
   code: z.string().length(6),
   state: z.unknown(),
-  userName: z.string().max(100),
+  userName: z.string().min(1).max(100).trim(),
 })
 
 export async function POST(req: NextRequest) {

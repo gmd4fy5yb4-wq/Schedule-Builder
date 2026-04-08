@@ -1,3 +1,4 @@
+import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
@@ -32,8 +33,8 @@ export async function GET(req: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
-    console.error('[auth/callback] error:', error.message)
-    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, origin))
+    console.error('[auth/callback] session exchange failed:', error.message)
+    return NextResponse.redirect(new URL('/login?error=auth_failed', origin))
   }
 
   return response

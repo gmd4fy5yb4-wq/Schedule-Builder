@@ -84,21 +84,11 @@ export async function getOrCreateViewToken(leagueCode: string): Promise<string |
   const sb = getSupabase()
   const code = leagueCode.toUpperCase()
 
-  const { data } = await sb
-    .from('leagues')
-    .select('view_token')
-    .eq('id', code)
-    .single()
-
-  if (data?.view_token) return data.view_token as string
-
-  const token = crypto.randomUUID()
-  const { error } = await sb
-    .from('leagues')
-    .update({ view_token: token })
-    .eq('id', code)
-
-  return error ? null : token
+  // Atomic: COALESCE preserves an existing token, only sets a new one if NULL.
+  // Eliminates the SELECT-then-UPDATE race condition.
+  const { data, error } = await sb.rpc('get_or_create_view_token', { league_id: code })
+  if (error || !data) return null
+  return data as string
 }
 
 /**

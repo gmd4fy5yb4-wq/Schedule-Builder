@@ -59,6 +59,7 @@ export default function Home() {
   const [showSnapshots, setShowSnapshots] = useState(false)
 
   const [user, setUser] = useState<User | null>(null)
+  const [planLimits, setPlanLimits] = useState<{ leaguesLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
@@ -135,7 +136,17 @@ export default function Home() {
   // Track auth state
   useEffect(() => {
     const sb = getSupabase()
-    sb.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null))
+    sb.auth.getSession().then(async ({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        const { data: sub } = await sb
+          .from('user_subscriptions')
+          .select('leagues_limit, divisions_limit, teams_limit, plan_tier')
+          .eq('user_id', session.user.id)
+          .single()
+        if (sub) setPlanLimits({ leaguesLimit: sub.leagues_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
+      }
+    })
     const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
@@ -429,7 +440,7 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === 0 && <SetupTab state={state} setState={setState} />}
-        {tab === 1 && <DivisionsTab state={state} setState={setState} />}
+        {tab === 1 && <DivisionsTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
         {tab === 2 && <FieldsTab state={state} setState={setState} />}
         {tab === 3 && <UmpiresTab state={state} setState={setState} />}
         {tab === 4 && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
