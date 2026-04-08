@@ -1,19 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { createServerClient } from '@supabase/ssr'
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
+  const { searchParams, origin } = new URL(req.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
-  if (code) {
-    const supabase = await getSupabaseServer()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) {
-      console.error('[auth/callback] exchangeCodeForSession error:', error.message)
-      return NextResponse.redirect(new URL('/login?error=auth', req.url))
-    }
+  if (!code) {
+    return NextResponse.redirect(new URL('/login?error=no_code', origin))
   }
 
-  return NextResponse.redirect(new URL(next, req.url))
+  // Build the redirect response first so we can set cookies on it
+  const response = NextResponse.redirect(new URL(next, origin))
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return req.cookies.getAll() },
+        setAll(cookiesToSet) {
+          // Write session cookies onto the redirect response
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+  if (error) {
+    console.error('[auth/callback] error:', error.message)
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, origin))
+  }
+
+  return response
 }

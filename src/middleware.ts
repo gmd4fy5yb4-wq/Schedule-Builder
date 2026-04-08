@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseMiddleware } from '@/lib/supabase-middleware'
+import { createServerClient } from '@supabase/ssr'
 
 /** Paths that never require auth or a subscription check. */
 const PUBLIC_PREFIXES = [
@@ -30,15 +30,30 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  const res = NextResponse.next()
-  const supabase = getSupabaseMiddleware(req, res)
+  // Build response first so we can write refreshed session cookies onto it
+  let response = NextResponse.next()
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return req.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            req.cookies.set(name, value)
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
 
   const { data: { session } } = await supabase.auth.getSession()
 
   // Not logged in
   if (!session) {
-    const loginUrl = new URL('/login', req.url)
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
   // Check subscription status
@@ -53,11 +68,10 @@ export async function middleware(req: NextRequest) {
     sub?.subscription_status === 'trialing'
 
   if (!isActive) {
-    const pricingUrl = new URL('/pricing', req.url)
-    return NextResponse.redirect(pricingUrl)
+    return NextResponse.redirect(new URL('/pricing', req.url))
   }
 
-  return res
+  return response
 }
 
 export const config = {
