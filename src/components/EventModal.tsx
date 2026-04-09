@@ -48,6 +48,51 @@ export function formFromEvent(ev: ScheduledGame | ScheduledPractice): EventForm 
   }
 }
 
+// ── Repeat utilities ──────────────────────────────────────────────────────────
+type RepeatFrequency = 'daily' | 'weekly' | 'monthly'
+type RepeatEndType = 'count' | 'date'
+
+interface RepeatConfig {
+  enabled: boolean
+  frequency: RepeatFrequency
+  endType: RepeatEndType
+  count: number       // number of total occurrences (including first)
+  endDate: string     // YYYY-MM-DD
+}
+
+function generateRepeatDates(startDate: string, cfg: RepeatConfig): string[] {
+  if (!startDate || !cfg.enabled) return [startDate]
+
+  const dates: string[] = []
+  const current = new Date(startDate + 'T12:00:00')
+  const limit = cfg.endType === 'count' ? cfg.count : 104 // safety cap at 2 years of weekly
+  const endDateObj = cfg.endType === 'date' && cfg.endDate
+    ? new Date(cfg.endDate + 'T23:59:59')
+    : null
+
+  for (let i = 0; i < limit; i++) {
+    if (endDateObj && current > endDateObj) break
+    dates.push(current.toISOString().split('T')[0])
+    if (cfg.frequency === 'daily')        current.setDate(current.getDate() + 1)
+    else if (cfg.frequency === 'weekly')  current.setDate(current.getDate() + 7)
+    else if (cfg.frequency === 'monthly') current.setMonth(current.getMonth() + 1)
+  }
+
+  return dates
+}
+
+// ── Bulk conflict review ──────────────────────────────────────────────────────
+interface BulkConflict {
+  kind: 'field' | 'team' | 'umpire' | 'hours' | 'teamblackout'
+  message: string
+}
+
+interface BulkConflictItem {
+  date: string
+  conflicts: BulkConflict[]
+  action: 'skip' | 'keep'   // user's choice; default 'skip'
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 interface Props {
   state: AppState
@@ -60,7 +105,16 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   const sc = getSportConfig(state.season.sport)
   const [form, setForm] = useState<EventForm>(initialForm)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [bulkReview, setBulkReview] = useState<BulkConflictItem[] | null>(null)
+  const [repeat, setRepeat] = useState<RepeatConfig>({
+    enabled: false,
+    frequency: 'weekly',
+    endType: 'count',
+    count: 4,
+    endDate: '',
+  })
 
+  const isNew = !initialForm.id
   const f = form
 
   const fieldMap  = useMemo(() => new Map(state.fields.map(fi => [fi.id, fi])), [state.fields])
@@ -73,6 +127,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   const awayOptions = divTeams.filter(t => t.id !== f.homeTeamId)
 
   function upd(patch: Partial<EventForm>) { setForm(prev => ({ ...prev, ...patch })) }
+  function updRepeat(patch: Partial<RepeatConfig>) { setRepeat(prev => ({ ...prev, ...patch })) }
 
   // ── Conflict detection ──────────────────────────────────────────────────────
   const conflicts = useMemo(() => {
@@ -136,24 +191,108 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   function canSave() {
     if (!f.date || !f.time || !f.endTime || !f.fieldId || !f.divisionId) return false
     if (hasHardConflict) return false
+    if (repeat.enabled && repeat.endType === 'date' && !repeat.endDate) return false
     if (f.type === 'game') return !!(f.homeTeamId && f.awayTeamId && f.homeTeamId !== f.awayTeamId)
     return !!f.teamId
   }
 
-  function save() {
-    const id = f.id ?? uid()
+  // Preview how many dates will be created
+  const repeatDates = useMemo(() => {
+    if (!isNew || !repeat.enabled || !f.date) return []
+    return generateRepeatDates(f.date, repeat)
+  }, [isNew, repeat, f.date])
+
+  // Check a single date for conflicts against the existing schedule
+  function detectConflictsForDate(date: string): BulkConflict[] {
+    const result: BulkConflict[] = []
+    const fStart = toMins(f.time)
+    const fEnd   = toMins(f.endTime)
+    if (fEnd <= fStart) return result
+
+    const others = [...state.schedule.games, ...state.schedule.practices]
+      .filter(ev => ev.date === date)
+
+    for (const ev of others) {
+      const evStart = toMins(ev.time)
+      const evEnd   = evStart + (ev.durationMinutes || 90)
+      if (fStart >= evEnd || evStart >= fEnd) continue
+
+      const evRange = `${fmtTime(ev.time)}–${fmtTime(minsToTime(evEnd))}`
+
+      if (f.fieldId && ev.fieldId === f.fieldId)
+        result.push({ kind: 'field', message: `${fieldMap.get(f.fieldId)?.name ?? 'That field'} is already booked ${evRange}` })
+
+      const evTeams = ev.type === 'game'
+        ? [(ev as ScheduledGame).homeTeamId, (ev as ScheduledGame).awayTeamId]
+        : [(ev as ScheduledPractice).teamId]
+      const fTeams = (f.type === 'game' ? [f.homeTeamId, f.awayTeamId] : [f.teamId]).filter(Boolean)
+      for (const tid of fTeams) {
+        if (tid && evTeams.includes(tid))
+          result.push({ kind: 'team', message: `${teamMap.get(tid)?.name ?? 'A team'} already has an event overlapping ${evRange}` })
+      }
+
+      if (f.type === 'game' && f.umpireId && ev.type === 'game' && (ev as ScheduledGame).umpireId === f.umpireId)
+        result.push({ kind: 'umpire', message: `${umpireMap.get(f.umpireId)?.name ?? 'That umpire'} is already assigned overlapping ${evRange}` })
+    }
+
+    // Team blackout dates
+    const involvedTeamIds = (f.type === 'game' ? [f.homeTeamId, f.awayTeamId] : [f.teamId]).filter(Boolean)
+    for (const tid of involvedTeamIds) {
+      const team = teamMap.get(tid)
+      const entry = team?.blackoutDates?.find(d => d.split('::')[0] === date)
+      if (entry) {
+        const label = entry.split('::')[1]
+        result.push({ kind: 'teamblackout', message: `${team!.name} has a blackout on this date${label ? ` — ${label}` : ''}` })
+      }
+    }
+
+    return result
+  }
+
+  function commitDates(dates: string[]) {
     const durationMinutes = toMins(f.endTime) - toMins(f.time)
     setState(s => {
       const games     = s.schedule.games.filter(g => g.id !== f.id)
       const practices = s.schedule.practices.filter(p => p.id !== f.id)
-      if (f.type === 'game') {
-        games.push({ id, type: 'game', date: f.date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId })
-      } else {
-        practices.push({ id, type: 'practice', date: f.date, time: f.time, durationMinutes, fieldId: f.fieldId, teamId: f.teamId, divisionId: f.divisionId })
+      for (const date of dates) {
+        const id = (!isNew && dates.length === 1) ? (f.id ?? uid()) : uid()
+        if (f.type === 'game') {
+          games.push({ id, type: 'game', date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId })
+        } else {
+          practices.push({ id, type: 'practice', date, time: f.time, durationMinutes, fieldId: f.fieldId, teamId: f.teamId, divisionId: f.divisionId })
+        }
       }
       return { ...s, schedule: { ...s.schedule, games, practices, generatedAt: new Date().toISOString() } }
     })
     onClose()
+  }
+
+  function save() {
+    const dates = isNew && repeat.enabled ? generateRepeatDates(f.date, repeat) : [f.date]
+
+    if (dates.length > 1) {
+      // Check all dates for conflicts before committing
+      const conflictItems: BulkConflictItem[] = []
+      for (const date of dates) {
+        const c = detectConflictsForDate(date)
+        if (c.length > 0) conflictItems.push({ date, conflicts: c, action: 'skip' })
+      }
+      if (conflictItems.length > 0) {
+        setBulkReview(conflictItems)
+        return
+      }
+    }
+
+    commitDates(dates)
+  }
+
+  function confirmBulkSave() {
+    if (!bulkReview) return
+    const conflictDatesToSkip = new Set(bulkReview.filter(i => i.action === 'skip').map(i => i.date))
+    const allDates = isNew && repeat.enabled ? generateRepeatDates(f.date, repeat) : [f.date]
+    const datesToCreate = allDates.filter(d => !conflictDatesToSkip.has(d))
+    setBulkReview(null)
+    commitDates(datesToCreate)
   }
 
   function deleteEvent() {
@@ -171,6 +310,116 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   const fmtDateLong = (s: string) =>
     s ? new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—'
 
+  const saveLabel = isNew && repeat.enabled && repeatDates.length > 1
+    ? `Add ${repeatDates.length} Events`
+    : f.id ? 'Save Changes' : 'Add Event'
+
+  // ── Bulk conflict review screen ────────────────────────────────────────────
+  if (bulkReview) {
+    const allDates = isNew && repeat.enabled ? generateRepeatDates(f.date, repeat) : [f.date]
+    const conflictDates = new Set(bulkReview.map(i => i.date))
+    const cleanCount = allDates.filter(d => !conflictDates.has(d)).length
+    const keepCount  = bulkReview.filter(i => i.action === 'keep').length
+    const willCreate = cleanCount + keepCount
+
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+
+          {/* Header */}
+          <div className="px-6 py-4 border-b">
+            <h3 className="font-semibold text-gray-900 text-base">⚠️ Scheduling Conflicts Found</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {bulkReview.length} of {allDates.length} dates have conflicts. Choose what to do for each.
+            </p>
+          </div>
+
+          {/* Conflict list */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+            {bulkReview.map((item, idx) => {
+              const dateLabel = new Date(item.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+              const hardConflict = item.conflicts.some(c => c.kind === 'field' || c.kind === 'hours')
+              return (
+                <div key={item.date} className={`rounded-xl border p-3 space-y-2 ${hardConflict ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={`text-sm font-semibold ${hardConflict ? 'text-red-700' : 'text-amber-700'}`}>{dateLabel}</p>
+                    {/* Action toggle */}
+                    <div className="flex rounded-lg border overflow-hidden text-xs font-medium shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setBulkReview(prev => prev!.map((i, j) => j === idx ? { ...i, action: 'skip' } : i))}
+                        className={`px-2.5 py-1 transition ${item.action === 'skip' ? 'bg-gray-700 text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBulkReview(prev => prev!.map((i, j) => j === idx ? { ...i, action: 'keep' } : i))}
+                        className={`px-2.5 py-1 border-l transition ${item.action === 'keep' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        Keep anyway
+                      </button>
+                    </div>
+                  </div>
+                  <ul className={`space-y-1 text-xs ${hardConflict ? 'text-red-600' : 'text-amber-700'}`}>
+                    {item.conflicts.map((c, ci) => (
+                      <li key={ci} className="flex items-start gap-1.5">
+                        <span className="mt-0.5 shrink-0">{c.kind === 'field' || c.kind === 'hours' ? '🔴' : c.kind === 'teamblackout' ? '🟠' : '🟡'}</span>
+                        <span><span className="font-semibold capitalize">{c.kind === 'teamblackout' ? 'Blackout' : c.kind}: </span>{c.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {item.action === 'skip' && (
+                    <p className="text-xs text-gray-400 italic">This date will not be created.</p>
+                  )}
+                  {item.action === 'keep' && (
+                    <p className={`text-xs italic ${hardConflict ? 'text-red-500' : 'text-amber-600'}`}>This event will be created with the conflict.</p>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Summary */}
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700">
+              {willCreate > 0
+                ? <><span className="font-semibold">{willCreate} event{willCreate !== 1 ? 's' : ''}</span> will be created ({cleanCount} clean{keepCount > 0 ? `, ${keepCount} kept with conflict` : ''}).</>
+                : <span className="font-semibold text-red-600">All dates are set to Skip — nothing will be created.</span>
+              }
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => { setBulkReview(null); onClose() }}
+              className="text-sm text-red-400 hover:text-red-600 transition"
+            >
+              Cancel all
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkReview(null)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition"
+              >
+                ← Back to edit
+              </button>
+              <button
+                type="button"
+                onClick={confirmBulkSave}
+                disabled={willCreate === 0}
+                className="px-5 py-2 text-sm font-semibold bg-[var(--fd-accent)] text-white rounded-xl hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Create {willCreate} Event{willCreate !== 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -186,7 +435,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
 
         <div className="px-6 py-5 space-y-5">
 
-          {/* Date (editable so Team Schedule tab can set it too) */}
+          {/* Date */}
           <FF label="Date">
             <input
               type="date"
@@ -279,6 +528,108 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             </p>
           </div>
 
+          {/* ── Repeat section (new events only) ── */}
+          {isNew && (
+            <div className="border rounded-xl overflow-hidden">
+              {/* Toggle header */}
+              <button
+                type="button"
+                onClick={() => updRepeat({ enabled: !repeat.enabled })}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span className="text-base">🔁</span> Repeat this event
+                </span>
+                <span className={`w-9 h-5 rounded-full transition-colors relative ${repeat.enabled ? 'bg-[var(--fd-accent)]' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${repeat.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </span>
+              </button>
+
+              {/* Repeat options */}
+              {repeat.enabled && (
+                <div className="px-4 py-4 space-y-4 border-t">
+
+                  {/* Frequency */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Frequency</label>
+                    <div className="grid grid-cols-3 rounded-lg border overflow-hidden text-sm">
+                      {(['daily', 'weekly', 'monthly'] as RepeatFrequency[]).map(freq => (
+                        <button
+                          key={freq}
+                          type="button"
+                          onClick={() => updRepeat({ frequency: freq })}
+                          className={`py-2 font-medium capitalize transition border-r last:border-r-0 ${repeat.frequency === freq ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                        >
+                          {freq}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* End condition */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">End after</label>
+                    <div className="grid grid-cols-2 rounded-lg border overflow-hidden text-sm mb-3">
+                      <button
+                        type="button"
+                        onClick={() => updRepeat({ endType: 'count' })}
+                        className={`py-2 font-medium transition border-r ${repeat.endType === 'count' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        # of occurrences
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updRepeat({ endType: 'date' })}
+                        className={`py-2 font-medium transition ${repeat.endType === 'date' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        End date
+                      </button>
+                    </div>
+
+                    {repeat.endType === 'count' ? (
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          min={1}
+                          max={104}
+                          value={repeat.count}
+                          onChange={e => updRepeat({ count: Math.max(1, Math.min(104, Number(e.target.value))) })}
+                          className="input w-24 text-center"
+                        />
+                        <span className="text-sm text-gray-500">
+                          occurrence{repeat.count !== 1 ? 's' : ''} total
+                        </span>
+                      </div>
+                    ) : (
+                      <input
+                        type="date"
+                        value={repeat.endDate}
+                        min={f.date}
+                        onChange={e => updRepeat({ endDate: e.target.value })}
+                        className="input"
+                      />
+                    )}
+                  </div>
+
+                  {/* Preview */}
+                  {repeatDates.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+                      <p className="text-xs font-semibold text-blue-700 mb-1">
+                        {repeatDates.length} event{repeatDates.length !== 1 ? 's' : ''} will be created
+                      </p>
+                      <p className="text-xs text-blue-600">
+                        {repeatDates.slice(0, 3).map(d =>
+                          new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        ).join(', ')}
+                        {repeatDates.length > 3 && ` … ${new Date(repeatDates[repeatDates.length - 1] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Conflicts */}
           {conflicts.length > 0 && (
             <div className="space-y-2">
@@ -322,7 +673,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
               disabled={!canSave()}
               className="px-5 py-2 text-sm font-semibold bg-[var(--fd-accent)] text-white rounded-xl hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {f.id ? 'Save Changes' : 'Add Event'}
+              {saveLabel}
             </button>
           </div>
         </div>
