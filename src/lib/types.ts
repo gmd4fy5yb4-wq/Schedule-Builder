@@ -52,6 +52,7 @@ export interface ScheduledGame {
   awayTeamId: string
   umpireId: string        // empty string = TBD
   divisionId: string
+  result?: { homeScore: number; awayScore: number }
 }
 
 export interface ScheduledPractice {

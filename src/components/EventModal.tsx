@@ -16,6 +16,7 @@ export interface EventForm {
   fieldId: string
   time: string      // "HH:MM"
   endTime: string   // "HH:MM"
+  result?: { homeScore: number; awayScore: number }
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ export function formFromEvent(ev: ScheduledGame | ScheduledPractice): EventForm 
   const endTime = minsToTime(toMins(ev.time) + dur)
   if (ev.type === 'game') {
     const g = ev as ScheduledGame
-    return { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, endTime }
+    return { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, endTime, result: g.result }
   } else {
     const p = ev as ScheduledPractice
     return { id: p.id, type: 'practice', date: p.date, divisionId: p.divisionId, homeTeamId: '', awayTeamId: '', teamId: p.teamId, umpireId: '', fieldId: p.fieldId, time: p.time, endTime }
@@ -257,7 +258,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
       for (const date of dates) {
         const id = (!isNew && dates.length === 1) ? (f.id ?? uid()) : uid()
         if (f.type === 'game') {
-          games.push({ id, type: 'game', date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId })
+          games.push({ id, type: 'game', date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId, ...(f.result !== undefined && { result: f.result }) })
         } else {
           practices.push({ id, type: 'practice', date, time: f.time, durationMinutes, fieldId: f.fieldId, teamId: f.teamId, divisionId: f.divisionId })
         }
@@ -627,6 +628,67 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── Game Result (edit mode, games only) ── */}
+          {!isNew && f.type === 'game' && (
+            <div className="border rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span className="text-base">🏆</span> Game Result
+                </span>
+                {f.result !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => upd({ result: undefined })}
+                    className="text-xs text-gray-400 hover:text-red-500 transition"
+                  >
+                    Clear result
+                  </button>
+                )}
+              </div>
+              <div className="px-4 py-4 border-t">
+                <div className="grid grid-cols-2 gap-3">
+                  <FF label={`${teamMap.get(f.homeTeamId)?.name ?? 'Home'} (Home)`}>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={f.result?.homeScore ?? ''}
+                      onChange={e => {
+                        const val = e.target.value
+                        if (val === '') { upd({ result: undefined }); return }
+                        upd({ result: { homeScore: Number(val), awayScore: f.result?.awayScore ?? 0 } })
+                      }}
+                      className="input text-center text-lg font-bold"
+                    />
+                  </FF>
+                  <FF label={`${teamMap.get(f.awayTeamId)?.name ?? 'Away'} (Away)`}>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={f.result?.awayScore ?? ''}
+                      onChange={e => {
+                        const val = e.target.value
+                        if (val === '') { upd({ result: undefined }); return }
+                        upd({ result: { homeScore: f.result?.homeScore ?? 0, awayScore: Number(val) } })
+                      }}
+                      className="input text-center text-lg font-bold"
+                    />
+                  </FF>
+                </div>
+                {f.result !== undefined && (
+                  <p className="text-xs text-center text-gray-500 mt-2">
+                    {f.result.homeScore > f.result.awayScore
+                      ? `${teamMap.get(f.homeTeamId)?.name ?? 'Home'} wins`
+                      : f.result.awayScore > f.result.homeScore
+                        ? `${teamMap.get(f.awayTeamId)?.name ?? 'Away'} wins`
+                        : 'Tie game'}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

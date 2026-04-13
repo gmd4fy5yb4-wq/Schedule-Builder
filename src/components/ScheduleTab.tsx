@@ -252,8 +252,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         {events.map(ev => {
                           const c = getDivisionColor(ev.divisionId, state.divisions)
                           const isPractice = ev.type === 'practice'
+                          const g = ev as ScheduledGame
+                          const resultSuffix = ev.type === 'game' && g.result !== undefined
+                            ? ` · ${g.result.homeScore}-${g.result.awayScore}`
+                            : ''
                           const label = ev.type === 'game'
-                            ? `${teamMap.get((ev as ScheduledGame).homeTeamId)?.name ?? '?'} vs ${teamMap.get((ev as ScheduledGame).awayTeamId)?.name ?? '?'}`
+                            ? `${teamMap.get(g.homeTeamId)?.name ?? '?'} vs ${teamMap.get(g.awayTeamId)?.name ?? '?'}${resultSuffix}`
                             : `${teamMap.get((ev as ScheduledPractice).teamId)?.name ?? '?'} practice`
                           return (
                             <button
@@ -321,7 +325,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b text-left">
-                    {['Date','Start','End','Div','Type','Home / Team','Away',sc.venueSingular,sc.officialSingular,''].map(h => (
+                    {['Date','Start','End','Div','Type','Home / Team','Away','Result',sc.venueSingular,sc.officialSingular,''].map(h => (
                       <th key={h} className="px-3 py-2 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -346,6 +350,15 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         <td className="px-3 py-2 text-gray-600">
                           {item.type === 'game' ? teamMap.get((item as ScheduledGame).awayTeamId)?.name : ''}
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {item.type === 'game' && (item as ScheduledGame).result !== undefined ? (
+                            <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
+                              {(item as ScheduledGame).result!.homeScore}–{(item as ScheduledGame).result!.awayScore}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-gray-600">{fieldMap.get(item.fieldId)?.name ?? '—'}</td>
                         <td className="px-3 py-2 text-gray-600">
                           {item.type === 'game' ? ((item as ScheduledGame).umpireId ? umpireMap.get((item as ScheduledGame).umpireId)?.name : 'TBD') : ''}
@@ -357,7 +370,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     )
                   })}
                   {allItems.length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-400 italic">No events yet — switch to Calendar view and click any day to add one.</td></tr>
+                    <tr><td colSpan={10} className="px-4 py-12 text-center text-gray-400 italic">No events yet — switch to Calendar view and click any day to add one.</td></tr>
                   )}
                 </tbody>
               </table>

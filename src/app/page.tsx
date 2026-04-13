@@ -15,6 +15,7 @@ import ScheduleTab from '@/components/ScheduleTab'
 import TeamScheduleTab from '@/components/TeamScheduleTab'
 import FieldCalendarTab from '@/components/FieldCalendarTab'
 import AutoScheduleTab from '@/components/AutoScheduleTab'
+import StandingsTab from '@/components/StandingsTab'
 import LeagueGate from '@/components/LeagueGate'
 
 const DEFAULT: AppState = {
@@ -292,7 +293,7 @@ export default function Home() {
   }
 
   const sc = getSportConfig(state.season.sport)
-  const TABS = ['Setup', 'Divisions & Teams', sc.venuePlural, sc.officialPlural, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule']
+  const TABS = ['Setup', 'Divisions & Teams', sc.venuePlural, sc.officialPlural, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings']
   const themeStyle = buildThemeVars(getTheme(state.season.theme))
 
   if (!hydrated) {
@@ -469,6 +470,7 @@ export default function Home() {
         {tab === 5 && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
         {tab === 6 && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
         {tab === 7 && <AutoScheduleTab state={state} setState={setState} />}
+        {tab === 8 && <StandingsTab state={state} readOnly={readOnly} />}
       </main>
 
       {showSnapshots && leagueCode && (
