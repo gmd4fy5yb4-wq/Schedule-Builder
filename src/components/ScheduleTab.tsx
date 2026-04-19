@@ -23,6 +23,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const [view, setView] = useState<'calendar' | 'list'>('calendar')
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
   const [filterDiv, setFilterDiv] = useState('all')
+  const [filterTeam, setFilterTeam] = useState('all')
   const [filterType, setFilterType] = useState<'all' | 'game' | 'practice'>('all')
   const [exporting, setExporting] = useState(false)
   const [exportingCsv, setExportingCsv] = useState(false)
@@ -48,6 +49,36 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
     for (const [, evs] of map) evs.sort((a, b) => a.time.localeCompare(b.time))
     return map
   }, [state.schedule])
+
+  // Teams available in the team filter dropdown (scoped to selected division)
+  const teamsForFilter = useMemo(() => {
+    if (filterDiv === 'all') return state.divisions.flatMap(d => d.teams)
+    return state.divisions.find(d => d.id === filterDiv)?.teams ?? []
+  }, [filterDiv, state.divisions])
+
+  function matchesTeamFilter(ev: ScheduledGame | ScheduledPractice): boolean {
+    if (filterTeam === 'all') return true
+    if (ev.type === 'game') {
+      const g = ev as ScheduledGame
+      return g.homeTeamId === filterTeam || g.awayTeamId === filterTeam
+    }
+    return (ev as ScheduledPractice).teamId === filterTeam
+  }
+
+  // Filtered event map for the calendar view
+  const visibleEventsByDate = useMemo(() => {
+    if (filterDiv === 'all' && filterTeam === 'all' && filterType === 'all') return eventsByDate
+    const map = new Map<string, (ScheduledGame | ScheduledPractice)[]>()
+    for (const [date, evs] of eventsByDate) {
+      const filtered = evs
+        .filter(ev => filterDiv === 'all' || ev.divisionId === filterDiv)
+        .filter(ev => matchesTeamFilter(ev))
+        .filter(ev => filterType === 'all' || ev.type === filterType)
+      if (filtered.length > 0) map.set(date, filtered)
+    }
+    return map
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventsByDate, filterDiv, filterTeam, filterType])
 
   // Calendar helpers
   const firstDow = new Date(year, month, 1).getDay()
@@ -127,9 +158,11 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const allItems = useMemo(() => {
     return ([...state.schedule.games, ...state.schedule.practices] as (ScheduledGame | ScheduledPractice)[])
       .filter(i => filterDiv === 'all' || i.divisionId === filterDiv)
+      .filter(i => matchesTeamFilter(i))
       .filter(i => filterType === 'all' || i.type === filterType)
       .sort((a, b) => { const dc = a.date.localeCompare(b.date); return dc !== 0 ? dc : a.time.localeCompare(b.time) })
-  }, [state.schedule, filterDiv, filterType])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.schedule, filterDiv, filterTeam, filterType])
 
   const totalGames = state.schedule.games.length
   const totalPractices = state.schedule.practices.length
@@ -179,6 +212,52 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         </div>
       )}
 
+      {/* ── Shared filter bar ── */}
+      {(state.divisions.length > 0 || (state.schedule.games.length + state.schedule.practices.length) > 0) && (
+        <div className="flex gap-2 flex-wrap items-center bg-white rounded-lg border px-3 py-2.5">
+          <span className="text-sm font-medium text-gray-500 mr-1">Filter:</span>
+          <select
+            className="border rounded px-2 py-1.5 text-sm"
+            value={filterDiv}
+            onChange={e => { setFilterDiv(e.target.value); setFilterTeam('all') }}
+          >
+            <option value="all">All Divisions</option>
+            {state.divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <select
+            className="border rounded px-2 py-1.5 text-sm"
+            value={filterTeam}
+            onChange={e => setFilterTeam(e.target.value)}
+          >
+            <option value="all">All Teams</option>
+            {teamsForFilter.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <select
+            className="border rounded px-2 py-1.5 text-sm"
+            value={filterType}
+            onChange={e => setFilterType(e.target.value as 'all' | 'game' | 'practice')}
+          >
+            <option value="all">All Types</option>
+            <option value="game">{sc.eventPlural} Only</option>
+            <option value="practice">Practices Only</option>
+          </select>
+          {(filterDiv !== 'all' || filterTeam !== 'all' || filterType !== 'all') && (
+            <button
+              onClick={() => { setFilterDiv('all'); setFilterTeam('all'); setFilterType('all') }}
+              className="text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded px-2 py-1.5 transition"
+            >
+              Clear
+            </button>
+          )}
+          <span className="text-xs text-gray-400 ml-auto">
+            {allItems.length} event{allItems.length !== 1 ? 's' : ''}
+            {(filterDiv !== 'all' || filterTeam !== 'all' || filterType !== 'all') && (
+              <span className="ml-1 text-gray-300">of {state.schedule.games.length + state.schedule.practices.length}</span>
+            )}
+          </span>
+        </div>
+      )}
+
       {/* ── CALENDAR VIEW ── */}
       {view === 'calendar' && (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
@@ -211,7 +290,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               const isBlackout = blackoutSet.has(dateStr)
               const isToday = dateStr === todayStr
               const col = (firstDow + i) % 7
-              const events = eventsByDate.get(dateStr) ?? []
+              const events = visibleEventsByDate.get(dateStr) ?? []
 
               const isDragTarget = dragOverDate === dateStr && dragId !== null
               return (
@@ -306,20 +385,6 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       {/* ── LIST VIEW ── */}
       {view === 'list' && (
         <div className="space-y-3">
-          <div className="flex gap-3 flex-wrap items-center bg-white rounded-lg border p-3">
-            <span className="text-sm font-medium text-gray-600">Filter:</span>
-            <select className="border rounded px-2 py-1.5 text-sm" value={filterType} onChange={e => setFilterType(e.target.value as 'all' | 'game' | 'practice')}>
-              <option value="all">All Types</option>
-              <option value="game">{sc.eventPlural} Only</option>
-              <option value="practice">Practices Only</option>
-            </select>
-            <select className="border rounded px-2 py-1.5 text-sm" value={filterDiv} onChange={e => setFilterDiv(e.target.value)}>
-              <option value="all">All Divisions</option>
-              {state.divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <span className="text-xs text-gray-400 ml-auto">{allItems.length} events</span>
-          </div>
-
           <div className="bg-white rounded-lg border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
