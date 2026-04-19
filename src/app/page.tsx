@@ -27,6 +27,21 @@ const DEFAULT: AppState = {
   schedule: { games: [], practices: [], generatedAt: null, warnings: [] },
 }
 
+/**
+ * Key-order-stable JSON stringify.
+ * PostgreSQL JSONB stores object keys in sorted order, so naïve JSON.stringify
+ * of a locally-built object produces a DIFFERENT string than JSON.stringify of
+ * the same data returned from Supabase — causing the poll to see a false
+ * "remote change" after every save and overwrite unsaved local edits.
+ * Using stableStringify on both sides eliminates this class of false positives.
+ */
+function stableStringify(val: unknown): string {
+  if (val === null || typeof val !== 'object') return JSON.stringify(val)
+  if (Array.isArray(val)) return '[' + (val as unknown[]).map(stableStringify).join(',') + ']'
+  const keys = Object.keys(val as object).sort()
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify((val as Record<string, unknown>)[k])).join(',') + '}'
+}
+
 function migrateState(s: AppState): AppState {
   if (s.schedule) {
     s.schedule.games = (s.schedule.games ?? []).map(g => ({ ...g, durationMinutes: g.durationMinutes ?? 90 }))
@@ -59,6 +74,7 @@ export default function Home() {
   const [viewTokenError, setViewTokenError] = useState(false)
   const [roLinkCopied, setRoLinkCopied] = useState(false)
   const [showSnapshots, setShowSnapshots] = useState(false)
+  const [pendingRemote, setPendingRemote] = useState<{ data: AppState; updatedBy: string; updatedAt: string } | null>(null)
 
   const [user, setUser] = useState<User | null>(null)
   const [planLimits, setPlanLimits] = useState<{ leaguesLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
@@ -91,7 +107,7 @@ export default function Home() {
         if (result) {
           const s = migrateState(result.data)
           setState(s)
-          lastSyncedRef.current = JSON.stringify(s)
+          lastSyncedRef.current = stableStringify(s)
           setLastUpdatedBy(result.updatedBy)
           setLastUpdatedAt(result.updatedAt)
           setLeagueCode('VIEW')  // sentinel: lets the render gate pass, no saves possible in readOnly mode
@@ -109,7 +125,7 @@ export default function Home() {
         if (result) {
           const s = migrateState(result.data)
           setState(s)
-          lastSyncedRef.current = JSON.stringify(s)
+          lastSyncedRef.current = stableStringify(s)
           setLeagueCode(urlCode)
           setLastUpdatedBy(result.updatedBy)
           setLastUpdatedAt(result.updatedAt)
@@ -129,7 +145,7 @@ export default function Home() {
         if (result) {
           const s = migrateState(result.data)
           setState(s)
-          lastSyncedRef.current = JSON.stringify(s)
+          lastSyncedRef.current = stableStringify(s)
           setLastUpdatedBy(result.updatedBy)
           setLastUpdatedAt(result.updatedAt)
         }
@@ -178,7 +194,7 @@ export default function Home() {
   // Auto-save on state change — debounced 800ms (skip in read-only mode)
   useEffect(() => {
     if (!hydrated || !leagueCode || readOnly) return
-    const current = JSON.stringify(state)
+    const current = stableStringify(state)
     if (current === lastSyncedRef.current) return
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
@@ -210,14 +226,19 @@ export default function Home() {
         ? await loadLeagueByViewToken(roTokenRef.current)
         : await loadLeague(leagueCode)
       if (!result) return
-      const remote = JSON.stringify(result.data)
+      const remote = stableStringify(result.data)
       if (remote !== lastSyncedRef.current) {
-        const s = migrateState(result.data)
-        setState(s)
-        lastSyncedRef.current = JSON.stringify(s)
-        setLastUpdatedBy(result.updatedBy)
-        setLastUpdatedAt(result.updatedAt)
-        setSyncStatus('synced')
+        if (readOnly) {
+          // Read-only viewers always get the latest automatically
+          const s = migrateState(result.data)
+          setState(s)
+          lastSyncedRef.current = stableStringify(s)
+          setLastUpdatedBy(result.updatedBy)
+          setLastUpdatedAt(result.updatedAt)
+        } else {
+          // Admins see a review banner — never silently overwrite
+          setPendingRemote({ data: migrateState(result.data), updatedBy: result.updatedBy, updatedAt: result.updatedAt })
+        }
       }
     }, interval)
     return () => clearInterval(poll)
@@ -229,7 +250,7 @@ export default function Home() {
     localUserRef.current = name
     const s = migrateState(data)
     setState(s)
-    lastSyncedRef.current = JSON.stringify(s)
+    lastSyncedRef.current = stableStringify(s)
     setLeagueCode(code)
     setUserName(name)
     setHydrated(true)
@@ -274,6 +295,23 @@ export default function Home() {
     setState(migrateState({ ...restoredState }))
     setTimeout(() => { isUndoingRef.current = false }, 100)
     void saveSnapshot(leagueCode!, `[Auto] Before restoring "${snapshotName}"`, state, localUserRef.current)
+  }
+
+  function acceptRemoteUpdate() {
+    if (!pendingRemote) return
+    setState(pendingRemote.data)
+    lastSyncedRef.current = stableStringify(pendingRemote.data)
+    setLastUpdatedBy(pendingRemote.updatedBy)
+    setLastUpdatedAt(pendingRemote.updatedAt)
+    setSyncStatus('synced')
+    setPendingRemote(null)
+  }
+
+  function dismissRemoteUpdate() {
+    // Mark the remote version as "seen" so the banner doesn't re-appear for the same version
+    if (!pendingRemote) return
+    lastSyncedRef.current = stableStringify(pendingRemote.data)
+    setPendingRemote(null)
   }
 
   async function copyReadOnlyLink() {
@@ -438,6 +476,37 @@ export default function Home() {
           </div>
         )}
       </header>
+
+      {/* Remote update review banner */}
+      {pendingRemote && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <span className="text-base">🔄</span>
+              <span>
+                <strong>{pendingRemote.updatedBy}</strong> updated this schedule.
+                {pendingRemote.updatedAt && (
+                  <> &middot; {new Date(pendingRemote.updatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={acceptRemoteUpdate}
+                className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg px-3 py-1.5 transition"
+              >
+                Load changes
+              </button>
+              <button
+                onClick={dismissRemoteUpdate}
+                className="text-xs text-amber-700 hover:text-amber-900 border border-amber-300 rounded-lg px-3 py-1.5 transition"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab nav — hide setup/admin tabs in read-only mode */}
       <div className="bg-white border-b shadow-sm sticky top-0 z-10">
