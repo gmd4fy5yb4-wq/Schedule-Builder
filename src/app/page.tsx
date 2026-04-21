@@ -38,8 +38,9 @@ const DEFAULT: AppState = {
 function stableStringify(val: unknown): string {
   if (val === null || typeof val !== 'object') return JSON.stringify(val)
   if (Array.isArray(val)) return '[' + (val as unknown[]).map(stableStringify).join(',') + ']'
-  const keys = Object.keys(val as object).sort()
-  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify((val as Record<string, unknown>)[k])).join(',') + '}'
+  const obj = val as Record<string, unknown>
+  const keys = Object.keys(obj).filter(k => obj[k] !== undefined).sort()
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}'
 }
 
 function migrateState(s: AppState): AppState {
