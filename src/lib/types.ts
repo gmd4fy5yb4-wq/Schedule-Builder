@@ -8,13 +8,29 @@ export interface SeasonConfig {
   practiceDurationMinutes: number
 }
 
+export interface Coach {
+  id: string
+  name: string
+  phone: string
+  email: string
+}
+
 export interface Team {
   id: string
   name: string
   divisionId: string
   blackoutDates?: string[]  // "YYYY-MM-DD" or "YYYY-MM-DD::Label"
   homeFieldId?: string
-  preferredDays?: number[]  // coach preferred days, 0-6
+  preferredDays?: number[]  // preferred game days, 0-6
+  coaches?: Coach[]
+}
+
+export interface FieldStaffMember {
+  id: string
+  name: string
+  role: string    // e.g. "Concessions", "Scorer", "Groundskeeper"
+  phone: string
+  email: string
 }
 
 export interface Division {
@@ -85,6 +101,7 @@ export interface AppState {
   divisions: Division[]
   fields: Field[]
   umpires: Umpire[]
+  fieldStaff: FieldStaffMember[]
   schedule: {
     games: ScheduledGame[]
     practices: ScheduledPractice[]

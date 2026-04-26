@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import type { AppState, Team } from '@/lib/types'
+import type { AppState, Team, Coach } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import UpgradePrompt from './UpgradePrompt'
 import type { PlanLimits } from '@/lib/plans'
@@ -22,6 +22,8 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
   const [expandedBlackouts, setExpandedBlackouts] = useState<Record<string, boolean>>({})
   const [newBlackoutDate, setNewBlackoutDate] = useState<Record<string, string>>({})
   const [newBlackoutLabel, setNewBlackoutLabel] = useState<Record<string, string>>({})
+  const [expandedCoaches, setExpandedCoaches] = useState<Record<string, boolean>>({})
+  const [newCoach, setNewCoach] = useState<Record<string, { name: string; phone: string; email: string }>>({})
 
   // ── Division actions ──────────────────────────────────────────────
   function addDivision() {
@@ -112,6 +114,44 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
 
   function removeTeamBlackout(divId: string, teamId: string, existing: string[], entry: string) {
     updateTeamBlackouts(divId, teamId, existing.filter(d => d !== entry))
+  }
+
+  // ── Coach actions ─────────────────────────────────────────────────
+  function addCoach(divId: string, teamId: string) {
+    const f = newCoach[teamId]
+    if (!f?.name.trim()) return
+    const coach: Coach = { id: uid(), name: f.name.trim(), phone: f.phone?.trim() ?? '', email: f.email?.trim() ?? '' }
+    setState(s => ({
+      ...s,
+      divisions: s.divisions.map(d =>
+        d.id === divId ? { ...d, teams: d.teams.map((t: Team) =>
+          t.id === teamId ? { ...t, coaches: [...(t.coaches ?? []), coach] } : t
+        )} : d
+      )
+    }))
+    setNewCoach(n => ({ ...n, [teamId]: { name: '', phone: '', email: '' } }))
+  }
+
+  function removeCoach(divId: string, teamId: string, coachId: string) {
+    setState(s => ({
+      ...s,
+      divisions: s.divisions.map(d =>
+        d.id === divId ? { ...d, teams: d.teams.map((t: Team) =>
+          t.id === teamId ? { ...t, coaches: (t.coaches ?? []).filter(c => c.id !== coachId) } : t
+        )} : d
+      )
+    }))
+  }
+
+  function updateCoach(divId: string, teamId: string, coachId: string, field: keyof Coach, value: string) {
+    setState(s => ({
+      ...s,
+      divisions: s.divisions.map(d =>
+        d.id === divId ? { ...d, teams: d.teams.map((t: Team) =>
+          t.id === teamId ? { ...t, coaches: (t.coaches ?? []).map(c => c.id === coachId ? { ...c, [field]: value } : c) } : t
+        )} : d
+      )
+    }))
   }
 
   const totalTeams = state.divisions.reduce((sum, d) => sum + d.teams.length, 0)
@@ -225,7 +265,10 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                 <div className="space-y-2 mb-3">
                   {div.teams.map(team => {
                     const blackouts = team.blackoutDates ?? []
-                    const isExpanded = expandedBlackouts[team.id]
+                    const coaches = team.coaches ?? []
+                    const isExpandedBlackouts = expandedBlackouts[team.id]
+                    const isExpandedCoaches = expandedCoaches[team.id]
+                    const nc = newCoach[team.id] ?? { name: '', phone: '', email: '' }
                     return (
                       <div key={team.id} className="border rounded overflow-hidden">
                         <div className="flex items-center gap-2 px-2 py-1">
@@ -234,6 +277,13 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                             value={team.name}
                             onChange={e => updateTeamName(div.id, team.id, e.target.value)}
                           />
+                          <button
+                            onClick={() => setExpandedCoaches(v => ({ ...v, [team.id]: !v[team.id] }))}
+                            className={`flex-shrink-0 text-xs px-2 py-1 rounded border transition ${coaches.length > 0 ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                            title="Team coaches"
+                          >
+                            {coaches.length > 0 ? `${coaches.length} Coach${coaches.length !== 1 ? 'es' : ''}` : 'Coaches'}
+                          </button>
                           <button
                             onClick={() => setExpandedBlackouts(v => ({ ...v, [team.id]: !v[team.id] }))}
                             className={`flex-shrink-0 text-xs px-2 py-1 rounded border transition ${blackouts.length > 0 ? 'border-orange-300 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
@@ -248,7 +298,71 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                           >×</button>
                         </div>
 
-                        {isExpanded && (
+                        {/* Coaches panel */}
+                        {isExpandedCoaches && (
+                          <div className="border-t bg-blue-50 px-3 py-2.5 space-y-2">
+                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Coaches</p>
+                            {coaches.length === 0 && (
+                              <p className="text-xs text-gray-400 italic">No coaches added yet.</p>
+                            )}
+                            {coaches.length > 0 && (
+                              <div className="space-y-1">
+                                {coaches.map(coach => (
+                                  <div key={coach.id} className="flex items-center gap-2 bg-white rounded border border-blue-100 px-2 py-1">
+                                    <input
+                                      className="flex-1 min-w-0 text-sm bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 font-medium"
+                                      value={coach.name}
+                                      onChange={e => updateCoach(div.id, team.id, coach.id, 'name', e.target.value)}
+                                      placeholder="Name"
+                                    />
+                                    <input
+                                      className="w-28 text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 text-gray-500"
+                                      value={coach.phone}
+                                      onChange={e => updateCoach(div.id, team.id, coach.id, 'phone', e.target.value)}
+                                      placeholder="Phone"
+                                    />
+                                    <input
+                                      className="w-32 text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 text-gray-500"
+                                      value={coach.email}
+                                      onChange={e => updateCoach(div.id, team.id, coach.id, 'email', e.target.value)}
+                                      placeholder="Email"
+                                    />
+                                    <button onClick={() => removeCoach(div.id, team.id, coach.id)} className="text-red-400 hover:text-red-600 text-base leading-none flex-shrink-0">×</button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Add coach form */}
+                            <div className="flex gap-2 flex-wrap items-center">
+                              <input
+                                className="flex-1 min-w-[100px] border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                placeholder="Coach name *"
+                                value={nc.name}
+                                onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, name: e.target.value } }))}
+                                onKeyDown={e => e.key === 'Enter' && addCoach(div.id, team.id)}
+                              />
+                              <input
+                                className="w-28 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                placeholder="Phone"
+                                value={nc.phone}
+                                onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, phone: e.target.value } }))}
+                              />
+                              <input
+                                className="w-32 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                placeholder="Email"
+                                value={nc.email}
+                                onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, email: e.target.value } }))}
+                              />
+                              <button
+                                onClick={() => addCoach(div.id, team.id)}
+                                disabled={!nc.name.trim()}
+                                className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                              >Add</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {isExpandedBlackouts && (
                           <div className="border-t bg-orange-50 px-3 py-2.5 space-y-2">
                             <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Team Blackout Dates</p>
                             {blackouts.length === 0 && (
