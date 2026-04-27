@@ -34,6 +34,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [tooltip, setTooltip] = useState<{ ev: ScheduledGame | ScheduledPractice; x: number; y: number } | null>(null)
 
+  // Coach notification state
+  const [notifyModal, setNotifyModal] = useState(false)
+  const [notifyTeamIds, setNotifyTeamIds] = useState<Set<string>>(new Set())
+  const [notifySending, setNotifySending] = useState(false)
+  const [notifyResult, setNotifyResult] = useState<{ sent: number; failed: { coachName: string; teamName: string; error?: string }[] } | null>(null)
+
   const teamMap   = useMemo(() => new Map(state.divisions.flatMap(d => d.teams).map(t => [t.id, t])), [state.divisions])
   const fieldMap  = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
   const umpireMap = useMemo(() => new Map(state.umpires.map(u => [u.id, u])), [state.umpires])
@@ -167,6 +173,39 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const totalGames = state.schedule.games.length
   const totalPractices = state.schedule.practices.length
 
+  // Teams that have at least one coach with an email address
+  const teamsWithCoachEmails = useMemo(() =>
+    state.divisions.flatMap(d => d.teams).filter(t => t.coaches?.some(c => c.email)),
+    [state.divisions]
+  )
+
+  function openNotifyModal() {
+    setNotifyTeamIds(new Set(teamsWithCoachEmails.map(t => t.id)))
+    setNotifyResult(null)
+    setNotifyModal(true)
+  }
+
+  async function sendNotifications() {
+    setNotifySending(true)
+    setNotifyResult(null)
+    try {
+      const res = await fetch('/api/notify-coaches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leagueCode: localStorage.getItem('sb-league-code'),
+          teamIds: [...notifyTeamIds],
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Send failed')
+      setNotifyResult({ sent: data.sent, failed: data.failed ?? [] })
+    } catch (e) {
+      setNotifyResult({ sent: 0, failed: [{ coachName: '', teamName: '', error: e instanceof Error ? e.message : 'Unknown error' }] })
+    }
+    setNotifySending(false)
+  }
+
   return (
     <div className="space-y-4">
       {/* Top bar */}
@@ -186,6 +225,15 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           {totalGames > 0 && !readOnly && (
             <button onClick={doExportCSV} disabled={exportingCsv} className="bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700 transition disabled:opacity-50">
               {exportingCsv ? 'Exporting…' : 'Export CSV'}
+            </button>
+          )}
+          {teamsWithCoachEmails.length > 0 && !readOnly && (
+            <button
+              onClick={openNotifyModal}
+              className="bg-violet-600 text-white px-4 py-1.5 rounded text-sm hover:bg-violet-700 transition"
+              title="Send schedule emails to coaches"
+            >
+              Notify Coaches
             </button>
           )}
           {(totalGames + totalPractices) > 0 && !readOnly && (
@@ -514,6 +562,93 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           </div>
         )
       })()}
+
+      {/* ── Notify Coaches modal ── */}
+      {notifyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-violet-600 px-6 py-4">
+              <h2 className="text-lg font-bold text-white">Notify Coaches</h2>
+              <p className="text-violet-200 text-sm mt-0.5">Send each coach their team&apos;s schedule by email.</p>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              {!notifyResult ? (
+                <>
+                  <p className="text-sm text-gray-600">Select which teams to notify. Only coaches with an email address will receive a message.</p>
+
+                  {/* Select all / none */}
+                  <div className="flex gap-3 text-xs">
+                    <button onClick={() => setNotifyTeamIds(new Set(teamsWithCoachEmails.map(t => t.id)))} className="text-violet-600 hover:underline">Select all</button>
+                    <button onClick={() => setNotifyTeamIds(new Set())} className="text-gray-400 hover:underline">Clear</button>
+                  </div>
+
+                  {/* Team list */}
+                  <div className="max-h-64 overflow-y-auto space-y-1 border rounded-lg p-2">
+                    {teamsWithCoachEmails.map(team => {
+                      const emailCount = team.coaches?.filter(c => c.email).length ?? 0
+                      const checked = notifyTeamIds.has(team.id)
+                      return (
+                        <label key={team.id} className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const next = new Set(notifyTeamIds)
+                              checked ? next.delete(team.id) : next.add(team.id)
+                              setNotifyTeamIds(next)
+                            }}
+                            className="accent-violet-600"
+                          />
+                          <span className="flex-1 text-sm font-medium text-gray-800">{team.name}</span>
+                          <span className="text-xs text-gray-400">{emailCount} coach email{emailCount !== 1 ? 's' : ''}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-1">
+                    <button onClick={() => setNotifyModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border rounded-lg transition">Cancel</button>
+                    <button
+                      onClick={sendNotifications}
+                      disabled={notifySending || notifyTeamIds.size === 0}
+                      className="px-4 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {notifySending ? 'Sending…' : `Send to ${notifyTeamIds.size} team${notifyTeamIds.size !== 1 ? 's' : ''}`}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Result view */
+                <div className="space-y-4">
+                  <div className={`flex items-center gap-3 p-3 rounded-lg ${notifyResult.sent > 0 ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                    <span className="text-xl">{notifyResult.sent > 0 ? '✅' : '❌'}</span>
+                    <div>
+                      <p className="font-semibold text-sm">{notifyResult.sent} email{notifyResult.sent !== 1 ? 's' : ''} sent successfully</p>
+                      {notifyResult.failed.length > 0 && (
+                        <p className="text-xs mt-0.5">{notifyResult.failed.length} failed</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {notifyResult.failed.length > 0 && (
+                    <div className="text-xs space-y-1">
+                      <p className="font-medium text-gray-700">Failed:</p>
+                      {notifyResult.failed.map((f, i) => (
+                        <p key={i} className="text-red-600">{f.coachName ? `${f.coachName} (${f.teamName})` : ''}: {f.error}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <button onClick={() => setNotifyModal(false)} className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition">Close</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
