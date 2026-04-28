@@ -11,6 +11,7 @@ export interface SeasonConfig {
 export interface Coach {
   id: string
   name: string
+  role?: 'head' | 'assistant'   // head = Head Coach / Manager; assistant = Assistant Coach
   phone: string
   email: string
 }

@@ -23,7 +23,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
   const [newBlackoutDate, setNewBlackoutDate] = useState<Record<string, string>>({})
   const [newBlackoutLabel, setNewBlackoutLabel] = useState<Record<string, string>>({})
   const [expandedCoaches, setExpandedCoaches] = useState<Record<string, boolean>>({})
-  const [newCoach, setNewCoach] = useState<Record<string, { name: string; phone: string; email: string }>>({})
+  const [newCoach, setNewCoach] = useState<Record<string, { name: string; role: 'head' | 'assistant'; phone: string; email: string }>>({})
 
   // ── Division actions ──────────────────────────────────────────────
   function addDivision() {
@@ -120,7 +120,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
   function addCoach(divId: string, teamId: string) {
     const f = newCoach[teamId]
     if (!f?.name.trim()) return
-    const coach: Coach = { id: uid(), name: f.name.trim(), phone: f.phone?.trim() ?? '', email: f.email?.trim() ?? '' }
+    const coach: Coach = { id: uid(), name: f.name.trim(), role: f.role ?? 'head', phone: f.phone?.trim() ?? '', email: f.email?.trim() ?? '' }
     setState(s => ({
       ...s,
       divisions: s.divisions.map(d =>
@@ -129,7 +129,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
         )} : d
       )
     }))
-    setNewCoach(n => ({ ...n, [teamId]: { name: '', phone: '', email: '' } }))
+    setNewCoach(n => ({ ...n, [teamId]: { name: '', role: 'head', phone: '', email: '' } }))
   }
 
   function removeCoach(divId: string, teamId: string, coachId: string) {
@@ -308,9 +308,17 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                             {coaches.length > 0 && (
                               <div className="space-y-1">
                                 {coaches.map(coach => (
-                                  <div key={coach.id} className="flex items-center gap-2 bg-white rounded border border-blue-100 px-2 py-1">
+                                  <div key={coach.id} className="flex items-center gap-2 bg-white rounded border border-blue-100 px-2 py-1 flex-wrap">
+                                    <select
+                                      className="text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 text-blue-700 font-semibold flex-shrink-0"
+                                      value={coach.role ?? 'head'}
+                                      onChange={e => updateCoach(div.id, team.id, coach.id, 'role', e.target.value)}
+                                    >
+                                      <option value="head">Head Coach</option>
+                                      <option value="assistant">Asst. Coach</option>
+                                    </select>
                                     <input
-                                      className="flex-1 min-w-0 text-sm bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 font-medium"
+                                      className="flex-1 min-w-[80px] text-sm bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 font-medium"
                                       value={coach.name}
                                       onChange={e => updateCoach(div.id, team.id, coach.id, 'name', e.target.value)}
                                       placeholder="Name"
@@ -334,6 +342,14 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                             )}
                             {/* Add coach form */}
                             <div className="flex gap-2 flex-wrap items-center">
+                              <select
+                                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white text-blue-700 font-semibold flex-shrink-0"
+                                value={nc.role ?? 'head'}
+                                onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, role: e.target.value as 'head' | 'assistant' } }))}
+                              >
+                                <option value="head">Head Coach</option>
+                                <option value="assistant">Asst. Coach</option>
+                              </select>
                               <input
                                 className="flex-1 min-w-[100px] border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                                 placeholder="Coach name *"

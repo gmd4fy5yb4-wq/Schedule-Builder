@@ -533,6 +533,14 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     <span className="text-gray-500">Away</span>
                     <span className="font-medium text-gray-800">{teamMap.get(g.awayTeamId)?.name ?? '—'}</span>
                   </div>
+                  {g.result !== undefined && (
+                    <div className="flex justify-between items-center pt-1 border-t border-gray-100 mt-1">
+                      <span className="text-gray-500">Result</span>
+                      <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs tracking-wide">
+                        {g.result.homeScore}–{g.result.awayScore}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex justify-between">
