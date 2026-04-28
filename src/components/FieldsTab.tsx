@@ -7,6 +7,18 @@ interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction
 
 function uid() { return Math.random().toString(36).slice(2) }
 
+function mapsUrl(location: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
+}
+
+function MapPinIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+      <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
 export default function FieldsTab({ state, setState }: Props) {
   const sc = getSportConfig(state.season.sport)
   const [newField, setNewField] = useState({ name: '', location: '' })
@@ -76,12 +88,26 @@ export default function FieldsTab({ state, setState }: Props) {
                 value={field.name}
                 onChange={e => updateField(field.id, { name: e.target.value })}
               />
-              <input
-                className="border rounded px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
-                placeholder="Location (optional)"
-                value={field.location}
-                onChange={e => updateField(field.id, { location: e.target.value })}
-              />
+              <div className="flex gap-1.5">
+                <input
+                  className="flex-1 min-w-0 border rounded px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+                  placeholder="Location / address (optional)"
+                  value={field.location}
+                  onChange={e => updateField(field.id, { location: e.target.value })}
+                />
+                {field.location.trim() && (
+                  <a
+                    href={mapsUrl(field.location)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Get directions in Google Maps"
+                    className="flex-shrink-0 flex items-center gap-1 border border-blue-200 rounded px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition"
+                  >
+                    <MapPinIcon />
+                    <span className="hidden sm:inline">Map</span>
+                  </a>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 text-xs text-gray-400">
               <span className="hidden sm:inline">8 AM – 8 PM</span>
