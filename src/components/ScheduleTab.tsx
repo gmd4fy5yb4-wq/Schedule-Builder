@@ -523,26 +523,36 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${c.text}`}>
                 {div?.name ?? ''} {isGame ? sc.eventSingular : 'Practice'}
               </div>
-              {isGame ? (
-                <div className="space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Home</span>
-                    <span className="font-medium text-gray-800">{teamMap.get(g.homeTeamId)?.name ?? '—'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Away</span>
-                    <span className="font-medium text-gray-800">{teamMap.get(g.awayTeamId)?.name ?? '—'}</span>
-                  </div>
-                  {g.result !== undefined && (
-                    <div className="flex justify-between items-center pt-1 border-t border-gray-100 mt-1">
-                      <span className="text-gray-500">Result</span>
-                      <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs tracking-wide">
-                        {g.result.homeScore}–{g.result.awayScore}
-                      </span>
+              {isGame ? (() => {
+                const r = g.result
+                const homeWon = r !== undefined && r.homeScore > r.awayScore
+                const awayWon = r !== undefined && r.awayScore > r.homeScore
+                const tied    = r !== undefined && r.homeScore === r.awayScore
+                const homeName = teamMap.get(g.homeTeamId)?.name ?? '—'
+                const awayName = teamMap.get(g.awayTeamId)?.name ?? '—'
+                return (
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-500 flex-shrink-0">Home</span>
+                      <span className={`font-medium truncate ${homeWon ? 'text-green-700' : 'text-gray-800'}`}>{homeName}</span>
+                      {homeWon && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex-shrink-0">WIN</span>}
                     </div>
-                  )}
-                </div>
-              ) : (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-500 flex-shrink-0">Away</span>
+                      <span className={`font-medium truncate ${awayWon ? 'text-green-700' : 'text-gray-800'}`}>{awayName}</span>
+                      {awayWon && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex-shrink-0">WIN</span>}
+                    </div>
+                    {r !== undefined && (
+                      <div className="flex justify-between items-center pt-1 border-t border-gray-100 mt-1">
+                        <span className="text-gray-500">{tied ? 'Final (Tie)' : 'Final'}</span>
+                        <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs tracking-wide">
+                          {r.homeScore}–{r.awayScore}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })() : (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Team</span>
                   <span className="font-medium text-gray-800">{teamMap.get(p.teamId)?.name ?? '—'}</span>
