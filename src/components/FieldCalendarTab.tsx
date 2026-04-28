@@ -102,9 +102,9 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
               }`}
             >
               <div className="font-medium truncate">{field.name}</div>
-              {field.location && (
+              {(field.location || field.address) && (
                 <div className={`text-xs mt-0.5 truncate ${isSelected ? 'text-[#d0d8f0]' : 'text-gray-400'}`}>
-                  {field.location}
+                  {field.location || field.address}
                 </div>
               )}
               <div className={`text-xs mt-1 ${isSelected ? 'text-[var(--fd-primary-light)]' : 'text-gray-400'}`}>
@@ -131,6 +131,17 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                 <h2 className="text-xl font-bold text-gray-900">{selectedField?.name}</h2>
                 {selectedField?.location && (
                   <p className="text-sm text-gray-500 mt-0.5">{selectedField.location}</p>
+                )}
+                {selectedField?.address && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedField.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-500 hover:text-blue-700 hover:underline mt-0.5 inline-flex items-center gap-1"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M7.752 15.146c.192.094.304.074.304.074s.112.02.304-.074l.002-.001.005-.002.015-.007a5.146 5.146 0 00.225-.112c.148-.077.356-.192.606-.346.496-.308 1.156-.773 1.82-1.412C12.24 11.99 13.6 9.994 13.6 7.2a5.6 5.6 0 10-11.2 0c0 2.794 1.36 4.79 2.684 6.066a10.987 10.987 0 001.82 1.412c.25.154.458.27.606.346a5.15 5.15 0 00.225.112l.015.007.005.002.002.001zM8 9a1.8 1.8 0 100-3.6A1.8 1.8 0 008 9z" clipRule="evenodd"/></svg>
+                    {selectedField.address}
+                  </a>
                 )}
               </div>
               <div className="flex items-center gap-4 text-sm text-gray-500">

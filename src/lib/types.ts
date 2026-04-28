@@ -46,7 +46,8 @@ export interface Division {
 export interface Field {
   id: string
   name: string
-  location: string
+  location: string   // descriptive location name (e.g. "Eisenhower Park")
+  address: string    // street address used for maps/directions
   blackoutDates?: string[]  // "YYYY-MM-DD" or "YYYY-MM-DD::Label"
   // Fields are open 8 AM – 8 PM every day; no slot configuration needed.
 }

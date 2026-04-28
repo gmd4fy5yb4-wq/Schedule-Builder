@@ -54,7 +54,7 @@ function migrateState(s: AppState): AppState {
   s.blackoutDates = s.blackoutDates ?? []
   // Strip legacy time slots from fields (fields are now open 8 AM–8 PM daily), preserve blackoutDates
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  s.fields = (s.fields ?? []).map((f: any) => ({ id: f.id, name: f.name, location: f.location ?? '', blackoutDates: f.blackoutDates ?? undefined }))
+  s.fields = (s.fields ?? []).map((f: any) => ({ id: f.id, name: f.name, location: f.location ?? '', address: f.address ?? '', blackoutDates: f.blackoutDates ?? undefined }))
   // Field staff (added later — default to empty array for old leagues)
   s.fieldStaff = s.fieldStaff ?? []
   // Auto-schedule state

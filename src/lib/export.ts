@@ -88,23 +88,24 @@ export function exportToExcel(
     const allItems = ([...games, ...practices] as (ScheduledGame | ScheduledPractice)[]).sort(byDateTime)
 
     const wb = XLSX.utils.book_new()
-    const HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Division', 'Type', 'Home / Team', 'Away', sc.venueSingular, 'Location', sc.officialSingular]
+    const HEADERS = ['Date', 'Day', 'Start Time', 'End Time', 'Division', 'Type', 'Home / Team', 'Away', sc.venueSingular, 'Location', 'Address', sc.officialSingular]
 
     function buildRow(item: ScheduledGame | ScheduledPractice): string[] {
       const div      = divMap.get(item.divisionId)?.name     || ''
       const fieldRec = fieldMap.get(item.fieldId)
       const field    = fieldRec?.name     || ''
       const location = fieldRec?.location || ''
+      const address  = fieldRec?.address  || ''
       const end      = item.durationMinutes ? endTime(item.time, item.durationMinutes) : ''
       if (item.type === 'game') {
         const g      = item as ScheduledGame
         const umpire = g.umpireId ? (umpireMap.get(g.umpireId)?.name || '') : 'TBD'
         return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Game',
-          teamMap.get(g.homeTeamId)?.name || '', teamMap.get(g.awayTeamId)?.name || '', field, location, umpire]
+          teamMap.get(g.homeTeamId)?.name || '', teamMap.get(g.awayTeamId)?.name || '', field, location, address, umpire]
       } else {
         const p = item as ScheduledPractice
         return [fmtDate(item.date), fmtDay(item.date), fmtTime(item.time), end, div, 'Practice',
-          teamMap.get(p.teamId)?.name || '', '', field, location, '']
+          teamMap.get(p.teamId)?.name || '', '', field, location, address, '']
       }
     }
 

@@ -575,6 +575,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     <span className="font-medium text-gray-800 text-right max-w-[120px] truncate">{field.location}</span>
                   </div>
                 )}
+                {field?.address && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Address</span>
+                    <span className="text-gray-600 text-right max-w-[120px] truncate">{field.address}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -510,7 +510,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
           <FF label={sc.venueSingular}>
             <select className="input" value={f.fieldId} onChange={e => upd({ fieldId: e.target.value })}>
               <option value="">— select field —</option>
-              {state.fields.map(fld => <option key={fld.id} value={fld.id}>{fld.name}{fld.location ? ` — ${fld.location}` : ''}</option>)}
+              {state.fields.map(fld => <option key={fld.id} value={fld.id}>{fld.name}{fld.location ? ` — ${fld.location}` : fld.address ? ` — ${fld.address}` : ''}</option>)}
             </select>
           </FF>
 

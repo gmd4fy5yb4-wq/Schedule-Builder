@@ -180,6 +180,7 @@ export function parseImportCSV(csvText: string): ImportResult {
     id: uniqueId(f.name, usedIds),
     name: f.name,
     location: f.location,
+    address: '',
     ...(f.blackoutDates.length ? { blackoutDates: f.blackoutDates } : {}),
   }))
 
