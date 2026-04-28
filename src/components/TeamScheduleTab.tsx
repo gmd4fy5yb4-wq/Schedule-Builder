@@ -65,6 +65,29 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
   const homeCount = teamEvents.filter(e => e.type === 'game' && (e as ScheduledGame).homeTeamId === selectedTeamId).length
   const awayCount = gameCount - homeCount
 
+  // W/L/T record (only games with results)
+  const wins = teamEvents.filter(e => {
+    if (e.type !== 'game') return false
+    const g = e as ScheduledGame
+    if (!g.result) return false
+    const isHome = g.homeTeamId === selectedTeamId
+    return isHome ? g.result.homeScore > g.result.awayScore : g.result.awayScore > g.result.homeScore
+  }).length
+  const losses = teamEvents.filter(e => {
+    if (e.type !== 'game') return false
+    const g = e as ScheduledGame
+    if (!g.result) return false
+    const isHome = g.homeTeamId === selectedTeamId
+    return isHome ? g.result.homeScore < g.result.awayScore : g.result.awayScore < g.result.homeScore
+  }).length
+  const ties = teamEvents.filter(e => {
+    if (e.type !== 'game') return false
+    const g = e as ScheduledGame
+    if (!g.result) return false
+    return g.result.homeScore === g.result.awayScore
+  }).length
+  const resultsCount = wins + losses + ties
+
   const allTeamsCount = state.divisions.flatMap(d => d.teams).length
 
   return (
@@ -145,6 +168,14 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                   <Stat label="Home" value={homeCount} />
                   <Stat label="Away" value={awayCount} />
                   <Stat label="Practices" value={practiceCount} />
+                  {resultsCount > 0 && (
+                    <>
+                      <div className="w-px bg-gray-200 self-stretch" />
+                      <Stat label="W" value={wins} color="text-green-600" />
+                      <Stat label="L" value={losses} color="text-red-500" />
+                      {ties > 0 && <Stat label="T" value={ties} color="text-gray-500" />}
+                    </>
+                  )}
                 </div>
                 {!readOnly && (
                   <button
@@ -177,7 +208,9 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                       <th className="px-4 py-2.5 font-medium text-gray-600">Type</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">Opponent / Note</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">Home / Away</th>
+                      <th className="px-4 py-2.5 font-medium text-gray-600">Result</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">{sc.venueSingular}</th>
+                      <th className="px-4 py-2.5 font-medium text-gray-600">Location</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">{sc.officialSingular}</th>
                       <th className="px-4 py-2.5 font-medium text-gray-600">Duration</th>
                     </tr>
@@ -205,7 +238,39 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                                 {isHome ? 'Home' : 'Away'}
                               </span>
                             </td>
+                            <td className="px-4 py-2.5">
+                              {g.result !== undefined ? (() => {
+                                const myScore  = isHome ? g.result.homeScore : g.result.awayScore
+                                const oppScore = isHome ? g.result.awayScore : g.result.homeScore
+                                const won  = myScore > oppScore
+                                const lost = myScore < oppScore
+                                return (
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${
+                                    won  ? 'bg-green-100 text-green-700' :
+                                    lost ? 'bg-red-100 text-red-600'    :
+                                           'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {won ? 'W' : lost ? 'L' : 'T'} {myScore}–{oppScore}
+                                  </span>
+                                )
+                              })() : <span className="text-gray-400 text-xs">—</span>}
+                            </td>
                             <td className="px-4 py-2.5 text-gray-600">{field?.name ?? '—'}</td>
+                            <td className="px-4 py-2.5 text-gray-600">
+                              {field?.address ? (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(field.address)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  {field.location || field.address}
+                                </a>
+                              ) : (
+                                <span className="text-gray-600">{field?.location || '—'}</span>
+                              )}
+                            </td>
                             <td className="px-4 py-2.5 text-gray-600">{umpire?.name ?? <span className="text-gray-400">TBD</span>}</td>
                             <td className="px-4 py-2.5 text-gray-500 text-xs">{g.durationMinutes ? `${g.durationMinutes} min` : '—'}</td>
                           </tr>
@@ -222,7 +287,23 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                             </td>
                             <td className="px-4 py-2.5 text-gray-400 italic">—</td>
                             <td className="px-4 py-2.5 text-gray-400">—</td>
+                            <td className="px-4 py-2.5 text-gray-400 text-xs">—</td>
                             <td className="px-4 py-2.5 text-gray-600">{field?.name ?? '—'}</td>
+                            <td className="px-4 py-2.5 text-gray-600">
+                              {field?.address ? (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(field.address)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  {field.location || field.address}
+                                </a>
+                              ) : (
+                                <span className="text-gray-600">{field?.location || '—'}</span>
+                              )}
+                            </td>
                             <td className="px-4 py-2.5 text-gray-400">—</td>
                             <td className="px-4 py-2.5 text-gray-500 text-xs">{p.durationMinutes ? `${p.durationMinutes} min` : '—'}</td>
                           </tr>
@@ -244,10 +325,10 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
   )
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, color = 'text-gray-800' }: { label: string; value: number; color?: string }) {
   return (
     <div className="text-center">
-      <div className="text-xl font-bold text-gray-800">{value}</div>
+      <div className={`text-xl font-bold ${color}`}>{value}</div>
       <div className="text-xs text-gray-500">{label}</div>
     </div>
   )
