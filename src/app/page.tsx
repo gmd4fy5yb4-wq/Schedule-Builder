@@ -231,18 +231,18 @@ export default function Home() {
         ? await loadLeagueByViewToken(roTokenRef.current)
         : await loadLeague(leagueCode)
       if (!result) return
-      const remote = stableStringify(result.data)
+      const migratedRemote = migrateState(result.data)
+      const remote = stableStringify(migratedRemote)
       if (remote !== lastSyncedRef.current) {
         if (readOnly) {
           // Read-only viewers always get the latest automatically
-          const s = migrateState(result.data)
-          setState(s)
-          lastSyncedRef.current = stableStringify(s)
+          setState(migratedRemote)
+          lastSyncedRef.current = remote
           setLastUpdatedBy(result.updatedBy)
           setLastUpdatedAt(result.updatedAt)
         } else {
           // Admins see a review banner — never silently overwrite
-          setPendingRemote({ data: migrateState(result.data), updatedBy: result.updatedBy, updatedAt: result.updatedAt })
+          setPendingRemote({ data: migratedRemote, updatedBy: result.updatedBy, updatedAt: result.updatedAt })
         }
       }
     }, interval)
