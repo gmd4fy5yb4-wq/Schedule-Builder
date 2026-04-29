@@ -17,6 +17,7 @@ import FieldCalendarTab from '@/components/FieldCalendarTab'
 import AutoScheduleTab from '@/components/AutoScheduleTab'
 import StandingsTab from '@/components/StandingsTab'
 import CoachesTab from '@/components/CoachesTab'
+import DashboardTab from '@/components/DashboardTab'
 import LeagueGate from '@/components/LeagueGate'
 
 const DEFAULT: AppState = {
@@ -336,7 +337,7 @@ export default function Home() {
   }
 
   const sc = getSportConfig(state.season.sport)
-  const TABS = ['Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches']
+  const TABS = ['Dashboard', 'Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches']
   const themeStyle = buildThemeVars(getTheme(state.season.theme))
 
   if (!hydrated) {
@@ -518,7 +519,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
             {TABS.map((label, i) => {
-              if (readOnly && i < 4) return null
+              if (readOnly && i >= 1 && i <= 4) return null
               return (
                 <button
                   key={label}
@@ -536,16 +537,17 @@ export default function Home() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {tab === 0 && <SetupTab state={state} setState={setState} />}
-        {tab === 1 && <DivisionsTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
-        {tab === 2 && <FieldsTab state={state} setState={setState} />}
-        {tab === 3 && <UmpiresTab state={state} setState={setState} />}
-        {tab === 4 && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
-        {tab === 5 && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
-        {tab === 6 && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
-        {tab === 7 && <AutoScheduleTab state={state} setState={setState} />}
-        {tab === 8 && <StandingsTab state={state} readOnly={readOnly} />}
-        {tab === 9 && <CoachesTab state={state} readOnly={readOnly} />}
+        {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
+        {tab === 1  && <SetupTab state={state} setState={setState} />}
+        {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
+        {tab === 3  && <FieldsTab state={state} setState={setState} />}
+        {tab === 4  && <UmpiresTab state={state} setState={setState} />}
+        {tab === 5  && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
+        {tab === 6  && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
+        {tab === 7  && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
+        {tab === 8  && <AutoScheduleTab state={state} setState={setState} />}
+        {tab === 9  && <StandingsTab state={state} readOnly={readOnly} />}
+        {tab === 10 && <CoachesTab state={state} readOnly={readOnly} />}
       </main>
 
       {showSnapshots && leagueCode && (

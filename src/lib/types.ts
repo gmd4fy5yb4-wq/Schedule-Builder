@@ -71,6 +71,7 @@ export interface ScheduledGame {
   umpireId: string        // empty string = TBD
   divisionId: string
   result?: { homeScore: number; awayScore: number }
+  confirmed?: boolean   // league admin has verified all parties notified
 }
 
 export interface ScheduledPractice {
