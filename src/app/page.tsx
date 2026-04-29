@@ -100,6 +100,19 @@ export default function Home() {
 
   // On mount: check URL params for read-only share link, then localStorage
   useEffect(() => {
+    // After a magic-link login the auth callback drops us at '/'.
+    // If the login page saved a ?next= destination, navigate there now so the
+    // user lands on the right league instead of whatever localStorage holds.
+    const loginNext = localStorage.getItem('sb-login-next')
+    if (loginNext) {
+      localStorage.removeItem('sb-login-next')
+      // Only navigate if the destination differs from the current URL
+      if (loginNext !== window.location.pathname + window.location.search) {
+        window.location.replace(loginNext)
+        return
+      }
+    }
+
     const params = new URLSearchParams(window.location.search)
     const viewToken = params.get('token')
     const urlCode = params.get('code')?.toUpperCase()
