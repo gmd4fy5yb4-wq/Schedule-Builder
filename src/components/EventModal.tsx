@@ -189,6 +189,41 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
 
   const hasHardConflict = conflicts.some(c => c.kind === 'field' || c.kind === 'hours')
 
+  // ── Field availability for the dropdown ────────────────────────────────────
+  // Computed whenever date/time changes so the dropdown reflects current availability.
+  const fieldAvailability = useMemo(() => {
+    const booked = new Set<string>()
+    const blackedOut = new Set<string>()
+
+    // Blackout dates on each field
+    if (f.date) {
+      for (const fld of state.fields) {
+        if (fld.blackoutDates?.some(d => d.split('::')[0] === f.date)) {
+          blackedOut.add(fld.id)
+        }
+      }
+    }
+
+    // Time overlap with existing events (excluding this event itself)
+    if (f.date && f.time && f.endTime) {
+      const fStart = toMins(f.time)
+      const fEnd   = toMins(f.endTime)
+      if (fEnd > fStart) {
+        const others = [...state.schedule.games, ...state.schedule.practices]
+          .filter(ev => ev.id !== f.id && ev.date === f.date && ev.fieldId)
+        for (const ev of others) {
+          const evStart = toMins(ev.time)
+          const evEnd   = evStart + (ev.durationMinutes || 90)
+          if (fStart < evEnd && evStart < fEnd) {
+            booked.add(ev.fieldId)
+          }
+        }
+      }
+    }
+
+    return { booked, blackedOut }
+  }, [f.date, f.time, f.endTime, f.id, state.fields, state.schedule])
+
   function canSave() {
     if (!f.date || !f.time || !f.endTime || !f.fieldId || !f.divisionId) return false
     if (hasHardConflict) return false
@@ -510,7 +545,20 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
           <FF label={sc.venueSingular}>
             <select className="input" value={f.fieldId} onChange={e => upd({ fieldId: e.target.value })}>
               <option value="">— select field —</option>
-              {state.fields.map(fld => <option key={fld.id} value={fld.id}>{fld.name}{fld.location ? ` — ${fld.location}` : fld.address ? ` — ${fld.address}` : ''}</option>)}
+              {state.fields.map(fld => {
+                const isBlackedOut = fieldAvailability.blackedOut.has(fld.id)
+                const isBooked     = fieldAvailability.booked.has(fld.id)
+                const unavailable  = isBlackedOut || isBooked
+                const suffix = fld.location ? ` — ${fld.location}` : fld.address ? ` — ${fld.address}` : ''
+                const label  = isBlackedOut ? `${fld.name}${suffix} — Blackout`
+                             : isBooked     ? `${fld.name}${suffix} — Booked`
+                             : `${fld.name}${suffix}`
+                return (
+                  <option key={fld.id} value={fld.id} disabled={unavailable}>
+                    {label}
+                  </option>
+                )
+              })}
             </select>
           </FF>
 
