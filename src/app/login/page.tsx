@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabase'
 
 export default function LoginPage() {
@@ -7,6 +7,14 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [nextParam, setNextParam] = useState('/')
+
+  // Read the ?next= param so we can return the user to their league after login
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const next = params.get('next')
+    if (next) setNextParam(next)
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -14,10 +22,15 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
+    // Always redirect to the production site URL if set, so magic links
+    // work from the deployed app rather than localhost.
+    const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || window.location.origin
+    const callbackUrl = `${siteOrigin}/auth/callback?next=${encodeURIComponent(nextParam)}`
+
     const { error: authError } = await getSupabase().auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl,
       },
     })
 

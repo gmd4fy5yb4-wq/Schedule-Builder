@@ -85,12 +85,12 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               {/* If not logged in, show sign-in prompt for create */}
               {!user && (
                 <div className="mb-2 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm text-center">
-                  <a href="/login" className="font-semibold underline">Sign in</a> to create or manage a league.
+                  <a href={`/login?next=${encodeURIComponent(window.location.search || '/')}`} className="font-semibold underline">Sign in</a> to create or manage a league.
                 </div>
               )}
               <button
                 onClick={() => {
-                  if (!user) { window.location.href = '/login'; return }
+                  if (!user) { window.location.href = `/login?next=${encodeURIComponent(window.location.search || '/')}`; return }
                   setMode('create'); setError('')
                 }}
                 className="w-full bg-[var(--fd-accent)] text-white py-3.5 rounded-xl font-semibold text-base hover:bg-[var(--fd-primary)] transition"
