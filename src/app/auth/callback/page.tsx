@@ -3,41 +3,61 @@ import { useEffect, useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
 
 /**
- * Client-side auth callback handler.
+ * Client-side auth callback — handles Supabase implicit flow.
  *
- * Supabase magic links use PKCE: the code verifier is stored in the browser
- * (localStorage/sessionStorage) when signInWithOtp() is called. The exchange
- * MUST happen in the same browser context — a server-side route handler can't
- * access the client's PKCE verifier, so we do it here instead.
+ * With flowType: 'implicit', Supabase puts the session tokens directly in the
+ * URL hash (#access_token=...&refresh_token=...) so no PKCE code verifier is
+ * needed. This makes magic links work from any browser or device, not just the
+ * one that originally requested the link.
+ *
+ * createBrowserClient processes the hash automatically on init; we just wait
+ * for the SIGNED_IN event from onAuthStateChange.
  */
 export default function AuthCallbackPage() {
   const [status, setStatus] = useState<'exchanging' | 'error'>('exchanging')
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
+    const sb = getSupabase()
 
-    if (!code) {
-      setErrorMsg('No auth code in URL. The magic link may have expired — please request a new one.')
-      setStatus('error')
-      return
-    }
-
-    getSupabase()
-      .auth.exchangeCodeForSession(code)
-      .then(({ error }) => {
-        if (error) {
-          setErrorMsg(error.message)
-          setStatus('error')
-          return
-        }
-
-        // Success — navigate to intended destination (stored before login)
+    // onAuthStateChange fires with SIGNED_IN once the client has processed
+    // the #access_token hash and saved the session.
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        subscription.unsubscribe()
         const next = localStorage.getItem('sb-login-next')
         if (next) localStorage.removeItem('sb-login-next')
         window.location.replace(next && next !== '/' ? next : '/')
-      })
+        return
+      }
+      if (event === 'SIGNED_OUT') {
+        setErrorMsg('Sign-in failed or link expired. Please request a new magic link.')
+        setStatus('error')
+        subscription.unsubscribe()
+      }
+    })
+
+    // Fallback: if already signed in (e.g. page refresh), redirect immediately
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        subscription.unsubscribe()
+        const next = localStorage.getItem('sb-login-next')
+        if (next) localStorage.removeItem('sb-login-next')
+        window.location.replace(next && next !== '/' ? next : '/')
+      }
+    })
+
+    // Timeout fallback after 10s if nothing fires
+    const timeout = setTimeout(() => {
+      subscription.unsubscribe()
+      setErrorMsg('Sign-in timed out. The link may have expired — please request a new one.')
+      setStatus('error')
+    }, 10000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   if (status === 'error') {
