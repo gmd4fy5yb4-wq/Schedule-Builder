@@ -65,6 +65,24 @@ function migrateState(s: AppState): AppState {
   return s
 }
 
+/**
+ * Save an auto-snapshot at the start of each admin session, rate-limited to
+ * once per 8 hours per league per device. This gives a rolling recovery point
+ * if data is accidentally lost or overwritten.
+ */
+function maybeAutoSnapshot(code: string, state: AppState, userName: string) {
+  const key = `sb-auto-snap-${code}`
+  const last = parseInt(localStorage.getItem(key) ?? '0', 10)
+  const EIGHT_HOURS = 8 * 60 * 60 * 1000
+  if (Date.now() - last < EIGHT_HOURS) return
+  localStorage.setItem(key, String(Date.now()))
+  const label = new Date().toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  })
+  void saveSnapshot(code, `[Auto] ${label}`, state, userName)
+}
+
 type SyncStatus = 'synced' | 'saving' | 'error'
 
 export default function Home() {
@@ -149,6 +167,7 @@ export default function Home() {
           setLeagueCode(urlCode)
           setLastUpdatedBy(result.updatedBy)
           setLastUpdatedAt(result.updatedAt)
+          maybeAutoSnapshot(urlCode, s, 'Admin')
         }
         setHydrated(true)
       })
@@ -168,6 +187,7 @@ export default function Home() {
           lastSyncedRef.current = stableStringify(s)
           setLastUpdatedBy(result.updatedBy)
           setLastUpdatedAt(result.updatedAt)
+          maybeAutoSnapshot(code, s, name)
         }
         setHydrated(true)
       })
