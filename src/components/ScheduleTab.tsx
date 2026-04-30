@@ -20,7 +20,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
-  const [view, setView] = useState<'calendar' | 'list'>('calendar')
+  const [view, setView] = useState<'calendar' | 'list' | 'day'>('calendar')
+  const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split('T')[0])
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
   const [filterDiv, setFilterDiv] = useState('all')
   const [filterTeam, setFilterTeam] = useState('all')
@@ -215,6 +216,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}</span>
           <div className="flex rounded border overflow-hidden text-sm">
             <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
+            <button onClick={() => setView('day')} className={`px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
             <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
@@ -359,9 +361,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                 >
                   {/* Date number + add button */}
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
-                      isToday ? 'bg-[var(--fd-accent)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
-                    }`}>{day}</span>
+                    <span
+                      onClick={() => { setSelectedDay(dateStr); setView('day') }}
+                      className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--fd-accent)] transition ${
+                        isToday ? 'bg-[var(--fd-accent)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
+                      }`}
+                      title="View day schedule"
+                    >{day}</span>
                     {isBlackout
                       ? <span className="text-xs text-red-300 italic">closed</span>
                       : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-accent)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
@@ -492,6 +498,151 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         </div>
       )}
 
+      {/* ── DAY VIEW ── */}
+      {view === 'day' && (() => {
+        const PX_PER_HOUR = 80
+        const HOUR_START  = 8   // 8 AM
+        const HOUR_END    = 21  // 9 PM (last slot)
+        const HOURS       = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
+
+        // Prev / next day navigation
+        const goPrev = () => {
+          const d = new Date(selectedDay + 'T12:00:00'); d.setDate(d.getDate() - 1)
+          setSelectedDay(d.toISOString().split('T')[0])
+        }
+        const goNext = () => {
+          const d = new Date(selectedDay + 'T12:00:00'); d.setDate(d.getDate() + 1)
+          setSelectedDay(d.toISOString().split('T')[0])
+        }
+        const todayStr = new Date().toISOString().split('T')[0]
+        const dayLabel = new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+        // Events for this day, sorted by start time
+        const dayEvents = ([...state.schedule.games, ...state.schedule.practices] as (ScheduledGame | ScheduledPractice)[])
+          .filter(ev => ev.date === selectedDay)
+          .sort((a, b) => a.time.localeCompare(b.time))
+
+        // Assign columns to handle overlapping events
+        type Lane = { ev: ScheduledGame | ScheduledPractice; col: number; totalCols: number }
+        const lanes: Lane[] = []
+        const cols: number[] = [] // tracks end-minute of last event in each column
+
+        for (const ev of dayEvents) {
+          const start = toMins(ev.time)
+          const end   = start + (ev.durationMinutes || 90)
+          let col = cols.findIndex(endMin => endMin <= start)
+          if (col === -1) col = cols.length
+          cols[col] = end
+          lanes.push({ ev, col, totalCols: 0 })
+        }
+
+        // Second pass: count actual columns needed for overlapping groups
+        for (let i = 0; i < lanes.length; i++) {
+          const start = toMins(lanes[i].ev.time)
+          const end   = start + (lanes[i].ev.durationMinutes || 90)
+          let maxCol = lanes[i].col
+          for (let j = 0; j < lanes.length; j++) {
+            if (i === j) continue
+            const s2 = toMins(lanes[j].ev.time)
+            const e2 = s2 + (lanes[j].ev.durationMinutes || 90)
+            if (start < e2 && s2 < end) maxCol = Math.max(maxCol, lanes[j].col)
+          }
+          lanes[i].totalCols = maxCol + 1
+        }
+
+        return (
+          <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            {/* Day nav header */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b">
+              <button onClick={goPrev} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
+              <h3 className="font-semibold text-gray-800 flex-1 text-center">{dayLabel}</h3>
+              <button onClick={goNext} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
+              {selectedDay !== todayStr && (
+                <button onClick={() => setSelectedDay(todayStr)} className="text-xs text-[var(--fd-accent)] hover:text-[#a8102e] border border-[var(--fd-accent)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
+              )}
+              {!readOnly && (
+                <button onClick={() => openAdd(selectedDay)} className="text-xs bg-[var(--fd-accent)] text-white rounded px-2 py-1 hover:bg-[#a8102e] transition">+ Add</button>
+              )}
+            </div>
+
+            {/* Timeline */}
+            <div className="overflow-y-auto max-h-[calc(100vh-280px)]">
+              <div className="flex">
+                {/* Hour labels */}
+                <div className="flex-shrink-0 w-16 border-r">
+                  {HOURS.map(h => (
+                    <div key={h} className="border-b flex items-start justify-end pr-2 pt-1" style={{ height: PX_PER_HOUR }}>
+                      <span className="text-xs text-gray-400">{h === 12 ? '12 PM' : h < 12 ? `${h} AM` : `${h - 12} PM`}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Event area */}
+                <div className="flex-1 relative" style={{ height: HOURS.length * PX_PER_HOUR }}>
+                  {/* Hour grid lines */}
+                  {HOURS.map(h => (
+                    <div key={h} className="absolute w-full border-b border-gray-100" style={{ top: (h - HOUR_START) * PX_PER_HOUR, height: PX_PER_HOUR }} />
+                  ))}
+                  {/* Half-hour grid lines */}
+                  {HOURS.map(h => (
+                    <div key={`h-${h}`} className="absolute w-full border-b border-gray-50" style={{ top: (h - HOUR_START) * PX_PER_HOUR + PX_PER_HOUR / 2 }} />
+                  ))}
+
+                  {/* Events */}
+                  {lanes.map(({ ev, col, totalCols }) => {
+                    const startMins = toMins(ev.time)
+                    const dur       = ev.durationMinutes || 90
+                    const top       = (startMins - HOUR_START * 60) / 60 * PX_PER_HOUR
+                    const height    = Math.max(dur / 60 * PX_PER_HOUR, 28)
+                    const width     = `calc(${100 / totalCols}% - 6px)`
+                    const left      = `calc(${(col / totalCols) * 100}% + 3px)`
+                    const c         = getDivisionColor(ev.divisionId, state.divisions)
+                    const isGame    = ev.type === 'game'
+                    const g         = ev as ScheduledGame
+                    const p         = ev as ScheduledPractice
+                    const field     = fieldMap.get(ev.fieldId)
+                    const endFmt    = fmtTime(minsToTime(startMins + dur))
+
+                    return (
+                      <div
+                        key={ev.id}
+                        onClick={() => openEdit(ev)}
+                        className={`absolute rounded border cursor-pointer hover:opacity-90 transition overflow-hidden ${c.bg} ${c.border} shadow-sm`}
+                        style={{ top, height, width, left }}
+                      >
+                        <div className={`w-full h-1 flex-shrink-0 ${c.header}`} />
+                        <div className="px-2 py-1 text-xs leading-tight">
+                          <div className={`font-semibold truncate ${c.text}`}>
+                            {isGame
+                              ? `${teamMap.get(g.homeTeamId)?.name ?? '?'} vs ${teamMap.get(g.awayTeamId)?.name ?? '?'}`
+                              : `${teamMap.get(p.teamId)?.name ?? '?'} — Practice`}
+                          </div>
+                          {height > 40 && (
+                            <div className="text-gray-500 truncate mt-0.5">
+                              {fmtTime(ev.time)}–{endFmt}{field ? ` · ${field.name}` : ''}
+                            </div>
+                          )}
+                          {height > 56 && field?.location && (
+                            <div className="text-gray-400 truncate">{field.location}</div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Empty state */}
+                  {dayEvents.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <p className="text-gray-400 text-sm italic">No events scheduled for this day</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Legend */}
       <div className="flex flex-wrap gap-2 text-xs">
         {state.divisions.map(d => { const c = getDivisionColor(d.id, state.divisions); return <span key={d.id} className={`px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>{d.name} {sc.eventSingular.toLowerCase()}</span> })}
@@ -519,7 +670,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             className="fixed z-50 pointer-events-none"
             style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
           >
-            <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs w-52">
+            <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-sm w-72">
               <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${c.text}`}>
                 {div?.name ?? ''} {isGame ? sc.eventSingular : 'Practice'}
               </div>
