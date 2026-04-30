@@ -24,8 +24,9 @@ function dayLabel(dateStr: string): string {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
   const d = new Date(dateStr + 'T00:00:00')
-  if (d.getTime() === today.getTime()) return 'Today'
-  if (d.getTime() === tomorrow.getTime()) return 'Tomorrow'
+  const short = d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
+  if (d.getTime() === today.getTime()) return `Today · ${short}`
+  if (d.getTime() === tomorrow.getTime()) return `Tomorrow · ${short}`
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
@@ -105,6 +106,8 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({
     open: false, initialForm: emptyForm()
   })
+
+  const [confirmTip, setConfirmTip] = useState<{ x: number; y: number } | null>(null)
 
   const teamMap   = useMemo(() => new Map(state.divisions.flatMap(d => d.teams).map(t => [t.id, t])), [state.divisions])
   const fieldMap  = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
@@ -220,15 +223,15 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                 return (
                   <div
                     key={g.id}
-                    className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${g.confirmed ? 'ring-1 ring-green-300' : ''}`}
+                    className={`bg-white rounded-xl border border-gray-200 shadow-sm ${g.confirmed ? 'ring-1 ring-green-300' : ''}`}
                   >
                     <div className="flex">
                       {/* Division color strip */}
-                      <div className={`w-1.5 flex-shrink-0 ${c.header}`} />
+                      <div className={`w-1.5 flex-shrink-0 ${c.header} rounded-tl-xl rounded-bl-xl`} />
 
                       <div className="flex-1 min-w-0">
                         {/* Card header */}
-                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b">
+                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-tr-xl">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-bold px-2 py-0.5 rounded ${c.pill}`}>
                               {div?.name ?? 'Unknown Division'}
@@ -250,7 +253,14 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                           <div className="flex items-center gap-2">
                             {/* Confirm checkbox with tooltip */}
                             {!readOnly && (
-                              <div className="relative group flex items-center gap-1.5">
+                              <div
+                                className="flex items-center gap-1.5"
+                                onMouseEnter={e => {
+                                  const r = e.currentTarget.getBoundingClientRect()
+                                  setConfirmTip({ x: r.left + r.width / 2, y: r.top })
+                                }}
+                                onMouseLeave={() => setConfirmTip(null)}
+                              >
                                 <input
                                   type="checkbox"
                                   id={`confirm-${g.id}`}
@@ -266,11 +276,6 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                                 >
                                   Confirm
                                 </label>
-                                {/* Tooltip */}
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-72 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-xl">
-                                  Check this box once you&apos;ve confirmed the game with all coaches, the {sc.officialSingular.toLowerCase()}, and field staff. A green ring will appear around the card.
-                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-900" />
-                                </div>
                               </div>
                             )}
 
@@ -399,15 +404,15 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                 return (
                   <div
                     key={p.id}
-                    className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden opacity-90"
+                    className="bg-white rounded-xl border border-gray-200 shadow-sm opacity-90"
                   >
                     <div className="flex">
                       {/* Division color strip (lighter for practice) */}
-                      <div className={`w-1.5 flex-shrink-0 ${c.header} opacity-50`} />
+                      <div className={`w-1.5 flex-shrink-0 ${c.header} opacity-50 rounded-tl-xl rounded-bl-xl`} />
 
                       <div className="flex-1 min-w-0">
                         {/* Card header */}
-                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b">
+                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-tr-xl">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-bold px-2 py-0.5 rounded ${c.pill}`}>
                               {div?.name ?? 'Unknown Division'}
@@ -475,6 +480,19 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           </div>
         </section>
       ))}
+
+      {/* Confirm tooltip — rendered fixed so it escapes card stacking contexts */}
+      {confirmTip && (
+        <div
+          className="fixed pointer-events-none"
+          style={{ left: confirmTip.x, top: confirmTip.y - 10, transform: 'translate(-50%, -100%)', zIndex: 9999 }}
+        >
+          <div className="w-72 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 leading-relaxed shadow-xl">
+            Check this box once you&apos;ve confirmed the game with all coaches, the {sc.officialSingular.toLowerCase()}, and field staff. A green ring will appear around the card.
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-900" />
+          </div>
+        </div>
+      )}
 
       {modal.open && (
         <EventModal

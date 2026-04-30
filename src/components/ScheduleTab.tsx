@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo, useRef } from 'react'
-import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
+import type { AppState, ScheduledGame, ScheduledPractice, ScheduledSpecialEvent } from '@/lib/types'
 import { exportToExcel, exportToCSV } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { type EventForm, emptyForm, formFromEvent, toMins, minsToTime, fmtTime } from './EventModal'
@@ -25,7 +25,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
   const [filterDiv, setFilterDiv] = useState('all')
   const [filterTeam, setFilterTeam] = useState('all')
-  const [filterType, setFilterType] = useState<'all' | 'game' | 'practice'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'game' | 'practice' | 'special'>('all')
   const [exporting, setExporting] = useState(false)
   const [exportingCsv, setExportingCsv] = useState(false)
   const [clearConfirm, setClearConfirm] = useState(false)
@@ -33,7 +33,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const [dragError, setDragError] = useState<string | null>(null)
   const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [tooltip, setTooltip] = useState<{ ev: ScheduledGame | ScheduledPractice; x: number; y: number } | null>(null)
+  const [tooltip, setTooltip] = useState<{ ev: ScheduledGame | ScheduledPractice | ScheduledSpecialEvent; x: number; y: number } | null>(null)
 
   // Coach notification state
   const [notifyModal, setNotifyModal] = useState(false)
@@ -48,8 +48,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const blackoutSet = useMemo(() => new Set((state.blackoutDates ?? []).map(d => d.split('::')[0])), [state.blackoutDates])
 
   const eventsByDate = useMemo(() => {
-    const map = new Map<string, (ScheduledGame | ScheduledPractice)[]>()
-    for (const ev of [...state.schedule.games, ...state.schedule.practices]) {
+    const map = new Map<string, (ScheduledGame | ScheduledPractice | ScheduledSpecialEvent)[]>()
+    for (const ev of [...state.schedule.games, ...state.schedule.practices, ...(state.schedule.specialEvents ?? [])]) {
       if (!map.has(ev.date)) map.set(ev.date, [])
       map.get(ev.date)!.push(ev)
     }
@@ -63,8 +63,9 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
     return state.divisions.find(d => d.id === filterDiv)?.teams ?? []
   }, [filterDiv, state.divisions])
 
-  function matchesTeamFilter(ev: ScheduledGame | ScheduledPractice): boolean {
+  function matchesTeamFilter(ev: ScheduledGame | ScheduledPractice | ScheduledSpecialEvent): boolean {
     if (filterTeam === 'all') return true
+    if (ev.type === 'special') return false  // special events don't belong to a team
     if (ev.type === 'game') {
       const g = ev as ScheduledGame
       return g.homeTeamId === filterTeam || g.awayTeamId === filterTeam
@@ -75,10 +76,10 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   // Filtered event map for the calendar view
   const visibleEventsByDate = useMemo(() => {
     if (filterDiv === 'all' && filterTeam === 'all' && filterType === 'all') return eventsByDate
-    const map = new Map<string, (ScheduledGame | ScheduledPractice)[]>()
+    const map = new Map<string, (ScheduledGame | ScheduledPractice | ScheduledSpecialEvent)[]>()
     for (const [date, evs] of eventsByDate) {
       const filtered = evs
-        .filter(ev => filterDiv === 'all' || ev.divisionId === filterDiv)
+        .filter(ev => ev.type === 'special' ? filterDiv === 'all' : (filterDiv === 'all' || (ev as ScheduledGame | ScheduledPractice).divisionId === filterDiv))
         .filter(ev => matchesTeamFilter(ev))
         .filter(ev => filterType === 'all' || ev.type === filterType)
       if (filtered.length > 0) map.set(date, filtered)
@@ -100,7 +101,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
     setModal({ open: true, initialForm: emptyForm(date, state.season.gameDurationMinutes || 90) })
   }
 
-  function openEdit(ev: ScheduledGame | ScheduledPractice) {
+  function openEdit(ev: ScheduledGame | ScheduledPractice | ScheduledSpecialEvent) {
     if (readOnly) return
     setModal({ open: true, initialForm: formFromEvent(ev) })
   }
@@ -108,7 +109,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   function closeModal() { setModal(m => ({ ...m, open: false })) }
 
   function clearSchedule() {
-    setState(s => ({ ...s, schedule: { games: [], practices: [], generatedAt: null, warnings: [] } }))
+    setState(s => ({ ...s, schedule: { games: [], practices: [], specialEvents: [], generatedAt: null, warnings: [] } }))
     setClearConfirm(false)
   }
 
@@ -163,8 +164,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
 
   // List view
   const allItems = useMemo(() => {
-    return ([...state.schedule.games, ...state.schedule.practices] as (ScheduledGame | ScheduledPractice)[])
-      .filter(i => filterDiv === 'all' || i.divisionId === filterDiv)
+    return ([...state.schedule.games, ...state.schedule.practices, ...(state.schedule.specialEvents ?? [])] as (ScheduledGame | ScheduledPractice | ScheduledSpecialEvent)[])
+      .filter(i => i.type === 'special' ? filterDiv === 'all' : (filterDiv === 'all' || (i as ScheduledGame | ScheduledPractice).divisionId === filterDiv))
       .filter(i => matchesTeamFilter(i))
       .filter(i => filterType === 'all' || i.type === filterType)
       .sort((a, b) => { const dc = a.date.localeCompare(b.date); return dc !== 0 ? dc : a.time.localeCompare(b.time) })
@@ -173,6 +174,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
 
   const totalGames = state.schedule.games.length
   const totalPractices = state.schedule.practices.length
+  const totalSpecial = (state.schedule.specialEvents ?? []).length
 
   // Teams that have at least one coach with an email address
   const teamsWithCoachEmails = useMemo(() =>
@@ -213,7 +215,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-gray-800">Schedule</h2>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}</span>
+          <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}{totalSpecial > 0 ? ` · ${totalSpecial} special` : ''}</span>
           <div className="flex rounded border overflow-hidden text-sm">
             <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
             <button onClick={() => setView('day')} className={`px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
@@ -238,7 +240,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               Notify Coaches
             </button>
           )}
-          {(totalGames + totalPractices) > 0 && !readOnly && (
+          {(totalGames + totalPractices + totalSpecial) > 0 && !readOnly && (
             clearConfirm ? (
               <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded px-2 py-1">
                 <span className="text-xs text-red-700 font-medium">Clear all events?</span>
@@ -285,11 +287,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           <select
             className="border rounded px-2 py-1.5 text-sm"
             value={filterType}
-            onChange={e => setFilterType(e.target.value as 'all' | 'game' | 'practice')}
+            onChange={e => setFilterType(e.target.value as 'all' | 'game' | 'practice' | 'special')}
           >
             <option value="all">All Types</option>
             <option value="game">{sc.eventPlural} Only</option>
             <option value="practice">Practices Only</option>
+            <option value="special">Special Events Only</option>
           </select>
           {(filterDiv !== 'all' || filterTeam !== 'all' || filterType !== 'all') && (
             <button
@@ -302,7 +305,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           <span className="text-xs text-gray-400 ml-auto">
             {allItems.length} event{allItems.length !== 1 ? 's' : ''}
             {(filterDiv !== 'all' || filterTeam !== 'all' || filterType !== 'all') && (
-              <span className="ml-1 text-gray-300">of {state.schedule.games.length + state.schedule.practices.length}</span>
+              <span className="ml-1 text-gray-300">of {state.schedule.games.length + state.schedule.practices.length + (state.schedule.specialEvents ?? []).length}</span>
             )}
           </span>
         </div>
@@ -383,20 +386,24 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     return (
                       <div className={`flex-1 ${gap}`}>
                         {events.map(ev => {
-                          const c = getDivisionColor(ev.divisionId, state.divisions)
+                          const isSpecial  = ev.type === 'special'
                           const isPractice = ev.type === 'practice'
+                          const c = isSpecial ? null : getDivisionColor((ev as ScheduledGame | ScheduledPractice).divisionId, state.divisions)
                           const g = ev as ScheduledGame
                           const resultSuffix = ev.type === 'game' && g.result !== undefined
                             ? ` · ${g.result.homeScore}-${g.result.awayScore}`
                             : ''
-                          const label = ev.type === 'game'
-                            ? `${teamMap.get(g.homeTeamId)?.name ?? '?'} vs ${teamMap.get(g.awayTeamId)?.name ?? '?'}${resultSuffix}`
-                            : `${teamMap.get((ev as ScheduledPractice).teamId)?.name ?? '?'} practice`
+                          const label = isSpecial
+                            ? (ev as ScheduledSpecialEvent).name
+                            : ev.type === 'game'
+                              ? `${teamMap.get(g.homeTeamId)?.name ?? '?'} vs ${teamMap.get(g.awayTeamId)?.name ?? '?'}${resultSuffix}`
+                              : `${teamMap.get((ev as ScheduledPractice).teamId)?.name ?? '?'} practice`
                           return (
                             <button
                               key={ev.id}
-                              draggable
+                              draggable={!isSpecial}
                               onDragStart={e => {
+                                if (isSpecial) return
                                 setDragId(ev.id)
                                 setTooltip(null)
                                 e.dataTransfer.effectAllowed = 'move'
@@ -409,8 +416,10 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                                 setTooltip({ ev, x: rect.left, y: rect.top })
                               }}
                               onMouseLeave={() => setTooltip(null)}
-                              className={`w-full text-left ${textSize} ${pad} rounded truncate border transition hover:opacity-75 cursor-grab active:cursor-grabbing ${
-                                isPractice ? 'bg-gray-100 text-gray-600 border-gray-200' : `${c.bg} ${c.text} ${c.border}`
+                              className={`w-full text-left ${textSize} ${pad} rounded truncate border transition hover:opacity-75 ${isSpecial ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} ${
+                                isSpecial   ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                : isPractice ? 'bg-gray-100 text-gray-600 border-gray-200'
+                                : `${c!.bg} ${c!.text} ${c!.border}`
                               }`}
                             >
                               <span className="font-medium">{fmtTime(ev.time)}</span> {label}
@@ -451,23 +460,32 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                 </thead>
                 <tbody>
                   {allItems.map(item => {
-                    const c = getDivisionColor(item.divisionId, state.divisions)
+                    const isSpecial = item.type === 'special'
+                    const c = isSpecial ? null : getDivisionColor((item as ScheduledGame | ScheduledPractice).divisionId, state.divisions)
+                    const sp = item as ScheduledSpecialEvent
                     return (
                       <tr key={item.id} className="border-b last:border-0 hover:bg-gray-50">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-700">{fmtDateShort(item.date)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{fmtTime(item.time)}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-500">{item.durationMinutes ? fmtTime(minsToTime(toMins(item.time) + item.durationMinutes)) : '—'}</td>
-                        <td className="px-3 py-2"><span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.pill}`}>{divMap.get(item.divisionId)?.name}</span></td>
+                        <td className="px-3 py-2">
+                          {isSpecial
+                            ? <span className="text-xs text-gray-400 italic">—</span>
+                            : <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c!.pill}`}>{divMap.get((item as ScheduledGame | ScheduledPractice).divisionId)?.name}</span>
+                          }
+                        </td>
                         <td className="px-3 py-2">
                           {item.type === 'game'
                             ? <span className="text-xs px-1.5 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-accent)] font-medium">{sc.eventSingular}</span>
-                            : <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">Practice</span>}
+                            : item.type === 'special'
+                              ? <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Special</span>
+                              : <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">Practice</span>}
                         </td>
                         <td className="px-3 py-2 font-medium">
-                          {item.type === 'game' ? teamMap.get((item as ScheduledGame).homeTeamId)?.name : teamMap.get((item as ScheduledPractice).teamId)?.name}
+                          {isSpecial ? sp.name : item.type === 'game' ? teamMap.get((item as ScheduledGame).homeTeamId)?.name : teamMap.get((item as ScheduledPractice).teamId)?.name}
                         </td>
                         <td className="px-3 py-2 text-gray-600">
-                          {item.type === 'game' ? teamMap.get((item as ScheduledGame).awayTeamId)?.name : ''}
+                          {isSpecial ? (sp.location ?? '') : item.type === 'game' ? teamMap.get((item as ScheduledGame).awayTeamId)?.name : ''}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {item.type === 'game' && (item as ScheduledGame).result !== undefined ? (
@@ -478,7 +496,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                             <span className="text-xs text-gray-300">—</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-gray-600">{fieldMap.get(item.fieldId)?.name ?? '—'}</td>
+                        <td className="px-3 py-2 text-gray-600">{isSpecial ? '—' : (fieldMap.get((item as ScheduledGame | ScheduledPractice).fieldId)?.name ?? '—')}</td>
                         <td className="px-3 py-2 text-gray-600">
                           {item.type === 'game' ? ((item as ScheduledGame).umpireId ? umpireMap.get((item as ScheduledGame).umpireId)?.name : 'TBD') : ''}
                         </td>
@@ -518,12 +536,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         const dayLabel = new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
         // Events for this day, sorted by start time
-        const dayEvents = ([...state.schedule.games, ...state.schedule.practices] as (ScheduledGame | ScheduledPractice)[])
+        const dayEvents = ([...state.schedule.games, ...state.schedule.practices, ...(state.schedule.specialEvents ?? [])] as (ScheduledGame | ScheduledPractice | ScheduledSpecialEvent)[])
           .filter(ev => ev.date === selectedDay)
           .sort((a, b) => a.time.localeCompare(b.time))
 
         // Assign columns to handle overlapping events
-        type Lane = { ev: ScheduledGame | ScheduledPractice; col: number; totalCols: number }
+        type Lane = { ev: ScheduledGame | ScheduledPractice | ScheduledSpecialEvent; col: number; totalCols: number }
         const lanes: Lane[] = []
         const cols: number[] = [] // tracks end-minute of last event in each column
 
@@ -590,18 +608,20 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
 
                   {/* Events */}
                   {lanes.map(({ ev, col, totalCols }) => {
-                    const startMins = toMins(ev.time)
-                    const dur       = ev.durationMinutes || 90
-                    const top       = (startMins - HOUR_START * 60) / 60 * PX_PER_HOUR
-                    const height    = Math.max(dur / 60 * PX_PER_HOUR, 28)
-                    const width     = `calc(${100 / totalCols}% - 6px)`
-                    const left      = `calc(${(col / totalCols) * 100}% + 3px)`
-                    const c         = getDivisionColor(ev.divisionId, state.divisions)
-                    const isGame    = ev.type === 'game'
-                    const g         = ev as ScheduledGame
-                    const p         = ev as ScheduledPractice
-                    const field     = fieldMap.get(ev.fieldId)
-                    const endFmt    = fmtTime(minsToTime(startMins + dur))
+                    const startMins  = toMins(ev.time)
+                    const dur        = ev.durationMinutes || 90
+                    const top        = (startMins - HOUR_START * 60) / 60 * PX_PER_HOUR
+                    const height     = Math.max(dur / 60 * PX_PER_HOUR, 28)
+                    const width      = `calc(${100 / totalCols}% - 6px)`
+                    const left       = `calc(${(col / totalCols) * 100}% + 3px)`
+                    const isSpecial  = ev.type === 'special'
+                    const isGame     = ev.type === 'game'
+                    const c          = isSpecial ? null : getDivisionColor((ev as ScheduledGame | ScheduledPractice).divisionId, state.divisions)
+                    const g          = ev as ScheduledGame
+                    const p          = ev as ScheduledPractice
+                    const sp         = ev as ScheduledSpecialEvent
+                    const field      = isSpecial ? null : fieldMap.get((ev as ScheduledGame | ScheduledPractice).fieldId)
+                    const endFmt     = fmtTime(minsToTime(startMins + dur))
 
                     // Scale font based on how many columns are competing for space
                     const textSize = totalCols <= 1 ? 'text-xs' : totalCols === 2 ? 'text-[11px]' : 'text-[10px]'
@@ -612,27 +632,31 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                       <div
                         key={ev.id}
                         onClick={() => openEdit(ev)}
-                        className={`absolute rounded border cursor-pointer hover:opacity-90 transition overflow-hidden ${c.bg} ${c.border} shadow-sm`}
+                        className={`absolute rounded border cursor-pointer hover:opacity-90 transition overflow-hidden shadow-sm ${
+                          isSpecial ? 'bg-amber-50 border-amber-300' : `${c!.bg} ${c!.border}`
+                        }`}
                         style={{ top, height, width, left }}
                       >
-                        <div className={`w-full h-1 flex-shrink-0 ${c.header}`} />
+                        <div className={`w-full h-1 flex-shrink-0 ${isSpecial ? 'bg-amber-400' : c!.header}`} />
                         <div className={`px-2 py-1 ${textSize} leading-tight`}>
-                          {isGame ? (
+                          {isSpecial ? (
+                            <div className="font-semibold truncate text-amber-700">{sp.name}</div>
+                          ) : isGame ? (
                             <>
-                              <div className={`font-semibold truncate ${c.text}`}>{homeName}</div>
-                              <div className={`font-semibold truncate ${c.text} opacity-80`}>{awayName}</div>
+                              <div className={`font-semibold truncate ${c!.text}`}>{homeName}</div>
+                              <div className={`font-semibold truncate ${c!.text} opacity-80`}>{awayName}</div>
                             </>
                           ) : (
-                            <div className={`font-semibold truncate ${c.text}`}>
+                            <div className={`font-semibold truncate ${c!.text}`}>
                               {teamMap.get(p.teamId)?.name ?? '?'} — Practice
                             </div>
                           )}
                           {height > 52 && (
                             <div className="text-gray-500 truncate mt-0.5">
-                              {fmtTime(ev.time)}–{endFmt}{field ? ` · ${field.name}` : ''}
+                              {fmtTime(ev.time)}–{endFmt}{!isSpecial && field ? ` · ${field.name}` : isSpecial && sp.location ? ` · ${sp.location}` : ''}
                             </div>
                           )}
-                          {height > 72 && field?.location && (
+                          {height > 72 && !isSpecial && field?.location && (
                             <div className="text-gray-400 truncate">{field.location}</div>
                           )}
                         </div>
@@ -657,6 +681,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       <div className="flex flex-wrap gap-2 text-xs">
         {state.divisions.map(d => { const c = getDivisionColor(d.id, state.divisions); return <span key={d.id} className={`px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>{d.name} {sc.eventSingular.toLowerCase()}</span> })}
         <span className="px-2 py-0.5 rounded border bg-gray-100 text-gray-600 border-gray-200">Practice</span>
+        <span className="px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-300">Special Event</span>
         <span className="px-2 py-0.5 rounded border bg-red-50 text-red-400 border-red-200">Blackout date</span>
       </div>
 
@@ -667,24 +692,39 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       {/* Hover tooltip — fixed so it escapes the calendar's overflow:hidden */}
       {tooltip && (() => {
         const ev = tooltip.ev
+        const isSpecial = ev.type === 'special'
         const isGame = ev.type === 'game'
-        const g = ev as ScheduledGame
-        const p = ev as ScheduledPractice
+        const g  = ev as ScheduledGame
+        const p  = ev as ScheduledPractice
+        const sp = ev as ScheduledSpecialEvent
         const startFmt = fmtTime(ev.time)
         const endFmt   = ev.durationMinutes ? fmtTime(minsToTime(toMins(ev.time) + ev.durationMinutes)) : null
-        const field    = fieldMap.get(ev.fieldId)
-        const div      = divMap.get(ev.divisionId)
-        const c        = getDivisionColor(ev.divisionId, state.divisions)
+        const field    = isSpecial ? null : fieldMap.get((ev as ScheduledGame | ScheduledPractice).fieldId)
+        const div      = isSpecial ? null : divMap.get((ev as ScheduledGame | ScheduledPractice).divisionId)
+        const c        = isSpecial ? null : getDivisionColor((ev as ScheduledGame | ScheduledPractice).divisionId, state.divisions)
         return (
           <div
             className="fixed z-50 pointer-events-none"
             style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
           >
             <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-sm w-72">
-              <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${c.text}`}>
-                {div?.name ?? ''} {isGame ? sc.eventSingular : 'Practice'}
+              <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isSpecial ? 'text-amber-600' : c!.text}`}>
+                {isSpecial ? '⭐ Special Event' : `${div?.name ?? ''} ${isGame ? sc.eventSingular : 'Practice'}`}
               </div>
-              {isGame ? (() => {
+              {isSpecial ? (
+                <div className="space-y-1">
+                  <div className="font-semibold text-gray-800">{sp.name}</div>
+                  {sp.location && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Location</span>
+                      <span className="text-gray-700 text-right max-w-[160px]">{sp.location}</span>
+                    </div>
+                  )}
+                  {sp.comments && (
+                    <div className="mt-1 text-gray-500 text-xs italic">{sp.comments}</div>
+                  )}
+                </div>
+              ) : isGame ? (() => {
                 const r = g.result
                 const homeWon = r !== undefined && r.homeScore > r.awayScore
                 const awayWon = r !== undefined && r.awayScore > r.homeScore
@@ -724,19 +764,19 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                   <span className="text-gray-500">Time</span>
                   <span className="font-medium text-gray-800">{startFmt}{endFmt ? `–${endFmt}` : ''}</span>
                 </div>
-                {field && (
+                {!isSpecial && field && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">{sc.venueSingular}</span>
                     <span className="font-medium text-gray-800">{field.name}</span>
                   </div>
                 )}
-                {field?.location && (
+                {!isSpecial && field?.location && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Location</span>
                     <span className="font-medium text-gray-800 text-right max-w-[120px] truncate">{field.location}</span>
                   </div>
                 )}
-                {field?.address && (
+                {!isSpecial && field?.address && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Address</span>
                     <span className="text-gray-600 text-right max-w-[120px] truncate">{field.address}</span>

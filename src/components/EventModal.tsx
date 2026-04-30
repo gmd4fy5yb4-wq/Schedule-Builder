@@ -1,12 +1,12 @@
 'use client'
 import { useState, useMemo } from 'react'
-import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
+import type { AppState, ScheduledGame, ScheduledPractice, ScheduledSpecialEvent } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 export interface EventForm {
   id: string | null
-  type: 'game' | 'practice'
+  type: 'game' | 'practice' | 'special'
   date: string
   divisionId: string
   homeTeamId: string
@@ -17,6 +17,11 @@ export interface EventForm {
   time: string      // "HH:MM"
   endTime: string   // "HH:MM"
   result?: { homeScore: number; awayScore: number }
+  confirmed?: boolean        // preserved transparently; not user-editable in the form
+  // Special event fields
+  specialName?: string
+  specialLocation?: string
+  specialComments?: string
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -34,18 +39,21 @@ export function defaultEndTime(startTime: string, durationMins: number): string 
 
 export function emptyForm(date = '', gameDuration = 90): EventForm {
   const start = '17:00'
-  return { id: null, type: 'game', date, divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '', time: start, endTime: defaultEndTime(start, gameDuration) }
+  return { id: null, type: 'game', date, divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '', time: start, endTime: defaultEndTime(start, gameDuration), specialName: '', specialLocation: '', specialComments: '' }
 }
 
-export function formFromEvent(ev: ScheduledGame | ScheduledPractice): EventForm {
+export function formFromEvent(ev: ScheduledGame | ScheduledPractice | ScheduledSpecialEvent): EventForm {
   const dur = ev.durationMinutes || 90
   const endTime = minsToTime(toMins(ev.time) + dur)
   if (ev.type === 'game') {
     const g = ev as ScheduledGame
-    return { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, endTime, result: g.result }
-  } else {
+    return { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, endTime, result: g.result, confirmed: g.confirmed, specialName: '', specialLocation: '', specialComments: '' }
+  } else if (ev.type === 'practice') {
     const p = ev as ScheduledPractice
-    return { id: p.id, type: 'practice', date: p.date, divisionId: p.divisionId, homeTeamId: '', awayTeamId: '', teamId: p.teamId, umpireId: '', fieldId: p.fieldId, time: p.time, endTime }
+    return { id: p.id, type: 'practice', date: p.date, divisionId: p.divisionId, homeTeamId: '', awayTeamId: '', teamId: p.teamId, umpireId: '', fieldId: p.fieldId, time: p.time, endTime, specialName: '', specialLocation: '', specialComments: '' }
+  } else {
+    const s = ev as ScheduledSpecialEvent
+    return { id: s.id, type: 'special', date: s.date, divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '', time: s.time, endTime, specialName: s.name, specialLocation: s.location ?? '', specialComments: s.comments ?? '' }
   }
 }
 
@@ -225,7 +233,9 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   }, [f.date, f.time, f.endTime, f.id, state.fields, state.schedule])
 
   function canSave() {
-    if (!f.date || !f.time || !f.endTime || !f.fieldId || !f.divisionId) return false
+    if (!f.date || !f.time || !f.endTime) return false
+    if (f.type === 'special') return !!(f.specialName?.trim())
+    if (!f.fieldId || !f.divisionId) return false
     if (hasHardConflict) return false
     if (repeat.enabled && repeat.endType === 'date' && !repeat.endDate) return false
     if (f.type === 'game') return !!(f.homeTeamId && f.awayTeamId && f.homeTeamId !== f.awayTeamId)
@@ -288,17 +298,20 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   function commitDates(dates: string[]) {
     const durationMinutes = toMins(f.endTime) - toMins(f.time)
     setState(s => {
-      const games     = s.schedule.games.filter(g => g.id !== f.id)
-      const practices = s.schedule.practices.filter(p => p.id !== f.id)
+      const games         = s.schedule.games.filter(g => g.id !== f.id)
+      const practices     = s.schedule.practices.filter(p => p.id !== f.id)
+      const specialEvents = (s.schedule.specialEvents ?? []).filter(se => se.id !== f.id)
       for (const date of dates) {
         const id = (!isNew && dates.length === 1) ? (f.id ?? uid()) : uid()
         if (f.type === 'game') {
-          games.push({ id, type: 'game', date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId, ...(f.result !== undefined && { result: f.result }) })
-        } else {
+          games.push({ id, type: 'game', date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId, ...(f.result !== undefined && { result: f.result }), ...(f.confirmed !== undefined && { confirmed: f.confirmed }) })
+        } else if (f.type === 'practice') {
           practices.push({ id, type: 'practice', date, time: f.time, durationMinutes, fieldId: f.fieldId, teamId: f.teamId, divisionId: f.divisionId })
+        } else {
+          specialEvents.push({ id, type: 'special', date, time: f.time, durationMinutes, name: f.specialName?.trim() ?? '', location: f.specialLocation?.trim() || undefined, comments: f.specialComments?.trim() || undefined })
         }
       }
-      return { ...s, schedule: { ...s.schedule, games, practices, generatedAt: new Date().toISOString() } }
+      return { ...s, schedule: { ...s.schedule, games, practices, specialEvents, generatedAt: new Date().toISOString() } }
     })
     onClose()
   }
@@ -336,8 +349,9 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
       ...s,
       schedule: {
         ...s.schedule,
-        games:     s.schedule.games.filter(g => g.id !== f.id),
-        practices: s.schedule.practices.filter(p => p.id !== f.id),
+        games:         s.schedule.games.filter(g => g.id !== f.id),
+        practices:     s.schedule.practices.filter(p => p.id !== f.id),
+        specialEvents: (s.schedule.specialEvents ?? []).filter(se => se.id !== f.id),
       }
     }))
     onClose()
@@ -484,7 +498,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
           {/* Type toggle */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Event Type</label>
-            <div className="grid grid-cols-2 rounded-xl border overflow-hidden">
+            <div className="grid grid-cols-3 rounded-xl border overflow-hidden">
               <button
                 onClick={() => upd({ type: 'game', endTime: defaultEndTime(f.time, state.season.gameDurationMinutes || 90), teamId: '' })}
                 className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
@@ -493,16 +507,56 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '' })}
                 className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >Practice</button>
+              <button
+                onClick={() => upd({ type: 'special', endTime: defaultEndTime(f.time, 60), divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '' })}
+                className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'special' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >Special Event</button>
             </div>
           </div>
 
-          {/* Division */}
-          <FF label="Division">
-            <select className="input" value={f.divisionId} onChange={e => upd({ divisionId: e.target.value, homeTeamId: '', awayTeamId: '', teamId: '' })}>
-              <option value="">— select division —</option>
-              {state.divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          </FF>
+          {/* Special event fields */}
+          {f.type === 'special' && (
+            <>
+              <FF label="Event Name">
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Opening Day, End-of-Season Party…"
+                  value={f.specialName ?? ''}
+                  onChange={e => upd({ specialName: e.target.value })}
+                  autoFocus
+                />
+              </FF>
+              <FF label="Location (optional)">
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Community Center, 123 Main St…"
+                  value={f.specialLocation ?? ''}
+                  onChange={e => upd({ specialLocation: e.target.value })}
+                />
+              </FF>
+              <FF label="Comments (optional)">
+                <textarea
+                  className="input resize-none"
+                  rows={3}
+                  placeholder="Any notes about this event…"
+                  value={f.specialComments ?? ''}
+                  onChange={e => upd({ specialComments: e.target.value })}
+                />
+              </FF>
+            </>
+          )}
+
+          {/* Division (game/practice only) */}
+          {f.type !== 'special' && (
+            <FF label="Division">
+              <select className="input" value={f.divisionId} onChange={e => upd({ divisionId: e.target.value, homeTeamId: '', awayTeamId: '', teamId: '' })}>
+                <option value="">— select division —</option>
+                {state.divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </FF>
+          )}
 
           {/* Game fields */}
           {f.type === 'game' && (
@@ -541,26 +595,28 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             </FF>
           )}
 
-          {/* Field */}
-          <FF label={sc.venueSingular}>
-            <select className="input" value={f.fieldId} onChange={e => upd({ fieldId: e.target.value })}>
-              <option value="">— select field —</option>
-              {state.fields.map(fld => {
-                const isBlackedOut = fieldAvailability.blackedOut.has(fld.id)
-                const isBooked     = fieldAvailability.booked.has(fld.id)
-                const unavailable  = isBlackedOut || isBooked
-                const suffix = fld.location ? ` — ${fld.location}` : fld.address ? ` — ${fld.address}` : ''
-                const label  = isBlackedOut ? `${fld.name}${suffix} — Blackout`
-                             : isBooked     ? `${fld.name}${suffix} — Booked`
-                             : `${fld.name}${suffix}`
-                return (
-                  <option key={fld.id} value={fld.id} disabled={unavailable}>
-                    {label}
-                  </option>
-                )
-              })}
-            </select>
-          </FF>
+          {/* Field (game/practice only) */}
+          {f.type !== 'special' && (
+            <FF label={sc.venueSingular}>
+              <select className="input" value={f.fieldId} onChange={e => upd({ fieldId: e.target.value })}>
+                <option value="">— select field —</option>
+                {state.fields.map(fld => {
+                  const isBlackedOut = fieldAvailability.blackedOut.has(fld.id)
+                  const isBooked     = fieldAvailability.booked.has(fld.id)
+                  const unavailable  = isBlackedOut || isBooked
+                  const suffix = fld.location ? ` — ${fld.location}` : fld.address ? ` — ${fld.address}` : ''
+                  const label  = isBlackedOut ? `${fld.name}${suffix} — Blackout`
+                               : isBooked     ? `${fld.name}${suffix} — Booked`
+                               : `${fld.name}${suffix}`
+                  return (
+                    <option key={fld.id} value={fld.id} disabled={unavailable}>
+                      {label}
+                    </option>
+                  )
+                })}
+              </select>
+            </FF>
+          )}
 
           {/* Time range */}
           <div className="space-y-2">
@@ -573,12 +629,12 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
               </FF>
             </div>
             <p className="text-xs text-gray-400">
-              Fields are open 8:00 AM – 8:00 PM · {f.time && f.endTime && toMins(f.endTime) > toMins(f.time) ? `${toMins(f.endTime) - toMins(f.time)} min` : '—'}
+              {f.type !== 'special' && 'Fields are open 8:00 AM – 8:00 PM · '}{f.time && f.endTime && toMins(f.endTime) > toMins(f.time) ? `${toMins(f.endTime) - toMins(f.time)} min` : '—'}
             </p>
           </div>
 
-          {/* ── Repeat section (new events only) ── */}
-          {isNew && (
+          {/* ── Repeat section (new game/practice only) ── */}
+          {isNew && f.type !== 'special' && (
             <div className="border rounded-xl overflow-hidden">
               {/* Toggle header */}
               <button
@@ -740,8 +796,8 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             </div>
           )}
 
-          {/* Conflicts */}
-          {conflicts.length > 0 && (
+          {/* Conflicts (not shown for special events) */}
+          {f.type !== 'special' && conflicts.length > 0 && (
             <div className="space-y-2">
               {conflicts.map((c, i) => (
                 <div key={i} className={`flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg border ${

@@ -27,7 +27,7 @@ const DEFAULT: AppState = {
   fields: [],
   umpires: [],
   fieldStaff: [],
-  schedule: { games: [], practices: [], generatedAt: null, warnings: [] },
+  schedule: { games: [], practices: [], specialEvents: [], generatedAt: null, warnings: [] },
 }
 
 /**
@@ -50,6 +50,7 @@ function migrateState(s: AppState): AppState {
   if (s.schedule) {
     s.schedule.games = (s.schedule.games ?? []).map(g => ({ ...g, durationMinutes: g.durationMinutes ?? 90 }))
     s.schedule.practices = (s.schedule.practices ?? []).map(p => ({ ...p, durationMinutes: p.durationMinutes ?? 90 }))
+    s.schedule.specialEvents = s.schedule.specialEvents ?? []
   }
   s.season.sport = s.season.sport ?? 'softball'
   s.blackoutDates = s.blackoutDates ?? []
@@ -233,6 +234,25 @@ export default function Home() {
 
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [state, hydrated, leagueCode])
+
+  // Flush any unsaved changes before the page unloads (e.g. user refreshes
+  // before the 800 ms debounce fires). keepalive keeps the request alive even
+  // after the navigation starts.
+  useEffect(() => {
+    function handleBeforeUnload() {
+      if (!leagueCode || readOnly) return
+      const current = stableStringify(state)
+      if (current === lastSyncedRef.current) return   // nothing new to save
+      fetch('/api/leagues/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: leagueCode, state, userName: localUserRef.current }),
+        keepalive: true,   // survives page unload
+      })
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [state, leagueCode, readOnly])
 
   // Poll for remote changes
   useEffect(() => {

@@ -85,7 +85,18 @@ export interface ScheduledPractice {
   divisionId: string
 }
 
-export type ScheduledItem = ScheduledGame | ScheduledPractice
+export interface ScheduledSpecialEvent {
+  id: string
+  type: 'special'
+  name: string
+  date: string
+  time: string
+  durationMinutes: number
+  location?: string   // free-text location (not tied to the fields database)
+  comments?: string
+}
+
+export type ScheduledItem = ScheduledGame | ScheduledPractice | ScheduledSpecialEvent
 
 export interface ScheduleConflict {
   id: string
@@ -108,6 +119,7 @@ export interface AppState {
   schedule: {
     games: ScheduledGame[]
     practices: ScheduledPractice[]
+    specialEvents: ScheduledSpecialEvent[]
     generatedAt: string | null
     warnings: string[]
   }
