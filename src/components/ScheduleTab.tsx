@@ -603,6 +603,11 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     const field     = fieldMap.get(ev.fieldId)
                     const endFmt    = fmtTime(minsToTime(startMins + dur))
 
+                    // Scale font based on how many columns are competing for space
+                    const textSize = totalCols <= 1 ? 'text-xs' : totalCols === 2 ? 'text-[11px]' : 'text-[10px]'
+                    const homeName = isGame ? (teamMap.get(g.homeTeamId)?.name ?? '?') : null
+                    const awayName = isGame ? (teamMap.get(g.awayTeamId)?.name ?? '?') : null
+
                     return (
                       <div
                         key={ev.id}
@@ -611,18 +616,23 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         style={{ top, height, width, left }}
                       >
                         <div className={`w-full h-1 flex-shrink-0 ${c.header}`} />
-                        <div className="px-2 py-1 text-xs leading-tight">
-                          <div className={`font-semibold truncate ${c.text}`}>
-                            {isGame
-                              ? `${teamMap.get(g.homeTeamId)?.name ?? '?'} vs ${teamMap.get(g.awayTeamId)?.name ?? '?'}`
-                              : `${teamMap.get(p.teamId)?.name ?? '?'} — Practice`}
-                          </div>
-                          {height > 40 && (
+                        <div className={`px-2 py-1 ${textSize} leading-tight`}>
+                          {isGame ? (
+                            <>
+                              <div className={`font-semibold truncate ${c.text}`}>{homeName}</div>
+                              <div className={`font-semibold truncate ${c.text} opacity-80`}>{awayName}</div>
+                            </>
+                          ) : (
+                            <div className={`font-semibold truncate ${c.text}`}>
+                              {teamMap.get(p.teamId)?.name ?? '?'} — Practice
+                            </div>
+                          )}
+                          {height > 52 && (
                             <div className="text-gray-500 truncate mt-0.5">
                               {fmtTime(ev.time)}–{endFmt}{field ? ` · ${field.name}` : ''}
                             </div>
                           )}
-                          {height > 56 && field?.location && (
+                          {height > 72 && field?.location && (
                             <div className="text-gray-400 truncate">{field.location}</div>
                           )}
                         </div>
