@@ -207,7 +207,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
       if (geoCache.current.size === 0) {
         try {
           const stored: Record<string, { lat: number; lon: number } | null> =
-            JSON.parse(localStorage.getItem('fd-geocache-v1') ?? '{}')
+            JSON.parse(localStorage.getItem('fd-geocache-v2') ?? '{}')
           for (const [k, v] of Object.entries(stored)) geoCache.current.set(k, v)
         } catch { /* ignore */ }
       }
@@ -224,9 +224,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           geoCache.current.set(f.cacheKey, coords)
           try {
             const stored: Record<string, { lat: number; lon: number } | null> =
-              JSON.parse(localStorage.getItem('fd-geocache-v1') ?? '{}')
+              JSON.parse(localStorage.getItem('fd-geocache-v2') ?? '{}')
             stored[f.cacheKey] = coords
-            localStorage.setItem('fd-geocache-v1', JSON.stringify(stored))
+            localStorage.setItem('fd-geocache-v2', JSON.stringify(stored))
           } catch { /* ignore */ }
         }
       }
