@@ -1,9 +1,16 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice, Coach } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { emptyForm, formFromEvent, type EventForm } from './EventModal'
 import { getSportConfig } from '@/lib/sports'
+import {
+  type DayWeather,
+  weatherEmoji,
+  weatherDesc,
+  geocodeAddress,
+  fetchDailyWeather,
+} from '@/lib/weather'
 
 interface Props {
   state: AppState
@@ -99,6 +106,27 @@ function CoachList({ label, coaches }: { label: string; coaches: Coach[] }) {
   )
 }
 
+function WeatherChip({ data }: { data: DayWeather }) {
+  const desc = weatherDesc(data.weatherCode)
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-xs bg-sky-50 text-sky-700 border border-sky-200 rounded-full px-2.5 py-0.5 whitespace-nowrap"
+      title={`${desc} · High ${data.tempHigh}° Low ${data.tempLow}°${data.precipChance >= 30 ? ` · ${data.precipChance}% chance of rain` : ''}`}
+    >
+      <span role="img" aria-label={desc}>{weatherEmoji(data.weatherCode)}</span>
+      <span className="font-medium">{data.tempHigh}°</span>
+      <span className="text-sky-300">/</span>
+      <span>{data.tempLow}°</span>
+      {data.precipChance >= 30 && (
+        <>
+          <span className="text-sky-300">·</span>
+          <span className="text-blue-500">{data.precipChance}%</span>
+        </>
+      )}
+    </span>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function DashboardTab({ state, setState, readOnly = false, onNavigate }: Props) {
@@ -142,6 +170,89 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
     [...eventsByDate.values()].reduce((s, v) => s + v.length, 0),
     [eventsByDate]
   )
+
+  // ── Weather ───────────────────────────────────────────────────────────────
+  const [weatherByDate, setWeatherByDate] = useState<Map<string, DayWeather>>(new Map())
+  // In-memory geocode cache; also backed by localStorage so addresses only
+  // hit Nominatim once across sessions (addresses rarely change).
+  const geoCache = useRef<Map<string, { lat: number; lon: number } | null>>(new Map())
+
+  useEffect(() => {
+    if (eventsByDate.size === 0) return
+    let cancelled = false
+
+    async function loadWeather() {
+      // For each date, find the first event that has a field with a street address
+      const dateToAddress = new Map<string, string>()
+      for (const [date, evs] of eventsByDate) {
+        for (const ev of evs) {
+          const field = fieldMap.get(ev.fieldId)
+          if (field?.address) { dateToAddress.set(date, field.address); break }
+        }
+      }
+      if (dateToAddress.size === 0) return
+
+      // Pre-populate in-memory cache from localStorage (one-time per session)
+      if (geoCache.current.size === 0) {
+        try {
+          const stored: Record<string, { lat: number; lon: number } | null> =
+            JSON.parse(localStorage.getItem('fd-geocache-v1') ?? '{}')
+          for (const [addr, coords] of Object.entries(stored)) {
+            geoCache.current.set(addr, coords)
+          }
+        } catch { /* ignore */ }
+      }
+
+      // Geocode any addresses not yet cached (≤ 1 req/sec — Nominatim policy)
+      const uniqueAddresses = [...new Set(dateToAddress.values())]
+      for (const address of uniqueAddresses) {
+        if (cancelled) return
+        if (!geoCache.current.has(address)) {
+          const coords = await geocodeAddress(address)
+          geoCache.current.set(address, coords)
+          try {
+            const stored: Record<string, { lat: number; lon: number } | null> =
+              JSON.parse(localStorage.getItem('fd-geocache-v1') ?? '{}')
+            stored[address] = coords
+            localStorage.setItem('fd-geocache-v1', JSON.stringify(stored))
+          } catch { /* ignore */ }
+          // Respect Nominatim 1 req/sec rate limit before next geocode
+          if (uniqueAddresses.indexOf(address) < uniqueAddresses.length - 1) {
+            await new Promise(r => setTimeout(r, 1100))
+          }
+        }
+      }
+      if (cancelled) return
+
+      // Fetch Open-Meteo forecast per unique coordinate pair (deduplicated)
+      const weatherByCoordKey = new Map<string, Map<string, DayWeather>>()
+      for (const address of uniqueAddresses) {
+        if (cancelled) return
+        const coords = geoCache.current.get(address)
+        if (!coords) continue
+        const key = `${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}`
+        if (!weatherByCoordKey.has(key)) {
+          weatherByCoordKey.set(key, await fetchDailyWeather(coords.lat, coords.lon))
+        }
+      }
+      if (cancelled) return
+
+      // Build final date → DayWeather map
+      const result = new Map<string, DayWeather>()
+      for (const [date, address] of dateToAddress) {
+        const coords = geoCache.current.get(address)
+        if (!coords) continue
+        const key = `${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}`
+        const w = weatherByCoordKey.get(key)?.get(date)
+        if (w) result.set(date, w)
+      }
+      setWeatherByDate(result)
+    }
+
+    loadWeather()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventsByDate, fieldMap])
 
   function toggleConfirm(gameId: string) {
     setState(s => ({
@@ -198,6 +309,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           {/* Day header */}
           <div className="flex items-center gap-3 mb-4">
             <h3 className="text-base font-bold text-gray-700 whitespace-nowrap">{dayLabel(date)}</h3>
+            {weatherByDate.get(date) && <WeatherChip data={weatherByDate.get(date)!} />}
             <div className="flex-1 border-t border-gray-200" />
             <span className="text-xs text-gray-400 whitespace-nowrap">
               {events.length} event{events.length !== 1 ? 's' : ''}
