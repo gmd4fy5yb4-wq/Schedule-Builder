@@ -173,13 +173,15 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
 
   // ── Weather ───────────────────────────────────────────────────────────────
   const [weatherByDate, setWeatherByDate] = useState<Map<string, DayWeather>>(new Map())
+  const [weatherLoading, setWeatherLoading] = useState(false)
   // In-memory geocode cache; also backed by localStorage so addresses only
-  // hit Nominatim once across sessions (addresses rarely change).
+  // hit the geocode proxy once per unique address across sessions.
   const geoCache = useRef<Map<string, { lat: number; lon: number } | null>>(new Map())
 
   useEffect(() => {
     if (eventsByDate.size === 0) return
     let cancelled = false
+    setWeatherLoading(true)
 
     async function loadWeather() {
       // For each date, find the first event that has a field with a street address
@@ -190,7 +192,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           if (field?.address) { dateToAddress.set(date, field.address); break }
         }
       }
-      if (dateToAddress.size === 0) return
+      if (dateToAddress.size === 0) { setWeatherLoading(false); return }
 
       // Pre-populate in-memory cache from localStorage (one-time per session)
       if (geoCache.current.size === 0) {
@@ -247,9 +249,10 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
         if (w) result.set(date, w)
       }
       setWeatherByDate(result)
+      if (!cancelled) setWeatherLoading(false)
     }
 
-    loadWeather()
+    loadWeather().catch(() => setWeatherLoading(false))
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventsByDate, fieldMap])
@@ -309,7 +312,14 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           {/* Day header */}
           <div className="flex items-center gap-3 mb-4">
             <h3 className="text-base font-bold text-gray-700 whitespace-nowrap">{dayLabel(date)}</h3>
-            {weatherByDate.get(date) && <WeatherChip data={weatherByDate.get(date)!} />}
+            {weatherByDate.get(date)
+              ? <WeatherChip data={weatherByDate.get(date)!} />
+              : weatherLoading && (
+                  <span className="inline-flex items-center gap-1 text-xs text-sky-400 animate-pulse">
+                    🌤 Loading weather…
+                  </span>
+                )
+            }
             <div className="flex-1 border-t border-gray-200" />
             <span className="text-xs text-gray-400 whitespace-nowrap">
               {events.length} event{events.length !== 1 ? 's' : ''}

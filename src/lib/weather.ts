@@ -35,22 +35,22 @@ export function weatherDesc(code: number): string {
 }
 
 /**
- * Geocode a street address using OpenStreetMap Nominatim (free, no key).
- * Browsers automatically send the page URL as Referer, satisfying Nominatim's
- * usage policy. Results should be cached by the caller (≤ 1 req/sec limit).
+ * Geocode a street address via the app's own /api/geocode proxy.
+ * The proxy calls Nominatim server-side with a proper User-Agent header
+ * (browsers can't set User-Agent, which violates Nominatim's usage policy).
+ * Results are cached at the edge for 24 h, and the caller caches in localStorage.
  */
 export async function geocodeAddress(
   address: string,
 ): Promise<{ lat: number; lon: number } | null> {
   try {
-    const url =
-      `https://nominatim.openstreetmap.org/search` +
-      `?format=json&limit=1&q=${encodeURIComponent(address)}`
-    const res = await fetch(url, { headers: { 'Accept-Language': 'en-US,en' } })
+    const res = await fetch(
+      `/api/geocode?address=${encodeURIComponent(address)}`,
+    )
     if (!res.ok) return null
-    const data: Array<{ lat: string; lon: string }> = await res.json()
-    if (!data.length) return null
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }
+    const data: { lat: number | null; lon: number | null } = await res.json()
+    if (data.lat == null || data.lon == null) return null
+    return { lat: data.lat, lon: data.lon }
   } catch {
     return null
   }
