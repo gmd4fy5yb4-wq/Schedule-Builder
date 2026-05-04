@@ -274,6 +274,17 @@ export default function Home() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [state, leagueCode, readOnly])
 
+  // Eagerly pre-generate the view token so the clipboard write in copyReadOnlyLink()
+  // is synchronous on the first click. Safari iOS drops the user-gesture context
+  // across any await, so we need the token ready before the button is ever pressed.
+  useEffect(() => {
+    if (!leagueCode || readOnly || leagueCode === 'VIEW') return
+    if (viewTokenRef.current) return   // already have it
+    getOrCreateViewToken(leagueCode).then(token => {
+      if (token) viewTokenRef.current = token
+    })
+  }, [leagueCode, readOnly])
+
   // Poll for remote changes
   useEffect(() => {
     if (!leagueCode || !hydrated) return
@@ -407,7 +418,7 @@ export default function Home() {
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-4">
           <p className="text-2xl">🔗</p>
           <h2 className="text-lg font-semibold text-gray-800">Link not found</h2>
-          <p className="text-sm text-gray-500">This view-only link is invalid or has expired. Ask the league admin for a new link.</p>
+          <p className="text-sm text-gray-500">This view-only link is no longer valid. Ask the league admin to share a new link.</p>
           <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-accent)] underline hover:text-[var(--fd-primary)]">Go to FieldDay Planner</a>
         </div>
       </div>
