@@ -4,6 +4,7 @@ export interface DayWeather {
   tempLow: number       // °F, rounded
   precipChance: number  // 0–100
   weatherCode: number   // WMO code
+  windSpeed: number     // mph, rounded
 }
 
 /** Maps a WMO weather interpretation code to an emoji. */
@@ -11,34 +12,33 @@ export function weatherEmoji(code: number): string {
   if (code === 0) return '☀️'
   if (code <= 2)  return '🌤️'
   if (code === 3) return '☁️'
-  if (code <= 48) return '🌫️'   // fog
-  if (code <= 57) return '🌦️'   // drizzle
-  if (code <= 67) return '🌧️'   // rain
-  if (code <= 77) return '❄️'   // snow
-  if (code <= 82) return '🌦️'   // showers
-  if (code <= 86) return '🌨️'   // snow showers
-  return '⛈️'                   // thunderstorm
+  if (code <= 48) return '🌫️'
+  if (code <= 57) return '🌦️'
+  if (code <= 67) return '🌧️'
+  if (code <= 77) return '❄️'
+  if (code <= 82) return '🌦️'
+  if (code <= 86) return '🌨️'
+  return '⛈️'
 }
 
-/** Short description for a WMO weather code (used in aria-label). */
+/** Short description for a WMO weather code. */
 export function weatherDesc(code: number): string {
   if (code === 0) return 'Clear'
-  if (code <= 2)  return 'Partly cloudy'
+  if (code <= 2)  return 'Partly Cloudy'
   if (code === 3) return 'Overcast'
   if (code <= 48) return 'Foggy'
   if (code <= 57) return 'Drizzle'
   if (code <= 67) return 'Rain'
   if (code <= 77) return 'Snow'
   if (code <= 82) return 'Showers'
-  if (code <= 86) return 'Snow showers'
+  if (code <= 86) return 'Snow Showers'
   return 'Thunderstorm'
 }
 
 /**
  * Geocode a field location via the app's /api/geocode proxy.
- * Pass `address` (street address) and optionally `location` (venue/park name)
- * as fallback. The proxy tries Nominatim → Open-Meteo geocoding in order.
- * Results are cached at the edge for 24 h; the caller caches in localStorage.
+ * Pass `address` (street address) and optionally `location` (venue/park name).
+ * The proxy tries multiple sources with a city-extraction fallback.
  */
 export async function geocodeField(
   address: string,
@@ -70,8 +70,15 @@ export async function fetchDailyWeather(
     const params = new URLSearchParams({
       latitude:         lat.toFixed(4),
       longitude:        lon.toFixed(4),
-      daily:            'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+      daily:            [
+        'weather_code',
+        'temperature_2m_max',
+        'temperature_2m_min',
+        'precipitation_probability_max',
+        'wind_speed_10m_max',
+      ].join(','),
       temperature_unit: 'fahrenheit',
+      wind_speed_unit:  'mph',
       timezone:         'auto',
       forecast_days:    '14',
     })
@@ -84,12 +91,14 @@ export async function fetchDailyWeather(
       temperature_2m_max,
       temperature_2m_min,
       precipitation_probability_max,
+      wind_speed_10m_max,
     } = json.daily as {
       time: string[]
       weather_code: number[]
       temperature_2m_max: number[]
       temperature_2m_min: number[]
       precipitation_probability_max: (number | null)[]
+      wind_speed_10m_max: (number | null)[]
     }
     const map = new Map<string, DayWeather>()
     for (let i = 0; i < time.length; i++) {
@@ -98,6 +107,7 @@ export async function fetchDailyWeather(
         tempHigh:     Math.round(temperature_2m_max[i] ?? 0),
         tempLow:      Math.round(temperature_2m_min[i] ?? 0),
         precipChance: precipitation_probability_max[i] ?? 0,
+        windSpeed:    Math.round(wind_speed_10m_max[i] ?? 0),
       })
     }
     return map

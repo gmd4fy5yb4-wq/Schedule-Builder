@@ -106,24 +106,39 @@ function CoachList({ label, coaches }: { label: string; coaches: Coach[] }) {
   )
 }
 
-function WeatherChip({ data }: { data: DayWeather }) {
+/** Square weather card shown alongside each event card. */
+function WeatherCard({ data, loading }: { data?: DayWeather; loading?: boolean }) {
+  if (loading && !data) {
+    return (
+      <div className="w-32 flex-shrink-0 bg-sky-50 border border-sky-100 rounded-xl flex flex-col items-center justify-center gap-2 p-3 animate-pulse">
+        <div className="w-10 h-10 bg-sky-200 rounded-full" />
+        <div className="w-14 h-3 bg-sky-200 rounded" />
+        <div className="w-10 h-4 bg-sky-200 rounded" />
+        <div className="w-12 h-3 bg-sky-200 rounded" />
+      </div>
+    )
+  }
+  if (!data) return null
   const desc = weatherDesc(data.weatherCode)
+  const isRainy = data.precipChance >= 30
+  const isWindy = data.windSpeed >= 15
   return (
-    <span
-      className="inline-flex items-center gap-1.5 text-xs bg-sky-50 text-sky-700 border border-sky-200 rounded-full px-2.5 py-0.5 whitespace-nowrap"
-      title={`${desc} · High ${data.tempHigh}° Low ${data.tempLow}°${data.precipChance >= 30 ? ` · ${data.precipChance}% chance of rain` : ''}`}
-    >
-      <span role="img" aria-label={desc}>{weatherEmoji(data.weatherCode)}</span>
-      <span className="font-medium">{data.tempHigh}°</span>
-      <span className="text-sky-300">/</span>
-      <span>{data.tempLow}°</span>
-      {data.precipChance >= 30 && (
-        <>
-          <span className="text-sky-300">·</span>
-          <span className="text-blue-500">{data.precipChance}%</span>
-        </>
+    <div className="w-32 flex-shrink-0 bg-gradient-to-b from-sky-50 to-blue-50 border border-sky-200 rounded-xl flex flex-col items-center justify-center gap-1.5 p-4 text-center shadow-sm">
+      <span className="text-4xl leading-none" role="img" aria-label={desc}>
+        {weatherEmoji(data.weatherCode)}
+      </span>
+      <p className="text-[11px] font-semibold text-sky-600 leading-tight">{desc}</p>
+      <div className="mt-0.5">
+        <p className="text-2xl font-bold text-gray-800 leading-none">{data.tempHigh}°</p>
+        <p className="text-xs text-gray-400 mt-0.5">Low {data.tempLow}°</p>
+      </div>
+      {isRainy && (
+        <p className="text-xs font-medium text-blue-600">💧 {data.precipChance}%</p>
       )}
-    </span>
+      {isWindy && (
+        <p className="text-xs text-gray-500">💨 {data.windSpeed} mph</p>
+      )}
+    </div>
   )
 }
 
@@ -232,11 +247,19 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
       }
       if (cancelled) return
 
+      // Use any successfully geocoded field as a fallback for fields that
+      // couldn't be resolved — all local league fields are within ~20 miles.
+      let fallbackCoords: { lat: number; lon: number } | null = null
+      for (const f of uniqueFields) {
+        const c = geoCache.current.get(f.cacheKey)
+        if (c) { fallbackCoords = c; break }
+      }
+
       // Fetch Open-Meteo forecast per unique coordinate pair
       const weatherByCoordKey = new Map<string, Map<string, DayWeather>>()
       for (const f of uniqueFields) {
         if (cancelled) return
-        const coords = geoCache.current.get(f.cacheKey)
+        const coords = geoCache.current.get(f.cacheKey) ?? fallbackCoords
         if (!coords) continue
         const key = `${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}`
         if (!weatherByCoordKey.has(key)) {
@@ -245,10 +268,10 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
       }
       if (cancelled) return
 
-      // Build final date → DayWeather map
+      // Build final date → DayWeather map (use fallback coords if field failed)
       const result = new Map<string, DayWeather>()
       for (const [date, f] of dateToField) {
-        const coords = geoCache.current.get(f.cacheKey)
+        const coords = geoCache.current.get(f.cacheKey) ?? fallbackCoords
         if (!coords) continue
         const key = `${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}`
         const w = weatherByCoordKey.get(key)?.get(date)
@@ -318,14 +341,6 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           {/* Day header */}
           <div className="flex items-center gap-3 mb-4">
             <h3 className="text-base font-bold text-gray-700 whitespace-nowrap">{dayLabel(date)}</h3>
-            {weatherByDate.get(date)
-              ? <WeatherChip data={weatherByDate.get(date)!} />
-              : weatherLoading && (
-                  <span className="inline-flex items-center gap-1 text-xs text-sky-400 animate-pulse">
-                    🌤 Loading weather…
-                  </span>
-                )
-            }
             <div className="flex-1 border-t border-gray-200" />
             <span className="text-xs text-gray-400 whitespace-nowrap">
               {events.length} event{events.length !== 1 ? 's' : ''}
@@ -349,9 +364,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                 const hasCoaches  = homeCoaches.length > 0 || awayCoaches.length > 0
 
                 return (
+                  <div key={g.id} className="flex items-stretch gap-3">
                   <div
-                    key={g.id}
-                    className={`bg-white rounded-xl border border-gray-200 shadow-sm ${g.confirmed ? 'ring-1 ring-green-300' : ''}`}
+                    className={`flex-1 min-w-0 bg-white rounded-xl border border-gray-200 shadow-sm ${g.confirmed ? 'ring-1 ring-green-300' : ''}`}
                   >
                     <div className="flex">
                       {/* Division color strip */}
@@ -521,6 +536,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                       </div>
                     </div>
                   </div>
+                  {/* Weather square */}
+                  <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
+                  </div>
                 )
 
               } else {
@@ -530,9 +548,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                 const coaches = team?.coaches ?? []
 
                 return (
+                  <div key={p.id} className="flex items-stretch gap-3">
                   <div
-                    key={p.id}
-                    className="bg-white rounded-xl border border-gray-200 shadow-sm opacity-90"
+                    className="flex-1 min-w-0 bg-white rounded-xl border border-gray-200 shadow-sm opacity-90"
                   >
                     <div className="flex">
                       {/* Division color strip (lighter for practice) */}
@@ -601,6 +619,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                         </div>
                       </div>
                     </div>
+                  </div>
+                  {/* Weather square */}
+                  <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
                   </div>
                 )
               }
