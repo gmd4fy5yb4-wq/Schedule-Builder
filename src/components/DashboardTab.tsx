@@ -8,7 +8,7 @@ import {
   type DayWeather,
   weatherEmoji,
   weatherDesc,
-  geocodeAddress,
+  geocodeField,
   fetchDailyWeather,
 } from '@/lib/weather'
 
@@ -184,53 +184,59 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
     setWeatherLoading(true)
 
     async function loadWeather() {
-      // For each date, find the first event that has a field with a street address
-      const dateToAddress = new Map<string, string>()
+      // For each date find the first event whose field has any location info.
+      // Cache key = "address||location" so we try both in the proxy.
+      type FieldGeoKey = { address: string; location: string; cacheKey: string }
+      const dateToField = new Map<string, FieldGeoKey>()
       for (const [date, evs] of eventsByDate) {
         for (const ev of evs) {
           const field = fieldMap.get(ev.fieldId)
-          if (field?.address) { dateToAddress.set(date, field.address); break }
+          if (field && (field.address || field.location)) {
+            dateToField.set(date, {
+              address:  field.address  ?? '',
+              location: field.location ?? '',
+              cacheKey: `${field.address}||${field.location}`,
+            })
+            break
+          }
         }
       }
-      if (dateToAddress.size === 0) { setWeatherLoading(false); return }
+      if (dateToField.size === 0) { setWeatherLoading(false); return }
 
-      // Pre-populate in-memory cache from localStorage (one-time per session)
+      // Pre-populate in-memory geocache from localStorage once per session
       if (geoCache.current.size === 0) {
         try {
           const stored: Record<string, { lat: number; lon: number } | null> =
             JSON.parse(localStorage.getItem('fd-geocache-v1') ?? '{}')
-          for (const [addr, coords] of Object.entries(stored)) {
-            geoCache.current.set(addr, coords)
-          }
+          for (const [k, v] of Object.entries(stored)) geoCache.current.set(k, v)
         } catch { /* ignore */ }
       }
 
-      // Geocode any addresses not yet cached (≤ 1 req/sec — Nominatim policy)
-      const uniqueAddresses = [...new Set(dateToAddress.values())]
-      for (const address of uniqueAddresses) {
+      // Geocode unique field entries not yet in cache
+      const uniqueFields = [...new Map(
+        [...dateToField.values()].map(f => [f.cacheKey, f])
+      ).values()]
+
+      for (const f of uniqueFields) {
         if (cancelled) return
-        if (!geoCache.current.has(address)) {
-          const coords = await geocodeAddress(address)
-          geoCache.current.set(address, coords)
+        if (!geoCache.current.has(f.cacheKey)) {
+          const coords = await geocodeField(f.address, f.location)
+          geoCache.current.set(f.cacheKey, coords)
           try {
             const stored: Record<string, { lat: number; lon: number } | null> =
               JSON.parse(localStorage.getItem('fd-geocache-v1') ?? '{}')
-            stored[address] = coords
+            stored[f.cacheKey] = coords
             localStorage.setItem('fd-geocache-v1', JSON.stringify(stored))
           } catch { /* ignore */ }
-          // Respect Nominatim 1 req/sec rate limit before next geocode
-          if (uniqueAddresses.indexOf(address) < uniqueAddresses.length - 1) {
-            await new Promise(r => setTimeout(r, 1100))
-          }
         }
       }
       if (cancelled) return
 
-      // Fetch Open-Meteo forecast per unique coordinate pair (deduplicated)
+      // Fetch Open-Meteo forecast per unique coordinate pair
       const weatherByCoordKey = new Map<string, Map<string, DayWeather>>()
-      for (const address of uniqueAddresses) {
+      for (const f of uniqueFields) {
         if (cancelled) return
-        const coords = geoCache.current.get(address)
+        const coords = geoCache.current.get(f.cacheKey)
         if (!coords) continue
         const key = `${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}`
         if (!weatherByCoordKey.has(key)) {
@@ -241,8 +247,8 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
 
       // Build final date → DayWeather map
       const result = new Map<string, DayWeather>()
-      for (const [date, address] of dateToAddress) {
-        const coords = geoCache.current.get(address)
+      for (const [date, f] of dateToField) {
+        const coords = geoCache.current.get(f.cacheKey)
         if (!coords) continue
         const key = `${coords.lat.toFixed(2)},${coords.lon.toFixed(2)}`
         const w = weatherByCoordKey.get(key)?.get(date)
@@ -252,8 +258,8 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
       if (!cancelled) setWeatherLoading(false)
     }
 
-    loadWeather().catch(() => setWeatherLoading(false))
-    return () => { cancelled = true }
+    loadWeather().catch(() => { if (!cancelled) setWeatherLoading(false) })
+    return () => { cancelled = true; setWeatherLoading(false) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventsByDate, fieldMap])
 

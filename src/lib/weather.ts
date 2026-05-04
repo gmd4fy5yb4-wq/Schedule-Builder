@@ -35,18 +35,20 @@ export function weatherDesc(code: number): string {
 }
 
 /**
- * Geocode a street address via the app's own /api/geocode proxy.
- * The proxy calls Nominatim server-side with a proper User-Agent header
- * (browsers can't set User-Agent, which violates Nominatim's usage policy).
- * Results are cached at the edge for 24 h, and the caller caches in localStorage.
+ * Geocode a field location via the app's /api/geocode proxy.
+ * Pass `address` (street address) and optionally `location` (venue/park name)
+ * as fallback. The proxy tries Nominatim → Open-Meteo geocoding in order.
+ * Results are cached at the edge for 24 h; the caller caches in localStorage.
  */
-export async function geocodeAddress(
+export async function geocodeField(
   address: string,
+  location?: string,
 ): Promise<{ lat: number; lon: number } | null> {
   try {
-    const res = await fetch(
-      `/api/geocode?address=${encodeURIComponent(address)}`,
-    )
+    const params = new URLSearchParams()
+    if (address)  params.set('address',  address)
+    if (location) params.set('location', location)
+    const res = await fetch(`/api/geocode?${params}`)
     if (!res.ok) return null
     const data: { lat: number | null; lon: number | null } = await res.json()
     if (data.lat == null || data.lon == null) return null
