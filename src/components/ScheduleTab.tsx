@@ -702,10 +702,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         const field    = isSpecial ? null : fieldMap.get((ev as ScheduledGame | ScheduledPractice).fieldId)
         const div      = isSpecial ? null : divMap.get((ev as ScheduledGame | ScheduledPractice).divisionId)
         const c        = isSpecial ? null : getDivisionColor((ev as ScheduledGame | ScheduledPractice).divisionId, state.divisions)
+        const TOOLTIP_W = 288 + 8   // w-72 = 288px + a little breathing room
+        const safeLeft = Math.min(tooltip.x, window.innerWidth - TOOLTIP_W)
         return (
           <div
             className="fixed z-50 pointer-events-none"
-            style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
+            style={{ left: safeLeft, top: tooltip.y - 8, transform: 'translateY(-100%)' }}
           >
             <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-sm w-72">
               <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isSpecial ? 'text-amber-600' : c!.text}`}>
