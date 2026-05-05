@@ -49,6 +49,7 @@ export interface Field {
   location: string   // descriptive location name (e.g. "Eisenhower Park")
   address: string    // street address used for maps/directions
   blackoutDates?: string[]  // "YYYY-MM-DD" or "YYYY-MM-DD::Label"
+  geocoords?: { lat: number; lon: number }  // cached geocoded coordinates — shared with view-only users
   // Fields are open 8 AM – 8 PM every day; no slot configuration needed.
 }
 

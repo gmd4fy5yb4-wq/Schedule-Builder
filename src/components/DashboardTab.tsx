@@ -201,16 +201,21 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
     async function loadWeather() {
       // For each date find the first event whose field has any location info.
       // Cache key = "address||location" so we try both in the proxy.
-      type FieldGeoKey = { address: string; location: string; cacheKey: string }
+      type FieldGeoKey = {
+        address: string; location: string; cacheKey: string
+        fieldId: string; storedCoords?: { lat: number; lon: number }
+      }
       const dateToField = new Map<string, FieldGeoKey>()
       for (const [date, evs] of eventsByDate) {
         for (const ev of evs) {
           const field = fieldMap.get(ev.fieldId)
           if (field && (field.address || field.location)) {
             dateToField.set(date, {
-              address:  field.address  ?? '',
-              location: field.location ?? '',
-              cacheKey: `${field.address}||${field.location}`,
+              address:      field.address  ?? '',
+              location:     field.location ?? '',
+              cacheKey:     `${field.address}||${field.location}`,
+              fieldId:      field.id,
+              storedCoords: field.geocoords,   // coords persisted from admin → shared with view-only
             })
             break
           }
@@ -235,7 +240,31 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
       for (const f of uniqueFields) {
         if (cancelled) return
         if (!geoCache.current.has(f.cacheKey)) {
-          const coords = await geocodeField(f.address, f.location)
+          let coords: { lat: number; lon: number } | null = null
+
+          if (f.storedCoords) {
+            // Use geocoords already saved in the field — no API call needed.
+            // These are persisted to Supabase by the admin and are available
+            // to view-only users without them having to geocode anything.
+            coords = f.storedCoords
+          } else {
+            // Geocode via the server-side proxy
+            coords = await geocodeField(f.address, f.location)
+
+            // In admin mode, save newly resolved coords back to the field so
+            // they're persisted to Supabase and shared with view-only users.
+            if (!readOnly && coords && !cancelled) {
+              setState(s => ({
+                ...s,
+                fields: s.fields.map(sf =>
+                  `${sf.address ?? ''}||${sf.location ?? ''}` === f.cacheKey && !sf.geocoords
+                    ? { ...sf, geocoords: coords! }
+                    : sf
+                ),
+              }))
+            }
+          }
+
           geoCache.current.set(f.cacheKey, coords)
           try {
             const stored: Record<string, { lat: number; lon: number } | null> =
@@ -282,7 +311,10 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
     }
 
     loadWeather().catch(() => { if (!cancelled) setWeatherLoading(false) })
-    return () => { cancelled = true; setWeatherLoading(false) }
+    // Don't call setWeatherLoading(false) on cleanup — skeleton stays visible during
+    // any effect re-run (e.g. when geocoords are saved back to state) instead of
+    // flashing to nothing and then reappearing.
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventsByDate, fieldMap])
 

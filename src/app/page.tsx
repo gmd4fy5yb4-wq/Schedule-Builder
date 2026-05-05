@@ -54,9 +54,9 @@ function migrateState(s: AppState): AppState {
   }
   s.season.sport = s.season.sport ?? 'softball'
   s.blackoutDates = s.blackoutDates ?? []
-  // Strip legacy time slots from fields (fields are now open 8 AM–8 PM daily), preserve blackoutDates
+  // Strip legacy time slots from fields (fields are now open 8 AM–8 PM daily), preserve blackoutDates + geocoords
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  s.fields = (s.fields ?? []).map((f: any) => ({ id: f.id, name: f.name, location: f.location ?? '', address: f.address ?? '', blackoutDates: f.blackoutDates ?? undefined }))
+  s.fields = (s.fields ?? []).map((f: any) => ({ id: f.id, name: f.name, location: f.location ?? '', address: f.address ?? '', blackoutDates: f.blackoutDates ?? undefined, geocoords: f.geocoords ?? undefined }))
   // Field staff (added later — default to empty array for old leagues)
   s.fieldStaff = s.fieldStaff ?? []
   // Auto-schedule state
@@ -261,20 +261,38 @@ export default function Home() {
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     setSyncStatus('saving')
-    saveTimerRef.current = setTimeout(async () => {
-      if (isSavingRef.current) return
-      isSavingRef.current = true
-      const result = await saveLeague(leagueCode, state, localUserRef.current)
-      if (result.success) {
-        lastSyncedRef.current = current
-        setSyncStatus('synced')
-      } else {
-        setSyncStatus('error')
+
+    // Capture the code so the closure doesn't go stale if leagueCode changes.
+    // leagueCode is guaranteed non-null here (checked above).
+    const codeAtSchedule = leagueCode as string
+
+    async function doSave() {
+      if (isSavingRef.current) {
+        // Another save is in flight — retry in 1 s so we don't silently drop this state
+        saveTimerRef.current = setTimeout(doSave, 1000)
+        return
       }
-      isSavingRef.current = false
-    }, 800)
+      isSavingRef.current = true
+      try {
+        const result = await saveLeague(codeAtSchedule, state, localUserRef.current)
+        if (result.success) {
+          lastSyncedRef.current = current
+          setSyncStatus('synced')
+        } else {
+          setSyncStatus('error')
+        }
+      } catch {
+        // Network error — don't leave isSavingRef stuck true (would block all future saves)
+        setSyncStatus('error')
+      } finally {
+        isSavingRef.current = false
+      }
+    }
+
+    saveTimerRef.current = setTimeout(doSave, 800)
 
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, hydrated, leagueCode])
 
   // Flush any unsaved changes before the page unloads.
@@ -616,7 +634,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
             {TABS.map((label, i) => {
-              if (readOnly && i >= 1 && i <= 4) return null
+              // Hide admin-only tabs from view-only viewers:
+              // 1–4 = Setup, Divisions & Teams, Fields, Umpires/Staff
+              // 8   = Auto-Schedule
+              if (readOnly && (i >= 1 && i <= 4 || i === 8)) return null
               return (
                 <button
                   key={label}
