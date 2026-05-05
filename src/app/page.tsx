@@ -157,20 +157,40 @@ export default function Home() {
       return
     }
 
+    // Flush any state that was saved to localStorage on the previous tab close
+    // (beforeunload backup). Run this before loading so Supabase gets the latest.
+    async function flushUnloadBackup(code: string, userName: string) {
+      const key = `fd-unload-${code}`
+      const raw = localStorage.getItem(key)
+      if (!raw) return
+      localStorage.removeItem(key)   // always clear, even if flush fails
+      try {
+        const { state: pending, userName: u, at } = JSON.parse(raw) as {
+          state: AppState; userName: string; at: number
+        }
+        // Only flush if written within the last 30 minutes (stale after that)
+        if (Date.now() - at < 30 * 60 * 1000) {
+          await saveLeague(code, pending, u || userName)
+        }
+      } catch { /* ignore parse/save errors */ }
+    }
+
     if (urlCode) {
       // Legacy: code in URL — load as admin (no read-only via code anymore)
-      loadLeague(urlCode).then(result => {
-        if (result) {
-          const s = migrateState(result.data)
-          setState(s)
-          lastSyncedRef.current = stableStringify(s)
-          setLeagueCode(urlCode)
-          setLastUpdatedBy(result.updatedBy)
-          setLastUpdatedAt(result.updatedAt)
-          maybeAutoSnapshot(urlCode, s, 'Admin')
-        }
-        setHydrated(true)
-      })
+      flushUnloadBackup(urlCode, 'Admin').then(() =>
+        loadLeague(urlCode).then(result => {
+          if (result) {
+            const s = migrateState(result.data)
+            setState(s)
+            lastSyncedRef.current = stableStringify(s)
+            setLeagueCode(urlCode)
+            setLastUpdatedBy(result.updatedBy)
+            setLastUpdatedAt(result.updatedAt)
+            maybeAutoSnapshot(urlCode, s, 'Admin')
+          }
+          setHydrated(true)
+        })
+      )
       return
     }
 
@@ -180,17 +200,19 @@ export default function Home() {
       localUserRef.current = name
       setLeagueCode(code)
       setUserName(name)
-      loadLeague(code).then(result => {
-        if (result) {
-          const s = migrateState(result.data)
-          setState(s)
-          lastSyncedRef.current = stableStringify(s)
-          setLastUpdatedBy(result.updatedBy)
-          setLastUpdatedAt(result.updatedAt)
-          maybeAutoSnapshot(code, s, name)
-        }
-        setHydrated(true)
-      })
+      flushUnloadBackup(code, name).then(() =>
+        loadLeague(code).then(result => {
+          if (result) {
+            const s = migrateState(result.data)
+            setState(s)
+            lastSyncedRef.current = stableStringify(s)
+            setLastUpdatedBy(result.updatedBy)
+            setLastUpdatedAt(result.updatedAt)
+            maybeAutoSnapshot(code, s, name)
+          }
+          setHydrated(true)
+        })
+      )
     } else {
       setHydrated(true)
     }
@@ -255,19 +277,30 @@ export default function Home() {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [state, hydrated, leagueCode])
 
-  // Flush any unsaved changes before the page unloads (e.g. user refreshes
-  // before the 800 ms debounce fires). keepalive keeps the request alive even
-  // after the navigation starts.
+  // Flush any unsaved changes before the page unloads.
+  // Strategy: always write to localStorage as a reliable backup (no size limit),
+  // AND attempt a keepalive fetch (fast path, works for smaller states < 64 KB).
+  // The localStorage backup is flushed to Supabase on the next app load.
   useEffect(() => {
     function handleBeforeUnload() {
       if (!leagueCode || readOnly) return
       const current = stableStringify(state)
       if (current === lastSyncedRef.current) return   // nothing new to save
+
+      // Reliable backup — no size limit, survives any tab close
+      try {
+        localStorage.setItem(
+          `fd-unload-${leagueCode}`,
+          JSON.stringify({ state, userName: localUserRef.current, at: Date.now() })
+        )
+      } catch { /* ignore quota errors */ }
+
+      // Fast path — keepalive fetch (may silently fail if body > 64 KB)
       fetch('/api/leagues/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: leagueCode, state, userName: localUserRef.current }),
-        keepalive: true,   // survives page unload
+        keepalive: true,
       })
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
