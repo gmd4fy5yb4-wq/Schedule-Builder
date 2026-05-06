@@ -54,7 +54,7 @@ export default function LoginPage() {
   async function handleVerifyCode(e: React.FormEvent) {
     e.preventDefault()
     const trimmedCode = code.trim()
-    if (trimmedCode.length !== 6) return
+    if (trimmedCode.length < 6) return
     setVerifyLoading(true)
     setVerifyError('')
 
@@ -110,9 +110,9 @@ export default function LoginPage() {
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     autoFocus
-                    maxLength={6}
+                    maxLength={8}
                     value={code}
-                    onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
                     placeholder="123456"
                     className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-center text-xl font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-[#00013a] focus:border-transparent"
                   />
@@ -120,7 +120,7 @@ export default function LoginPage() {
                 {verifyError && <p className="text-red-600 text-sm">{verifyError}</p>}
                 <button
                   type="submit"
-                  disabled={verifyLoading || code.length !== 6}
+                  disabled={verifyLoading || code.length < 6}
                   className="w-full py-2.5 px-4 rounded-lg bg-[#00013a] text-white text-sm font-semibold disabled:opacity-50 hover:bg-[#000128] transition-colors"
                 >
                   {verifyLoading ? 'Verifying…' : 'Sign in'}
