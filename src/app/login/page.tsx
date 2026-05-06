@@ -103,7 +103,7 @@ export default function LoginPage() {
               <form onSubmit={handleVerifyCode} className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Enter the 6-digit code from the email
+                    Enter the 8-digit code from the email
                   </label>
                   <input
                     type="text"
