@@ -8,6 +8,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // OTP code entry (for iOS PWA / mobile — avoids Safari redirect)
+  const [code, setCode] = useState('')
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     if (!email.trim()) return
@@ -46,6 +51,31 @@ export default function LoginPage() {
     setLoading(false)
   }
 
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmedCode = code.trim()
+    if (trimmedCode.length !== 6) return
+    setVerifyLoading(true)
+    setVerifyError('')
+
+    const { error: otpError } = await getSupabase().auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: trimmedCode,
+      type: 'email',
+    })
+
+    if (otpError) {
+      setVerifyError('Invalid or expired code — check your email and try again.')
+      setVerifyLoading(false)
+      return
+    }
+
+    // Success — redirect (session is now set in this browser context)
+    const next = localStorage.getItem('sb-login-next')
+    if (next) localStorage.removeItem('sb-login-next')
+    window.location.replace(next && next !== '/' ? next : '/')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -60,27 +90,63 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
           {sent ? (
-            <div className="text-center">
-              <div className="text-4xl mb-4">📬</div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Check your email</h2>
-              <p className="text-gray-500 text-sm">
-                We sent a sign-in link to <strong>{email}</strong>. Click the link in the email to access your account.
-              </p>
-              <p className="text-gray-400 text-xs mt-4">
-                The link expires in 1 hour. Check your spam folder if you don&apos;t see it.
-              </p>
-              <button
-                className="mt-6 text-sm text-[#00013a] underline"
-                onClick={() => { setSent(false); setEmail('') }}
-              >
-                Use a different email
-              </button>
+            <div>
+              <div className="text-center mb-5">
+                <div className="text-4xl mb-3">📬</div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-1">Check your email</h2>
+                <p className="text-gray-500 text-sm">
+                  We sent a sign-in link and a 6-digit code to <strong>{email}</strong>.
+                </p>
+              </div>
+
+              {/* OTP code entry — works in iOS PWA without leaving the app */}
+              <form onSubmit={handleVerifyCode} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Enter the 6-digit code from the email
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    maxLength={6}
+                    value={code}
+                    onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-center text-xl font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-[#00013a] focus:border-transparent"
+                  />
+                </div>
+                {verifyError && <p className="text-red-600 text-sm">{verifyError}</p>}
+                <button
+                  type="submit"
+                  disabled={verifyLoading || code.length !== 6}
+                  className="w-full py-2.5 px-4 rounded-lg bg-[#00013a] text-white text-sm font-semibold disabled:opacity-50 hover:bg-[#000128] transition-colors"
+                >
+                  {verifyLoading ? 'Verifying…' : 'Sign in'}
+                </button>
+              </form>
+
+              <div className="mt-4 pt-4 border-t border-gray-100 text-center space-y-1">
+                <p className="text-gray-400 text-xs">
+                  On desktop? Click the link in the email instead.
+                </p>
+                <p className="text-gray-400 text-xs">
+                  The link and code expire in 1 hour.
+                </p>
+                <button
+                  className="mt-2 text-sm text-[#00013a] underline"
+                  onClick={() => { setSent(false); setEmail(''); setCode(''); setVerifyError('') }}
+                >
+                  Use a different email
+                </button>
+              </div>
             </div>
           ) : (
             <>
               <h2 className="text-lg font-semibold text-gray-900 mb-1">Sign in</h2>
               <p className="text-gray-500 text-sm mb-6">
-                Enter your email and we&apos;ll send you a magic link — no password needed.
+                Enter your email and we&apos;ll send you a sign-in code — no password needed.
               </p>
 
               <form onSubmit={handleLogin} className="space-y-4">
@@ -110,7 +176,7 @@ export default function LoginPage() {
                   disabled={loading || !email.trim()}
                   className="w-full py-2.5 px-4 rounded-lg bg-[#00013a] text-white text-sm font-semibold disabled:opacity-50 hover:bg-[#000128] transition-colors"
                 >
-                  {loading ? 'Sending…' : 'Send magic link'}
+                  {loading ? 'Sending…' : 'Send sign-in code'}
                 </button>
               </form>
 
