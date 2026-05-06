@@ -137,8 +137,11 @@ export default function Home() {
     const urlCode = params.get('code')?.toUpperCase()
     const isReadOnly = params.get('view') === 'readonly'
 
-    if (viewToken && isReadOnly) {
+    if (viewToken) {
       // Token-based read-only share link — never exposes the admin code
+      // Note: we don't require `&view=readonly` here because messaging apps
+      // and clipboard tools sometimes strip query params. The token alone is
+      // sufficient to identify a view-only link.
       setReadOnly(true)
       roTokenRef.current = viewToken
       loadLeagueByViewToken(viewToken).then(result => {

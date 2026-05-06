@@ -25,8 +25,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Read-only schedule viewers (coaches, players with view token) — no auth required
-  if (searchParams.get('view') === 'readonly' && searchParams.get('token')) {
+  // Read-only schedule viewers (coaches, players with view token) — no auth required.
+  // We check for `token` alone (not requiring `&view=readonly`) because messaging apps
+  // sometimes strip query params from shared URLs.
+  if (searchParams.get('token')) {
     return NextResponse.next()
   }
 
