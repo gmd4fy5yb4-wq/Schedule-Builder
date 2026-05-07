@@ -114,14 +114,30 @@ export async function GET(req: NextRequest) {
     if (coords) return NextResponse.json(coords, { headers: CACHE_HEADERS })
   }
 
-  // Stage 4 — Open-Meteo with just city+state extracted from address
+  // Stage 4 — extract city+state from address, then try multiple geocoders.
   // Handles small parks / venues not in any geocoding index.
-  // "100 Azalea Rd, Uniondale, NY 11553" → geocode "Uniondale, NY"
+  // "100 Azalea Rd, Uniondale, NY 11553" → "Uniondale, NY" / "Uniondale"
+  // "100 Perrwinkle Rd, Levittown NY 11756" → "Levittown, NY" / "Levittown"
+  //
+  // NOTE: Open-Meteo searches GeoNames by exact city name, so "Levittown, NY"
+  // does NOT match the stored entry "Levittown" — always try the city name alone
+  // as a second pass.
   if (address) {
     const cityState = extractCityState(address)
     if (cityState) {
-      const coords = await tryOpenMeteo(cityState)
-      if (coords) return NextResponse.json(coords, { headers: CACHE_HEADERS })
+      const city = cityState.split(',')[0].trim()
+
+      // 4a — Nominatim with city+state (handles US "City, ST" well)
+      const n = await tryNominatim(cityState)
+      if (n) return NextResponse.json(n, { headers: CACHE_HEADERS })
+
+      // 4b — Open-Meteo with city name only (most reliable; GeoNames exact match)
+      const om = await tryOpenMeteo(city)
+      if (om) return NextResponse.json(om, { headers: CACHE_HEADERS })
+
+      // 4c — Open-Meteo with "City, ST" (some locales include state in GeoNames)
+      const oms = await tryOpenMeteo(cityState)
+      if (oms) return NextResponse.json(oms, { headers: CACHE_HEADERS })
     }
   }
 
