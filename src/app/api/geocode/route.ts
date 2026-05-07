@@ -54,12 +54,18 @@ async function tryNominatim(query: string): Promise<Coords | null> {
 
 /**
  * Extract "City, ST" from a US street address.
- * "100 Azalea Rd, Uniondale, NY 11553" → "Uniondale, NY"
- * "Eisenhower Park, East Meadow, NY"   → "East Meadow, NY"
+ * Handles both comma-separated and space-separated city/state formats:
+ *   "100 Azalea Rd, Uniondale, NY 11553" → "Uniondale, NY"
+ *   "100 Periwinkle Rd, Levittown NY 11756" → "Levittown, NY"
+ *   "Eisenhower Park, East Meadow, NY"   → "East Meadow, NY"
  * Returns null if no city/state pattern is found.
  */
 function extractCityState(address: string): string | null {
-  const m = address.match(/,\s*([A-Za-z\s]+),\s*([A-Z]{2})(?:\s+\d{5})?/i)
+  // Format 1: "..., City, ST [zip]" — comma before state abbreviation
+  let m = address.match(/,\s*([A-Za-z][A-Za-z\s]*),\s*([A-Z]{2})(?:\s+\d{5})?/i)
+  if (m) return `${m[1].trim()}, ${m[2].toUpperCase()}`
+  // Format 2: "..., City ST [zip]" — space (no comma) before state abbreviation
+  m = address.match(/,\s*([A-Za-z][A-Za-z\s]*?)\s+([A-Z]{2})(?:\s+\d{5})?$/i)
   if (m) return `${m[1].trim()}, ${m[2].toUpperCase()}`
   return null
 }
