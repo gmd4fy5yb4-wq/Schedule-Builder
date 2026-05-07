@@ -14,7 +14,10 @@ async function tryOpenMeteo(query: string): Promise<Coords | null> {
     const url =
       `https://geocoding-api.open-meteo.com/v1/search` +
       `?name=${encodeURIComponent(query.trim())}&count=1&language=en&format=json`
-    const res = await fetch(url, { next: { revalidate: 86400 } })
+    // cache: 'no-store' — skip Next.js data cache so stale null results
+    // from a previous failed lookup don't block future attempts.
+    // The route handler's own Cache-Control response headers handle caching.
+    const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) return null
     const data: { results?: Array<{ latitude: number; longitude: number }> } =
       await res.json()
@@ -37,11 +40,10 @@ async function tryNominatim(query: string): Promise<Coords | null> {
       `?format=json&limit=1&q=${encodeURIComponent(query.trim())}`
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'FieldDayPlanner/1.0 (https://fieldday-planner.vercel.app)',
+        'User-Agent': 'FieldDayPlanner/1.0 (contact@alfreddigital.com)',
         'Accept-Language': 'en-US,en',
-        'Referer': 'https://fieldday-planner.vercel.app',
       },
-      next: { revalidate: 86400 },
+      cache: 'no-store',
     })
     if (!res.ok) return null
     const data: Array<{ lat: string; lon: string }> = await res.json()
