@@ -221,6 +221,10 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           }
         }
       }
+      console.log('[weather] eventsByDate size:', eventsByDate.size, 'dateToField size:', dateToField.size)
+      if (dateToField.size > 0) {
+        for (const [date, f] of dateToField) console.log(`[weather]  ${date}: address="${f.address}" location="${f.location}" storedCoords=`, f.storedCoords)
+      }
       if (dateToField.size === 0) { setWeatherLoading(false); return }
 
       // Pre-populate in-memory geocache from localStorage once per session
