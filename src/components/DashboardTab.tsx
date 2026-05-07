@@ -227,12 +227,16 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
       }
       if (dateToField.size === 0) { setWeatherLoading(false); return }
 
-      // Pre-populate in-memory geocache from localStorage once per session
+      // Pre-populate in-memory geocache from localStorage once per session.
+      // Only load successful (non-null) results — failed lookups should retry
+      // on next session in case the API was temporarily unavailable.
       if (geoCache.current.size === 0) {
         try {
           const stored: Record<string, { lat: number; lon: number } | null> =
             JSON.parse(localStorage.getItem('fd-geocache-v2') ?? '{}')
-          for (const [k, v] of Object.entries(stored)) geoCache.current.set(k, v)
+          for (const [k, v] of Object.entries(stored)) {
+            if (v !== null) geoCache.current.set(k, v)
+          }
         } catch { /* ignore */ }
       }
 
@@ -243,33 +247,41 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
 
       for (const f of uniqueFields) {
         if (cancelled) return
-        if (!geoCache.current.has(f.cacheKey)) {
-          let coords: { lat: number; lon: number } | null = null
+        // Skip only if we have a successful (non-null) cached result.
+        // Null-cached entries are retried so transient API failures don't
+        // permanently break weather for a field.
+        if (geoCache.current.get(f.cacheKey)) continue
 
-          if (f.storedCoords) {
-            // Use geocoords already saved in the field — no API call needed.
-            // These are persisted to Supabase by the admin and are available
-            // to view-only users without them having to geocode anything.
-            coords = f.storedCoords
-          } else {
-            // Geocode via the server-side proxy
-            coords = await geocodeField(f.address, f.location)
+        let coords: { lat: number; lon: number } | null = null
 
-            // In admin mode, save newly resolved coords back to the field so
-            // they're persisted to Supabase and shared with view-only users.
-            if (!readOnly && coords && !cancelled) {
-              setState(s => ({
-                ...s,
-                fields: s.fields.map(sf =>
-                  `${sf.address ?? ''}||${sf.location ?? ''}` === f.cacheKey && !sf.geocoords
-                    ? { ...sf, geocoords: coords! }
-                    : sf
-                ),
-              }))
-            }
+        if (f.storedCoords) {
+          // Use geocoords already saved in the field — no API call needed.
+          // These are persisted to Supabase by the admin and are available
+          // to view-only users without them having to geocode anything.
+          coords = f.storedCoords
+        } else {
+          // Geocode via the server-side proxy
+          coords = await geocodeField(f.address, f.location)
+          console.log('[weather] geocoded', f.cacheKey, '→', coords)
+
+          // In admin mode, save newly resolved coords back to the field so
+          // they're persisted to Supabase and shared with view-only users.
+          if (!readOnly && coords && !cancelled) {
+            setState(s => ({
+              ...s,
+              fields: s.fields.map(sf =>
+                `${sf.address ?? ''}||${sf.location ?? ''}` === f.cacheKey && !sf.geocoords
+                  ? { ...sf, geocoords: coords! }
+                  : sf
+              ),
+            }))
           }
+        }
 
-          geoCache.current.set(f.cacheKey, coords)
+        // Always store in in-memory cache (even null) to avoid duplicate calls
+        // within the same session. Only persist successes to localStorage.
+        geoCache.current.set(f.cacheKey, coords)
+        if (coords) {
           try {
             const stored: Record<string, { lat: number; lon: number } | null> =
               JSON.parse(localStorage.getItem('fd-geocache-v2') ?? '{}')
@@ -310,6 +322,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
         const w = weatherByCoordKey.get(key)?.get(date)
         if (w) result.set(date, w)
       }
+      console.log('[weather] result size:', result.size, 'fallbackCoords:', fallbackCoords)
       setWeatherByDate(result)
       if (!cancelled) setWeatherLoading(false)
     }
