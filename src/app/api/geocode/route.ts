@@ -123,5 +123,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ lat: null, lon: null }, { headers: CACHE_HEADERS })
+  // Don't cache failed lookups — no headers so browser/edge won't store a null result
+  return NextResponse.json({ lat: null, lon: null })
 }

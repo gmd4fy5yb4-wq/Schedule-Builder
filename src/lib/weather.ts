@@ -48,7 +48,7 @@ export async function geocodeField(
     const params = new URLSearchParams()
     if (address)  params.set('address',  address)
     if (location) params.set('location', location)
-    const res = await fetch(`/api/geocode?${params}`)
+    const res = await fetch(`/api/geocode?${params}`, { cache: 'no-store' })
     if (!res.ok) return null
     const data: { lat: number | null; lon: number | null } = await res.json()
     if (data.lat == null || data.lon == null) return null
