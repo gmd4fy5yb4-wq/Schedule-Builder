@@ -221,10 +221,6 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           }
         }
       }
-      console.log('[weather] eventsByDate size:', eventsByDate.size, 'dateToField size:', dateToField.size)
-      if (dateToField.size > 0) {
-        for (const [date, f] of dateToField) console.log(`[weather]  ${date}: address="${f.address}" location="${f.location}" storedCoords=`, f.storedCoords)
-      }
       if (dateToField.size === 0) { setWeatherLoading(false); return }
 
       // Pre-populate in-memory geocache from localStorage once per session.
@@ -262,8 +258,6 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
         } else {
           // Geocode via the server-side proxy
           coords = await geocodeField(f.address, f.location)
-          console.log('[weather] geocoded', f.cacheKey, '→', coords)
-
           // In admin mode, save newly resolved coords back to the field so
           // they're persisted to Supabase and shared with view-only users.
           if (!readOnly && coords && !cancelled) {
@@ -322,7 +316,6 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
         const w = weatherByCoordKey.get(key)?.get(date)
         if (w) result.set(date, w)
       }
-      console.log('[weather] result size:', result.size, 'fallbackCoords:', fallbackCoords)
       setWeatherByDate(result)
       if (!cancelled) setWeatherLoading(false)
     }
