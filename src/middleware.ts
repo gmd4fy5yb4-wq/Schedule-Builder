@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
+/** Redirect domains → canonical domain (308 Permanent Redirect). */
+const REDIRECT_HOSTS = new Set([
+  'www.fielddayplanner.app',
+  'getfieldday.app',
+  'www.getfieldday.app',
+  'getfieldday.xyz',
+  'www.getfieldday.xyz',
+])
+const CANONICAL = 'https://fielddayplanner.app'
+
 /** Paths that never require auth or a subscription check. */
 const PUBLIC_PREFIXES = [
   '/login',
@@ -15,6 +25,13 @@ const PUBLIC_PREFIXES = [
 const PUBLIC_EXTENSIONS = ['.ico', '.png', '.svg', '.webmanifest', '.txt', '.xml']
 
 export async function middleware(req: NextRequest) {
+  // Redirect alias domains to the canonical domain before any auth logic runs
+  const host = req.headers.get('host') ?? ''
+  if (REDIRECT_HOSTS.has(host)) {
+    const destination = CANONICAL + req.nextUrl.pathname + req.nextUrl.search
+    return NextResponse.redirect(destination, { status: 308 })
+  }
+
   const { pathname, searchParams } = req.nextUrl
 
   // Static assets & public paths — skip auth entirely

@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx'
 import type { Division, Field, Umpire, ScheduledGame, ScheduledPractice, SeasonConfig } from './types'
 import { getSportConfig } from './sports'
 
@@ -70,7 +69,7 @@ function triggerDownload(blob: Blob, filename: string) {
   }, 10000)
 }
 
-export function exportToExcel(
+export async function exportToExcel(
   season: SeasonConfig,
   divisions: Division[],
   fields: Field[],
@@ -79,6 +78,7 @@ export function exportToExcel(
   practices: ScheduledPractice[]
 ) {
   try {
+    const XLSX = await import('xlsx')
     const sc        = getSportConfig(season.sport)
     const divMap    = new Map(divisions.map(d => [d.id, d]))
     const teamMap   = new Map(divisions.flatMap(d => d.teams).map(t => [t.id, t]))

@@ -27,31 +27,18 @@ export async function POST(req: NextRequest) {
   const state = parsed.data.state as unknown as AppState
   const serviceSupabase = getSupabaseServiceRole()
 
-  // Verify the user owns this league (or it's unclaimed)
-  const { data: league } = await serviceSupabase
-    .from('leagues')
-    .select('owner_id')
-    .eq('id', code)
-    .single()
+  // Fetch ownership check + subscription limits in parallel (independent queries)
+  const [{ data: league }, { data: sub }, { count: ownedCount }] = await Promise.all([
+    serviceSupabase.from('leagues').select('owner_id').eq('id', code).single(),
+    serviceSupabase.from('user_subscriptions').select('leagues_limit, divisions_limit, teams_limit').eq('user_id', session.user.id).single(),
+    serviceSupabase.from('leagues').select('id', { count: 'exact', head: true }).eq('owner_id', session.user.id),
+  ])
 
   if (league && league.owner_id && league.owner_id !== session.user.id) {
     return NextResponse.json({ error: 'You do not have permission to edit this league.' }, { status: 403 })
   }
 
-  // Check subscription limits
-  const { data: sub } = await serviceSupabase
-    .from('user_subscriptions')
-    .select('leagues_limit, divisions_limit, teams_limit')
-    .eq('user_id', session.user.id)
-    .single()
-
   const limits = sub ?? { leagues_limit: 1, divisions_limit: 2, teams_limit: 8 }
-
-  // Count owned leagues (excluding the current one being saved)
-  const { count: ownedCount } = await serviceSupabase
-    .from('leagues')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', session.user.id)
 
   const limitCheck = checkLimits(
     { leaguesLimit: limits.leagues_limit, divisionsLimit: limits.divisions_limit, teamsLimit: limits.teams_limit },

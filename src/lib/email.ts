@@ -162,8 +162,10 @@ export async function sendCoachNotifications(
 ): Promise<NotifyResult[]> {
   const teamMap = new Map(state.divisions.flatMap(d => d.teams).map(t => [t.id, t.name]))
   const fieldMap = new Map(state.fields.map(f => [f.id, f.name]))
+  const resend = getResend()
 
-  const results: NotifyResult[] = []
+  // Build all send tasks up front, then fire in parallel
+  const tasks: Promise<NotifyResult>[] = []
 
   for (const div of state.divisions) {
     for (const team of div.teams) {
@@ -189,26 +191,27 @@ export async function sendCoachNotifications(
           viewUrl,
         })
 
-        try {
-          await getResend().emails.send({
+        const { name: coachName, email, id: _id } = coach
+        const { name: teamName } = team
+
+        tasks.push(
+          resend.emails.send({
             from: FROM,
-            to: coach.email,
-            subject: `[${state.season.leagueName}] Schedule Update — ${team.name}`,
+            to: email,
+            subject: `[${state.season.leagueName}] Schedule Update — ${teamName}`,
             html,
-          })
-          results.push({ coachName: coach.name, email: coach.email, teamName: team.name, success: true })
-        } catch (err) {
-          results.push({
-            coachName: coach.name,
-            email: coach.email,
-            teamName: team.name,
-            success: false,
-            error: err instanceof Error ? err.message : 'Unknown error',
-          })
-        }
+          }).then(() => ({ coachName, email, teamName, success: true as const }))
+            .catch((err: unknown) => ({
+              coachName,
+              email,
+              teamName,
+              success: false as const,
+              error: err instanceof Error ? err.message : 'Unknown error',
+            }))
+        )
       }
     }
   }
 
-  return results
+  return Promise.all(tasks)
 }

@@ -152,8 +152,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
 
   function doExport() {
     setExporting(true)
-    try { exportToExcel(state.season, state.divisions, state.fields, state.umpires, state.schedule.games, state.schedule.practices) }
-    finally { setExporting(false) }
+    exportToExcel(state.season, state.divisions, state.fields, state.umpires, state.schedule.games, state.schedule.practices)
+      .finally(() => setExporting(false))
   }
 
   function doExportCSV() {
