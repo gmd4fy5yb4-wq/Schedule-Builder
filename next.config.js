@@ -31,12 +31,12 @@ const nextConfig = {
             "default-src 'self'",
             // Scripts: self + Next.js inline chunks + Stripe
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
-            // Styles: self + Tailwind inline styles
-            "style-src 'self' 'unsafe-inline'",
+            // Styles: self + Tailwind inline styles + Google Fonts
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             // Images: self + data URIs (for export canvas) + Supabase storage
             `img-src 'self' data: blob: https://${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '') ?? ''}`,
-            // Fonts: self
-            "font-src 'self'",
+            // Fonts: self + Google Fonts
+            "font-src 'self' https://fonts.gstatic.com",
             // API calls: self + Supabase + Open-Meteo + Stripe
             `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''} https://*.supabase.co wss://*.supabase.co https://api.open-meteo.com https://api.stripe.com`,
             // Stripe payment iframe
