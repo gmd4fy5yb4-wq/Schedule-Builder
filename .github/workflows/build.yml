@@ -20,3 +20,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           NEXT_PUBLIC_SITE_URL: https://placeholder.vercel.app
+          STRIPE_SECRET_KEY: sk_test_placeholder
+          STRIPE_PRICE_SMALL: price_placeholder
+          STRIPE_PRICE_MEDIUM: price_placeholder
+          STRIPE_PRICE_LARGE: price_placeholder
+          RESEND_API_KEY: re_placeholder
+          RESEND_FROM_EMAIL: noreply@placeholder.com
