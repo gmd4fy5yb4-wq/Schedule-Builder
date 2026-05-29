@@ -5,10 +5,15 @@ import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server
 import { sendCoachNotifications } from '@/lib/email'
 import type { AppState } from '@/lib/types'
 
+const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fielddayplanner.app').replace(/\/$/, '')
+
 const schema = z.object({
   leagueCode: z.string().length(6),
   teamIds: z.array(z.string()).optional().default([]),
-  viewUrl: z.string().url().optional(),
+  viewUrl: z.string().url().refine(
+    url => url.startsWith(SITE_ORIGIN),
+    { message: 'viewUrl must be on fielddayplanner.app' }
+  ).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'League not found.' }, { status: 404 })
   }
 
-  if (league.owner_id && league.owner_id !== session.user.id) {
+  if (!league.owner_id || league.owner_id !== session.user.id) {
     return NextResponse.json({ error: 'You do not have permission to notify coaches for this league.' }, { status: 403 })
   }
 
