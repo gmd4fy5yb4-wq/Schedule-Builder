@@ -24,6 +24,9 @@ const PUBLIC_PREFIXES = [
 
 const PUBLIC_EXTENSIONS = ['.ico', '.png', '.svg', '.webmanifest', '.txt', '.xml']
 
+// Service worker script must be served without redirects (browser requirement)
+const PUBLIC_EXACT = ['/sw.js']
+
 export async function middleware(req: NextRequest) {
   // Redirect alias domains to the canonical domain before any auth logic runs
   const host = req.headers.get('host') ?? ''
@@ -37,7 +40,8 @@ export async function middleware(req: NextRequest) {
   // Static assets & public paths — skip auth entirely
   if (
     PUBLIC_PREFIXES.some(p => pathname.startsWith(p)) ||
-    PUBLIC_EXTENSIONS.some(ext => pathname.endsWith(ext))
+    PUBLIC_EXTENSIONS.some(ext => pathname.endsWith(ext)) ||
+    PUBLIC_EXACT.includes(pathname)
   ) {
     return NextResponse.next()
   }

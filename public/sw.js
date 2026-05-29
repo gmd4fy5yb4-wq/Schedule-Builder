@@ -21,6 +21,9 @@ self.addEventListener('fetch', e => {
   // Skip Supabase API calls — these must always go to network
   if (url.hostname.includes('supabase.co')) return
 
+  // Never intercept auth routes — serving stale content here breaks sign-in
+  if (url.pathname.startsWith('/login') || url.pathname.startsWith('/auth')) return
+
   // Cache-first for Next.js static assets (JS, CSS, fonts)
   if (url.pathname.startsWith('/_next/static/')) {
     e.respondWith(
