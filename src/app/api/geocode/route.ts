@@ -1,4 +1,6 @@
+import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseServer } from '@/lib/supabase-server'
 
 type Coords = { lat: number; lon: number }
 
@@ -89,6 +91,12 @@ function extractCityState(address: string): string | null {
  * localStorage so this endpoint is hit at most once per unique field.
  */
 export async function GET(req: NextRequest) {
+  const supabase = await getSupabaseServer()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
+  }
+
   const address  = req.nextUrl.searchParams.get('address')?.trim()  ?? ''
   const location = req.nextUrl.searchParams.get('location')?.trim() ?? ''
 

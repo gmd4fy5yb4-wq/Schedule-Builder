@@ -7,7 +7,7 @@ import type { AppState } from '@/lib/types'
 
 const schema = z.object({
   code: z.string().length(6),
-  state: z.unknown(),
+  state: z.unknown().refine(v => JSON.stringify(v).length < 500_000, 'State too large'),
   userName: z.string().min(1).max(100).trim(),
 })
 

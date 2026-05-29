@@ -6,7 +6,7 @@ import { checkLimits } from '@/lib/plans'
 import type { AppState } from '@/lib/types'
 
 const schema = z.object({
-  state: z.unknown(),
+  state: z.unknown().refine(v => JSON.stringify(v).length < 500_000, 'State too large'),
   userName: z.string().min(1).max(100).trim(),
 })
 
