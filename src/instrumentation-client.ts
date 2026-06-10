@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/nextjs'
 
+// Browser / client runtime. Next.js loads this automatically (the modern
+// replacement for sentry.client.config.ts).
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
@@ -17,3 +19,6 @@ Sentry.init({
   // Disable verbose Sentry output in production
   debug: false,
 })
+
+// Instruments App Router client-side navigations as spans.
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

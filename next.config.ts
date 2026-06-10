@@ -66,6 +66,10 @@ export default withSentryConfig(nextConfig, {
   // Only print Sentry output during CI builds
   silent: !process.env.CI,
 
+  // Auth token for source map upload (set SENTRY_AUTH_TOKEN in CI / Vercel).
+  // Absent locally → upload is skipped with a warning, build still succeeds.
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
   // Upload more complete source maps for better stack traces
   widenClientFileUpload: true,
 
@@ -75,6 +79,11 @@ export default withSentryConfig(nextConfig, {
     deleteSourcemapsAfterUpload: true,
   },
 
-  // Remove Sentry logger from production bundle
-  disableLogger: true,
+  // Remove Sentry's debug logger statements from the production bundle
+  // (replaces the deprecated top-level disableLogger option)
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
 })
