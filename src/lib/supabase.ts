@@ -9,7 +9,7 @@ export function getSupabase(): SupabaseClient {
   _client = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { flowType: 'pkce' } }
+    { auth: { flowType: 'implicit' } }
   )
   return _client
 }
