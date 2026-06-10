@@ -79,16 +79,20 @@ export function generateCode(): string {
 // A view_token is a random UUID stored alongside the league. It is completely
 // separate from the admin code and cannot be used to modify the league.
 
-/** Returns the existing view token for a league, or creates and saves a new one. */
+/**
+ * Returns the existing view token for a league, or creates and saves a new one.
+ * Goes through the authenticated server route — the underlying RPC is
+ * service-role-only (migration 008) and can't be called from the browser.
+ */
 export async function getOrCreateViewToken(leagueCode: string): Promise<string | null> {
-  const sb = getSupabase()
-  const code = leagueCode.toUpperCase()
-
-  // Atomic: COALESCE preserves an existing token, only sets a new one if NULL.
-  // Eliminates the SELECT-then-UPDATE race condition.
-  const { data, error } = await sb.rpc('get_or_create_view_token', { league_id: code })
-  if (error || !data) return null
-  return data as string
+  const res = await fetch('/api/league/share-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: leagueCode.toUpperCase() }),
+  })
+  if (!res.ok) return null
+  const data = await res.json()
+  return data.token ?? null
 }
 
 /**
