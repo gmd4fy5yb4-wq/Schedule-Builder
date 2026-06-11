@@ -16,7 +16,11 @@ const PUBLIC_PREFIXES = [
   '/login',
   '/pricing',
   '/auth/callback',
-  '/api/payments/webhook',  // Stripe hits this without a cookie
+  '/api/payments',          // all payment routes bypass the subscription gate:
+                            //  - /webhook: Stripe hits it without a cookie
+                            //  - /create-session & /portal: an UNSUBSCRIBED user
+                            //    must be able to reach these to subscribe/manage
+                            //    billing. They enforce their own getUser() auth.
   '/_next',
   '/pwa-icon',
   '/api/league/view',       // read-only token route
@@ -70,10 +74,12 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // Use getUser() — it revalidates the JWT with the Supabase Auth server.
+  // getSession() only reads the cookie and must not be trusted for authz.
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Not logged in
-  if (!session) {
+  if (!user) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
@@ -81,7 +87,7 @@ export async function middleware(req: NextRequest) {
   const { data: sub } = await supabase
     .from('user_subscriptions')
     .select('subscription_status')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
   const isActive =

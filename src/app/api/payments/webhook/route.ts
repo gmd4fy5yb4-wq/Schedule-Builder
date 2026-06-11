@@ -85,14 +85,33 @@ export async function POST(req: NextRequest) {
           ?? (sub as any).current_period_end
           ?? sub.billing_cycle_anchor
 
-        await supabase
-          .from('user_subscriptions')
-          .update({
-            subscription_status: sub.status,
-            subscription_end: new Date(periodEnd * 1000).toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', existing.user_id)
+        if (event.type === 'customer.subscription.deleted') {
+          // Subscription fully ended — revert to trial tier and reset limits
+          // so stale elevated entitlements don't linger.
+          const trial = PLANS.find(p => p.tier === 'trial')
+          await supabase
+            .from('user_subscriptions')
+            .update({
+              plan_tier: 'trial',
+              subscription_status: sub.status,
+              subscription_end: new Date(periodEnd * 1000).toISOString(),
+              leagues_limit: trial?.leaguesLimit ?? 1,
+              divisions_limit: trial?.divisionsLimit ?? 2,
+              teams_limit: trial?.teamsLimit ?? 8,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', existing.user_id)
+        } else {
+          // subscription.updated — keep tier/limits, sync status + period end.
+          await supabase
+            .from('user_subscriptions')
+            .update({
+              subscription_status: sub.status,
+              subscription_end: new Date(periodEnd * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', existing.user_id)
+        }
       }
       break
     }

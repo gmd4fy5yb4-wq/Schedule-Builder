@@ -9,15 +9,17 @@ export async function POST(_req: NextRequest) {
   }
 
   const supabase = await getSupabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
+  // getUser() revalidates the JWT with Supabase Auth; getSession() only reads
+  // the cookie and must not be trusted for authorization.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
     return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
   }
 
   const { data: sub } = await supabase
     .from('user_subscriptions')
     .select('stripe_customer_id')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
   if (!sub?.stripe_customer_id) {
