@@ -72,6 +72,14 @@ export function getPlan(tier: PlanTier): Plan {
   return PLANS.find(p => p.tier === tier) ?? PLANS[0]
 }
 
+// Cheapest *paid* tier whose sports allotment covers a selection — drives the live
+// onboarding badge so a buyer sees which plan their sport count implies. PLANS is
+// authored in ascending price order, so the first match is the cheapest fit.
+export function minPaidTierForSports(sportCount: number): Plan {
+  const paid = PLANS.filter(p => p.tier !== 'trial')
+  return paid.find(p => p.sportsLimit >= Math.max(1, sportCount)) ?? paid[paid.length - 1]
+}
+
 export interface LimitCheckResult {
   allowed: boolean
   reason?: string

@@ -659,7 +659,7 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
-        {tab === 1  && <SetupTab state={state} setState={setState} />}
+        {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
         {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
         {tab === 3  && <FieldsTab state={state} setState={setState} />}
         {tab === 4  && <UmpiresTab state={state} setState={setState} />}
