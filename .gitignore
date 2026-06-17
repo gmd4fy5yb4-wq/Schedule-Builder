@@ -28,3 +28,9 @@ npm-debug.log*
 
 # Local data backups (contain production PII — never commit)
 .backups/
+
+# TypeScript incremental build cache (artifact, not source)
+tsconfig.tsbuildinfo
+
+# Supabase CLI scratch (this project runs migrations manually, not via CLI)
+supabase/.temp/
