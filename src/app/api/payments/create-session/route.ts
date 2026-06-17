@@ -6,7 +6,8 @@ import { PLANS } from '@/lib/plans'
 import { getSupabaseServer } from '@/lib/supabase-server'
 
 const schema = z.object({
-  tier: z.enum(['small', 'medium', 'large']),
+  tier: z.enum(['starter', 'pro', 'org']),
+  billingPeriod: z.enum(['annual', 'season_3mo']).default('annual'),
 })
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,9 @@ export async function POST(req: NextRequest) {
   }
 
   const plan = PLANS.find(p => p.tier === parsed.data.tier)
-  if (!plan?.stripePriceId) {
+  const isSeason = parsed.data.billingPeriod === 'season_3mo'
+  const priceId = isSeason ? plan?.stripePriceIdSeason : plan?.stripePriceIdAnnual
+  if (!priceId) {
     return NextResponse.json({ error: 'Plan not configured.' }, { status: 404 })
   }
 
@@ -36,12 +39,18 @@ export async function POST(req: NextRequest) {
 
   try {
     const checkoutSession = await stripe.checkout.sessions.create({
-      mode: 'subscription',
+      // Season pass = one-time payment (no auto-renew); annual = recurring subscription.
+      mode: isSeason ? 'payment' : 'subscription',
       payment_method_types: ['card'],
       customer_email: user.email,
       client_reference_id: user.id,
-      line_items: [{ price: plan.stripePriceId, quantity: 1 }],
-      success_url: `${baseUrl}/?checkout=success`,
+      line_items: [{ price: priceId, quantity: 1 }],
+      // payment mode has no price→plan link the webhook can read off a subscription,
+      // so pass the tier explicitly for the webhook to grant the right limits.
+      ...(isSeason ? { metadata: { tier: parsed.data.tier, billingPeriod: 'season_3mo' } } : {}),
+      // Land on a subscription-exempt page that polls until the webhook writes the
+      // row, then forwards into the app — avoids the race that bounced paid users to /pricing.
+      success_url: `${baseUrl}/checkout/success`,
       cancel_url: `${baseUrl}/pricing?checkout=cancelled`,
     })
 

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { checkLimits } from '@/lib/plans'
+import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
 
 const schema = z.object({
@@ -30,23 +31,21 @@ export async function POST(req: NextRequest) {
   // Fetch league ownership + subscription limits in parallel (independent queries)
   // The league code is the shared access credential — any authenticated user who
   // knows the code can save. owner_id is used only for limit counting (who created it).
-  const [{ data: league }, { data: sub }, { count: ownedCount }] = await Promise.all([
+  const [{ data: league }, { data: sub }] = await Promise.all([
     serviceSupabase.from('leagues').select('owner_id').eq('id', code).single(),
-    serviceSupabase.from('user_subscriptions').select('leagues_limit, divisions_limit, teams_limit').eq('user_id', session.user.id).single(),
-    serviceSupabase.from('leagues').select('id', { count: 'exact', head: true }).eq('owner_id', session.user.id),
+    serviceSupabase.from('user_subscriptions').select('sports_limit, divisions_limit, teams_limit').eq('user_id', session.user.id).single(),
   ])
 
   // Enforce limits only against the current user's own leagues (not shared leagues
   // they are collaborating on). Use the owner's limits if this is someone else's league.
-  const limits = sub ?? { leagues_limit: 1, divisions_limit: 2, teams_limit: 8 }
+  const limits = sub ?? { sports_limit: 1, divisions_limit: 1, teams_limit: 8 }
 
-  // Only run the league-count limit check when the current user is the owner (or
-  // would become the owner on first save). Collaborators editing another user's league
-  // are not consuming their own league quota.
+  // Sport gate counts the sports IN THIS league (one org = one league, shared fields).
+  // Skip the gate for collaborators editing someone else's league — not their quota.
   const isOwnerOrUnclaimed = !league?.owner_id || league.owner_id === session.user.id
   const limitCheck = checkLimits(
-    { leaguesLimit: limits.leagues_limit, divisionsLimit: limits.divisions_limit, teamsLimit: limits.teams_limit },
-    isOwnerOrUnclaimed ? (ownedCount ?? 0) : 0,
+    { sportsLimit: limits.sports_limit, divisionsLimit: limits.divisions_limit, teamsLimit: limits.teams_limit, adminsLimit: 999 },
+    isOwnerOrUnclaimed ? getSports(state.season).length : 0,
     state.divisions ?? []
   )
 

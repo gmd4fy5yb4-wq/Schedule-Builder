@@ -1,9 +1,9 @@
 # FieldDay Planner — Stripe Go-Live Runbook
 
 The payment code is already built (Checkout, Customer Portal, signature-verified
-webhook, subscription tiers). Nothing here is a code change — this is the
-configuration needed to switch payments **on**, plus the two database migrations
-that must be applied.
+webhook, sports-based tiers with annual + one-time season pass). Nothing here is a
+code change — this is the configuration needed to switch payments **on**, plus the
+database migrations (002, 009, 012) that must be applied.
 
 Do **test mode** end-to-end first (Steps 1–6), confirm a test subscription
 works, then repeat for **live mode** (Step 7).
@@ -16,14 +16,19 @@ works, then repeat for **live mode** (Step 7).
 
 ## The plan model (already defined in code)
 
-From `src/lib/plans.ts` — your Stripe prices must match these:
+From `src/lib/plans.ts` — your Stripe prices must match these. Each paid tier has
+**two** prices: an annual recurring subscription and a one-time 3-month season pass.
 
-| Tier   | Name           | Price      | Limits (leagues / divisions / teams) |
-|--------|----------------|------------|--------------------------------------|
-| trial  | Free Trial     | $0         | 1 / 2 / 8   (no Stripe price needed) |
-| small  | Small League   | $12 / mo   | 1 / 4 / 16                           |
-| medium | Mid-Size League| $25 / mo   | 2 / 8 / 32                           |
-| large  | Unlimited      | $49 / mo   | 999 / 999 / 999                      |
+| Tier    | Name       | Annual | Season (one-time) | Limits (sports / divisions / teams) |
+|---------|------------|--------|-------------------|-------------------------------------|
+| trial   | Free Trial | $0     | —                 | 3 / 10 / 100 for 14 days (no Stripe price) |
+| starter | Starter    | $99/yr | $39               | 1 / 3 / 24                          |
+| pro     | Pro        | $199/yr| $69               | 3 / 10 / 100                        |
+| org     | Org        | $399/yr| $129              | 999 / 999 / 999                     |
+
+Gate is on **sports** (headline); divisions + teams are silent abuse guards.
+Annual → Checkout `mode: 'subscription'`. Season pass → `mode: 'payment'` (one-time,
+no auto-renew; webhook grants `subscription_end = now+90d`, `stripe_subscription_id=NULL`).
 
 ---
 
@@ -36,6 +41,10 @@ Run in the Supabase SQL editor for project **Alfred Digital Sports**
 2. **Required:** run `src/db/migrations/009_fix_subscription_rls_policy.sql`.
    This closes a hole where any logged-in user could grant themselves any plan
    for free. **Do not take live payments before this is applied.**
+3. **Applied June 17, 2026:** `src/db/migrations/012_pricing_sports_gate.sql`
+   (`sports_limit`, `trial_started_at`, `billing_period`). Verify the three columns
+   exist on `user_subscriptions` and that `sports_limit=999` for all `leagues_limit>=999`
+   rows (protects the unlimited testers).
 
 Verify afterward (should return only the SELECT policy, no permissive ALL policy):
 
@@ -51,14 +60,19 @@ where tablename = 'user_subscriptions';
 
 In the Stripe Dashboard, confirm the toggle says **Test mode** (top right).
 
-For each of the three paid tiers, create a Product with a **recurring monthly**
-price:
+Create **3 products** (Starter, Pro, Org). Each product gets **two prices** — add
+the second via "+ Add another price" on the product page:
 
-- Product "Small League"  → price **$12.00 / month** → copy the `price_...` ID
-- Product "Mid-Size League" → price **$25.00 / month** → copy the `price_...` ID
-- Product "Unlimited"     → price **$49.00 / month** → copy the `price_...` ID
+- **Starter** → $99.00 **Recurring/Yearly** + $39.00 **One time** ⚠️
+- **Pro** → $199.00 **Recurring/Yearly** + $69.00 **One time** ⚠️
+- **Org** → $399.00 **Recurring/Yearly** + $129.00 **One time** ⚠️
 
-These three IDs become `STRIPE_PRICE_SMALL` / `_MEDIUM` / `_LARGE`.
+⚠️ The season prices MUST be **One time**, not recurring — a recurring season price
+would auto-renew and defeat the one-off design.
+
+The 6 `price_...` IDs become:
+`STRIPE_PRICE_STARTER_ANNUAL` / `_STARTER_SEASON` / `_PRO_ANNUAL` / `_PRO_SEASON`
+/ `_ORG_ANNUAL` / `_ORG_SEASON`.
 
 ## Step 3 — Get your API keys (TEST mode)
 
@@ -74,10 +88,13 @@ Fill these in `fieldday-planner/.env.local` with the **test** values:
 
 ```
 STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PRICE_SMALL=price_...      # $12 test price
-STRIPE_PRICE_MEDIUM=price_...     # $25 test price
-STRIPE_PRICE_LARGE=price_...      # $49 test price
-STRIPE_WEBHOOK_SECRET=            # filled in by the CLI in Step 5
+STRIPE_PRICE_STARTER_ANNUAL=price_...   # $99/yr test
+STRIPE_PRICE_STARTER_SEASON=price_...   # $39 one-time test
+STRIPE_PRICE_PRO_ANNUAL=price_...       # $199/yr test
+STRIPE_PRICE_PRO_SEASON=price_...       # $69 one-time test
+STRIPE_PRICE_ORG_ANNUAL=price_...       # $399/yr test
+STRIPE_PRICE_ORG_SEASON=price_...       # $129 one-time test
+STRIPE_WEBHOOK_SECRET=                  # filled in by the CLI in Step 5
 ```
 
 ## Step 5 — Test the webhook locally with the Stripe CLI
@@ -101,17 +118,24 @@ cd fieldday-planner
 npm run dev
 ```
 
-Go to `http://localhost:3000/pricing`, subscribe with test card
-**4242 4242 4242 4242**, any future expiry, any CVC/ZIP. Confirm:
+Go to `http://localhost:3000/pricing`, with test card **4242 4242 4242 4242**, any
+future expiry, any CVC/ZIP. Test **both** purchase paths (use plus-addressed emails
+like `you+test1@…` for fresh accounts — never check out as an `unlimited` tester):
 
-- `stripe listen` shows `checkout.session.completed` → your route returns 200.
-- The `user_subscriptions` row for your user flips to `plan_tier` =
-  small/medium/large and `subscription_status` = `active`.
-- You can now reach the gated app (middleware lets you through).
-- `/account` → "Manage billing" opens the Stripe Customer Portal.
+- **Annual** (e.g. Pro): `stripe listen` shows `checkout.session.completed` +
+  `customer.subscription.created` → 200. The `user_subscriptions` row → `plan_tier=pro`,
+  `billing_period=annual`, `stripe_subscription_id` set, `subscription_end` ~1yr out,
+  limits `3/10/100`.
+- **Season pass** (e.g. Starter $39): row → `billing_period=season_3mo`,
+  `stripe_subscription_id=NULL`, `subscription_end = now+90d`, limits `1/3/24`.
+- After either, Checkout returns to `/checkout/success`, which polls the row then
+  forwards into the app (no `/pricing` bounce).
+- `/account` → "Manage billing" opens the Customer Portal (annual only; season pass
+  has no `stripe_customer_id`, so no portal — correct).
+- Verify rows via the DB (`user_subscriptions`), not the Stripe MCP (it's live-mode only).
 
-Then test cancellation in the portal and confirm the `customer.subscription.deleted`
-event resets the row back to `trial` and you're redirected to `/pricing`.
+Then test cancellation of the annual sub in the portal and confirm
+`customer.subscription.deleted` resets the row to `trial` and redirects to `/pricing`.
 
 ---
 
@@ -138,10 +162,13 @@ webhook secret, different from the CLI one. It goes in Vercel (Step 7).
 
 ```
 STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...   # the LIVE endpoint's secret from Step 6
-STRIPE_PRICE_SMALL=price_...      # live $12
-STRIPE_PRICE_MEDIUM=price_...     # live $25
-STRIPE_PRICE_LARGE=price_...      # live $49
+STRIPE_WEBHOOK_SECRET=whsec_...        # the LIVE endpoint's secret from Step 6
+STRIPE_PRICE_STARTER_ANNUAL=price_...  # live $99/yr
+STRIPE_PRICE_STARTER_SEASON=price_...  # live $39 one-time
+STRIPE_PRICE_PRO_ANNUAL=price_...      # live $199/yr
+STRIPE_PRICE_PRO_SEASON=price_...      # live $69 one-time
+STRIPE_PRICE_ORG_ANNUAL=price_...      # live $399/yr
+STRIPE_PRICE_ORG_SEASON=price_...      # live $129 one-time
 NEXT_PUBLIC_SITE_URL=https://fielddayplanner.app
 ```
 
@@ -154,10 +181,12 @@ NEXT_PUBLIC_SITE_URL=https://fielddayplanner.app
 
 ## Pre-launch checklist
 
-- [ ] Migration 009 applied — `pg_policies` shows no permissive ALL policy.
-- [ ] Test-mode purchase + cancellation verified locally.
+- [ ] Migrations 009 + 012 applied — `pg_policies` shows no permissive ALL policy;
+      `sports_limit`/`trial_started_at`/`billing_period` columns exist.
+- [ ] Test-mode purchase verified for **both** annual (recurring) and season (one-time).
 - [ ] Production webhook registered; test-event delivery shows 200.
-- [ ] All 5 Stripe env vars set in Vercel **Production** with **live** values.
+- [ ] All 8 Stripe env vars (secret + webhook + 6 prices) set in Vercel **Production**
+      with **live** values; old `STRIPE_PRICE_SMALL/MEDIUM/LARGE` removed.
 - [ ] `NEXT_PUBLIC_SITE_URL` = `https://fielddayplanner.app` in production
       (controls Checkout success/cancel + portal return URLs).
 - [ ] Resend keys set (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`) — currently empty,

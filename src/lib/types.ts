@@ -1,6 +1,7 @@
 export interface SeasonConfig {
   leagueName: string
-  sport: string           // sport id from sports.ts, e.g. 'softball'
+  sport?: string          // legacy single-sport id — KEPT for back-compat (old blobs + snapshot restores)
+  sports?: string[]       // multi-sport — e.g. ['softball'] or ['softball','baseball']. Read via getSports().
   theme?: string          // theme id from themes.ts, e.g. 'fieldday'
   startDate: string
   endDate: string

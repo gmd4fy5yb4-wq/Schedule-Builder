@@ -30,3 +30,10 @@ export function getSportConfig(sportId?: string): SportConfig {
   if (!sportId) return DEFAULT_SPORT
   return SPORTS.find(s => s.id === sportId) ?? DEFAULT_SPORT
 }
+
+// Single read path for a league's sports — tolerant of legacy single-sport blobs.
+// Legacy blob ({sport:'softball'}) → ['softball']; new blob uses {sports:[...]}.
+// Never mutates the blob; callers that need one config use getSportConfig(getSports(season)[0]).
+export function getSports(season: { sport?: string; sports?: string[] }): string[] {
+  return season.sports?.length ? season.sports : [season.sport ?? 'softball']
+}

@@ -1,54 +1,70 @@
-export type PlanTier = 'trial' | 'small' | 'medium' | 'large'
+export type PlanTier = 'trial' | 'starter' | 'pro' | 'org'
 
 export interface PlanLimits {
-  leaguesLimit: number
-  divisionsLimit: number
-  teamsLimit: number
+  sportsLimit: number     // headline gate — what the buyer shops on
+  divisionsLimit: number  // silent guard
+  teamsLimit: number      // silent guard — caps mega-division abuse
+  adminsLimit: number     // reserved — NOT enforced in v1 (no admin records yet)
 }
 
 export interface Plan extends PlanLimits {
   tier: PlanTier
   name: string
-  monthlyPriceUsd: number
-  stripePriceId: string
+  annualPriceUsd: number
+  seasonPassPriceUsd: number
+  stripePriceIdAnnual: string
+  stripePriceIdSeason: string
 }
 
 export const PLANS: Plan[] = [
+  // Trial = full Pro limits for 14 days (enforced via trial_started_at + middleware, not here).
   {
     tier: 'trial',
     name: 'Free Trial',
-    monthlyPriceUsd: 0,
-    stripePriceId: '',
-    leaguesLimit: 1,
-    divisionsLimit: 2,
-    teamsLimit: 8,
+    annualPriceUsd: 0,
+    seasonPassPriceUsd: 0,
+    stripePriceIdAnnual: '',
+    stripePriceIdSeason: '',
+    sportsLimit: 3,
+    divisionsLimit: 10,
+    teamsLimit: 100,
+    adminsLimit: 5,
   },
   {
-    tier: 'small',
-    name: 'Small League',
-    monthlyPriceUsd: 12,
-    stripePriceId: process.env.STRIPE_PRICE_SMALL ?? '',
-    leaguesLimit: 1,
-    divisionsLimit: 4,
-    teamsLimit: 16,
+    tier: 'starter',
+    name: 'Starter',
+    annualPriceUsd: 99,
+    seasonPassPriceUsd: 39,
+    stripePriceIdAnnual: process.env.STRIPE_PRICE_STARTER_ANNUAL ?? '',
+    stripePriceIdSeason: process.env.STRIPE_PRICE_STARTER_SEASON ?? '',
+    sportsLimit: 1,
+    divisionsLimit: 3,
+    teamsLimit: 24,
+    adminsLimit: 2,
   },
   {
-    tier: 'medium',
-    name: 'Mid-Size League',
-    monthlyPriceUsd: 25,
-    stripePriceId: process.env.STRIPE_PRICE_MEDIUM ?? '',
-    leaguesLimit: 2,
-    divisionsLimit: 8,
-    teamsLimit: 32,
+    tier: 'pro',
+    name: 'Pro',
+    annualPriceUsd: 199,
+    seasonPassPriceUsd: 69,
+    stripePriceIdAnnual: process.env.STRIPE_PRICE_PRO_ANNUAL ?? '',
+    stripePriceIdSeason: process.env.STRIPE_PRICE_PRO_SEASON ?? '',
+    sportsLimit: 3,
+    divisionsLimit: 10,
+    teamsLimit: 100,
+    adminsLimit: 5,
   },
   {
-    tier: 'large',
-    name: 'Unlimited',
-    monthlyPriceUsd: 49,
-    stripePriceId: process.env.STRIPE_PRICE_LARGE ?? '',
-    leaguesLimit: 999,
+    tier: 'org',
+    name: 'Org',
+    annualPriceUsd: 399,
+    seasonPassPriceUsd: 129,
+    stripePriceIdAnnual: process.env.STRIPE_PRICE_ORG_ANNUAL ?? '',
+    stripePriceIdSeason: process.env.STRIPE_PRICE_ORG_SEASON ?? '',
+    sportsLimit: 999,
     divisionsLimit: 999,
     teamsLimit: 999,
+    adminsLimit: 999,
   },
 ]
 
@@ -59,21 +75,23 @@ export function getPlan(tier: PlanTier): Plan {
 export interface LimitCheckResult {
   allowed: boolean
   reason?: string
-  limitType?: 'leagues' | 'divisions' | 'teams'
+  limitType?: 'sports' | 'divisions' | 'teams'
 }
 
+// v1: gate on sports (headline), guard on divisions + teams.
+// adminsLimit is reserved for when co-admin invites exist — not checked here yet.
 export function checkLimits(
   limits: PlanLimits,
-  ownedLeagueCount: number,
+  sportCount: number,
   divisions: { teams: unknown[] }[]
 ): LimitCheckResult {
   const totalTeams = divisions.reduce((s, d) => s + d.teams.length, 0)
 
-  if (ownedLeagueCount > limits.leaguesLimit) {
+  if (sportCount > limits.sportsLimit) {
     return {
       allowed: false,
-      limitType: 'leagues',
-      reason: `Your plan allows ${limits.leaguesLimit} league${limits.leaguesLimit === 1 ? '' : 's'}.`,
+      limitType: 'sports',
+      reason: `Your plan allows ${limits.sportsLimit} sport${limits.sportsLimit === 1 ? '' : 's'}.`,
     }
   }
   if (divisions.length > limits.divisionsLimit) {

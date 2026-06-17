@@ -25,3 +25,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 .vercel
+
+# Local data backups (contain production PII — never commit)
+.backups/

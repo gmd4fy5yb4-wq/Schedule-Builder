@@ -102,7 +102,7 @@ export default function Home() {
   const [pendingRemote, setPendingRemote] = useState<{ data: AppState; updatedBy: string; updatedAt: string } | null>(null)
 
   const [user, setUser] = useState<User | null>(null)
-  const [planLimits, setPlanLimits] = useState<{ leaguesLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
+  const [planLimits, setPlanLimits] = useState<{ sportsLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
@@ -229,10 +229,10 @@ export default function Home() {
       if (session?.user) {
         const { data: sub } = await sb
           .from('user_subscriptions')
-          .select('leagues_limit, divisions_limit, teams_limit, plan_tier')
+          .select('sports_limit, divisions_limit, teams_limit, plan_tier')
           .eq('user_id', session.user.id)
           .single()
-        if (sub) setPlanLimits({ leaguesLimit: sub.leagues_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
+        if (sub) setPlanLimits({ sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
       }
     })
     const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {

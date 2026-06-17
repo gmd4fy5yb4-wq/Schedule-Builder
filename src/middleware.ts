@@ -24,6 +24,9 @@ const PUBLIC_PREFIXES = [
   '/_next',
   '/pwa-icon',
   '/api/league/view',       // read-only token route
+  '/checkout/success',      // post-payment landing: polls for the row, then forwards to /.
+                            //  Must be reachable by an authed user whose webhook hasn't
+                            //  committed yet — gating it would re-create the bounce it fixes.
 ]
 
 const PUBLIC_EXTENSIONS = ['.ico', '.png', '.svg', '.webmanifest', '.txt', '.xml']
@@ -86,13 +89,17 @@ export async function middleware(req: NextRequest) {
   // Check subscription status
   const { data: sub } = await supabase
     .from('user_subscriptions')
-    .select('subscription_status')
+    .select('subscription_status, subscription_end')
     .eq('user_id', user.id)
     .single()
 
+  // A null subscription_end = no expiry (unlimited testers). A past one = lapsed —
+  // this is what makes the one-time season pass actually expire after 90 days.
+  const notExpired = !sub?.subscription_end || new Date(sub.subscription_end) > new Date()
   const isActive =
-    sub?.subscription_status === 'active' ||
-    sub?.subscription_status === 'trialing'
+    notExpired &&
+    (sub?.subscription_status === 'active' ||
+     sub?.subscription_status === 'trialing')
 
   if (!isActive) {
     return NextResponse.redirect(new URL('/pricing', req.url))
