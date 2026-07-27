@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { stripe } from '@/lib/stripe'
 import { PLANS } from '@/lib/plans'
-import { getSupabaseServer } from '@/lib/supabase-server'
+import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
+import { isProspectCardBundleEligible } from '@/lib/bundle'
 
 const schema = z.object({
   tier: z.enum(['starter', 'pro', 'org']),
@@ -37,6 +38,25 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
+  // Alfred Sports Bundle: 20% off if this user has a paying Prospect Card
+  // subscription. Best-effort — any failure here must never block checkout.
+  let bundleEligible = false
+  try {
+    const svc = getSupabaseServiceRole()
+    // pc_subscriptions' Stripe-cache column is `subscription_status`
+    // (see softball-recruiter/src/db/migrations/014_pc_subscriptions.sql).
+    const { data: pcSub } = await svc
+      .from('pc_subscriptions')
+      .select('subscription_status')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    bundleEligible = isProspectCardBundleEligible(
+      pcSub ? { status: pcSub.subscription_status } : null
+    )
+  } catch (err) {
+    console.error('[create-session] bundle eligibility check failed (continuing without discount):', err)
+  }
+
   try {
     const checkoutSession = await stripe.checkout.sessions.create({
       // Season pass = one-time payment (no auto-renew); annual = recurring subscription.
@@ -48,6 +68,7 @@ export async function POST(req: NextRequest) {
       // payment mode has no price→plan link the webhook can read off a subscription,
       // so pass the tier explicitly for the webhook to grant the right limits.
       ...(isSeason ? { metadata: { tier: parsed.data.tier, billingPeriod: 'season_3mo' } } : {}),
+      ...(bundleEligible ? { discounts: [{ coupon: 'bundle20' }] } : {}),
       // Land on a subscription-exempt page that polls until the webhook writes the
       // row, then forwards into the app — avoids the race that bounced paid users to /pricing.
       success_url: `${baseUrl}/checkout/success`,
