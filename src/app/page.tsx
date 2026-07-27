@@ -102,7 +102,7 @@ export default function Home() {
   const [pendingRemote, setPendingRemote] = useState<{ data: AppState; updatedBy: string; updatedAt: string } | null>(null)
 
   const [user, setUser] = useState<User | null>(null)
-  const [planLimits, setPlanLimits] = useState<{ leaguesLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
+  const [planLimits, setPlanLimits] = useState<{ sportsLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
@@ -229,10 +229,10 @@ export default function Home() {
       if (session?.user) {
         const { data: sub } = await sb
           .from('user_subscriptions')
-          .select('leagues_limit, divisions_limit, teams_limit, plan_tier')
+          .select('sports_limit, divisions_limit, teams_limit, plan_tier')
           .eq('user_id', session.user.id)
           .single()
-        if (sub) setPlanLimits({ leaguesLimit: sub.leagues_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
+        if (sub) setPlanLimits({ sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
       }
     })
     const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
@@ -546,6 +546,19 @@ export default function Home() {
               </button>
             )}
 
+            {/* Prospect Card cross-app link */}
+            {!readOnly && (
+              <a
+                href="https://www.getprospectcard.com"
+                target="_blank"
+                rel="noopener"
+                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
+                title="Prospect Card — player recruiting cards by Alfred Digital"
+              >
+                Prospect Card ↗
+              </a>
+            )}
+
             {/* Sync status */}
             {!readOnly && (
               <div className="text-xs">
@@ -659,7 +672,7 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
-        {tab === 1  && <SetupTab state={state} setState={setState} />}
+        {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
         {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
         {tab === 3  && <FieldsTab state={state} setState={setState} />}
         {tab === 4  && <UmpiresTab state={state} setState={setState} />}

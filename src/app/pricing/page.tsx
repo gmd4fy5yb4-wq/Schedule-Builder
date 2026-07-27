@@ -6,14 +6,14 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  async function handleSubscribe(tier: 'small' | 'medium' | 'large') {
-    setLoading(tier)
+  async function handleSubscribe(tier: 'starter' | 'pro' | 'org', billingPeriod: 'annual' | 'season_3mo' = 'annual') {
+    setLoading(tier + billingPeriod)
     setError('')
     try {
       const res = await fetch('/api/payments/create-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, billingPeriod }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -55,7 +55,7 @@ export default function PricingPage() {
         {/* Plan cards */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
           {paid.map(plan => {
-            const isPopular = plan.tier === 'medium'
+            const isPopular = plan.tier === 'pro'
             return (
               <div
                 key={plan.tier}
@@ -73,15 +73,16 @@ export default function PricingPage() {
 
                 <div className="mb-6">
                   <h2 className="text-xl font-bold text-gray-900 font-[Oswald] mb-1">{plan.name}</h2>
-                  <div className="flex items-end gap-1 mb-4">
-                    <span className="text-4xl font-bold text-gray-900">${plan.monthlyPriceUsd}</span>
-                    <span className="text-gray-400 text-sm mb-1">/month</span>
+                  <div className="flex items-end gap-1 mb-1">
+                    <span className="text-4xl font-bold text-gray-900">${plan.annualPriceUsd}</span>
+                    <span className="text-gray-400 text-sm mb-1">/year</span>
                   </div>
+                  <p className="text-xs text-gray-400 mb-4">or ${plan.seasonPassPriceUsd} for a 3-month season pass</p>
 
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li className="flex items-center gap-2">
                       <span className="text-green-500">✓</span>
-                      {plan.leaguesLimit >= 999 ? 'Unlimited leagues' : `${plan.leaguesLimit} league${plan.leaguesLimit > 1 ? 's' : ''}`}
+                      {plan.sportsLimit >= 999 ? 'Unlimited sports' : `${plan.sportsLimit} sport${plan.sportsLimit > 1 ? 's' : ''}`}
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-green-500">✓</span>
@@ -93,7 +94,7 @@ export default function PricingPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-green-500">✓</span>
-                      All sports supported
+                      Shared fields &amp; calendar across all sports
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-green-500">✓</span>
@@ -106,9 +107,9 @@ export default function PricingPage() {
                   </ul>
                 </div>
 
-                <div className="mt-auto">
+                <div className="mt-auto space-y-2">
                   <button
-                    onClick={() => handleSubscribe(plan.tier as 'small' | 'medium' | 'large')}
+                    onClick={() => handleSubscribe(plan.tier as 'starter' | 'pro' | 'org', 'annual')}
                     disabled={loading !== null}
                     className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${
                       isPopular
@@ -116,7 +117,14 @@ export default function PricingPage() {
                         : 'bg-gray-900 text-white hover:bg-gray-800'
                     }`}
                   >
-                    {loading === plan.tier ? 'Redirecting…' : 'Get started'}
+                    {loading === plan.tier + 'annual' ? 'Redirecting…' : `Get started — $${plan.annualPriceUsd}/yr`}
+                  </button>
+                  <button
+                    onClick={() => handleSubscribe(plan.tier as 'starter' | 'pro' | 'org', 'season_3mo')}
+                    disabled={loading !== null}
+                    className="w-full py-2 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  >
+                    {loading === plan.tier + 'season_3mo' ? 'Redirecting…' : `or 3-month pass — $${plan.seasonPassPriceUsd}`}
                   </button>
                 </div>
               </div>
@@ -128,7 +136,7 @@ export default function PricingPage() {
         <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-1">Free Trial</h3>
           <p className="text-gray-500 text-sm">
-            Sign up and get immediate access: 1 league, up to 2 divisions, up to 8 teams. No credit card required.
+            Sign up and get full Pro access free for 14 days — up to 3 sports and 10 divisions. No credit card required.
           </p>
           <a
             href="/login"
@@ -138,7 +146,11 @@ export default function PricingPage() {
           </a>
         </div>
 
-        <p className="text-center text-gray-400 text-xs mt-8">
+        <p className="text-center text-gray-500 text-sm mt-8">
+          Also use Prospect Card? Your Alfred Sports Bundle takes 20% off — applied automatically at checkout.
+        </p>
+
+        <p className="text-center text-gray-400 text-xs mt-4">
           Already have an account?{' '}
           <a href="/login" className="underline text-gray-500">Sign in</a>
         </p>

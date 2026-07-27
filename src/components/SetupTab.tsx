@@ -1,19 +1,41 @@
 'use client'
 import { useState } from 'react'
 import type { AppState } from '@/lib/types'
-import { SPORTS, getSportConfig } from '@/lib/sports'
+import { SPORTS, getSportConfig, getSports } from '@/lib/sports'
 import { THEMES } from '@/lib/themes'
+import { minPaidTierForSports, type PlanLimits } from '@/lib/plans'
 import type { ImportResult } from '@/lib/importCSV'
 import ImportModal from './ImportModal'
+import UpgradePrompt from './UpgradePrompt'
 
-interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }
+interface Props {
+  state: AppState
+  setState: React.Dispatch<React.SetStateAction<AppState>>
+  planLimits?: Pick<PlanLimits, 'sportsLimit'> & { planTier?: string }
+}
 
 function fmtDate(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function SetupTab({ state, setState }: Props) {
+export default function SetupTab({ state, setState, planLimits }: Props) {
   const { season } = state
+  const selectedSports = getSports(season)
+  const sportsLimit = planLimits?.sportsLimit ?? 3
+  const atSportsLimit = selectedSports.length >= sportsLimit
+  const neededPlan = minPaidTierForSports(selectedSports.length)
+
+  // Multi-sport selection. Mirror sports[0] into the legacy `sport` field so the
+  // ~16 getSportConfig(season.sport) vocabulary sites keep reading a primary sport
+  // unchanged. Always keep at least one sport selected.
+  function toggleSport(id: string) {
+    setState(s => {
+      const cur = getSports(s.season)
+      const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]
+      if (next.length === 0) return s
+      return { ...s, season: { ...s.season, sports: next, sport: next[0] } }
+    })
+  }
   const blackouts = state.blackoutDates ?? []
   const [newBlackout, setNewBlackout] = useState('')
   const [blackoutLabel, setBlackoutLabel] = useState('')
@@ -61,14 +83,37 @@ export default function SetupTab({ state, setState }: Props) {
       {/* Season config */}
       <div className="bg-white rounded-lg border p-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
-          <select
-            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
-            value={season.sport ?? 'softball'}
-            onChange={e => update('sport', e.target.value)}
-          >
-            {SPORTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-medium text-gray-700">Sports</label>
+            <span className="text-xs text-gray-500">
+              {selectedSports.length} of {sportsLimit === 999 ? '∞' : sportsLimit} · fits{' '}
+              <span className="font-semibold text-gray-700">{neededPlan.name}</span>
+            </span>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {SPORTS.map(s => {
+              const active = selectedSports.includes(s.id)
+              const disabled = !active && atSportsLimit
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleSport(s.id)}
+                  disabled={disabled}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition ${
+                    active
+                      ? 'border-[var(--fd-accent)] bg-red-50 text-[var(--fd-accent)] ring-1 ring-[var(--fd-accent)]'
+                      : disabled
+                        ? 'border-gray-100 text-gray-300 cursor-not-allowed'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  {s.name}
+                </button>
+              )
+            })}
+          </div>
+          {atSportsLimit && <UpgradePrompt limitType="sports" planName={neededPlan.name} />}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Theme</label>
@@ -218,7 +263,7 @@ export default function SetupTab({ state, setState }: Props) {
 
       {/* Getting started */}
       {(() => {
-        const sc = getSportConfig(season.sport)
+        const sc = getSportConfig(selectedSports[0])
         return (
           <div className="bg-[#f5f5fb] border border-[#eeeef6] rounded-lg p-4 text-sm text-green-800">
             <p className="font-medium mb-1">Getting started</p>

@@ -16,10 +16,17 @@ const PUBLIC_PREFIXES = [
   '/login',
   '/pricing',
   '/auth/callback',
-  '/api/payments/webhook',  // Stripe hits this without a cookie
+  '/api/payments',          // all payment routes bypass the subscription gate:
+                            //  - /webhook: Stripe hits it without a cookie
+                            //  - /create-session & /portal: an UNSUBSCRIBED user
+                            //    must be able to reach these to subscribe/manage
+                            //    billing. They enforce their own getUser() auth.
   '/_next',
   '/pwa-icon',
   '/api/league/view',       // read-only token route
+  '/checkout/success',      // post-payment landing: polls for the row, then forwards to /.
+                            //  Must be reachable by an authed user whose webhook hasn't
+                            //  committed yet — gating it would re-create the bounce it fixes.
 ]
 
 const PUBLIC_EXTENSIONS = ['.ico', '.png', '.svg', '.webmanifest', '.txt', '.xml']
@@ -70,23 +77,29 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // Use getUser() — it revalidates the JWT with the Supabase Auth server.
+  // getSession() only reads the cookie and must not be trusted for authz.
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Not logged in
-  if (!session) {
+  if (!user) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
   // Check subscription status
   const { data: sub } = await supabase
     .from('user_subscriptions')
-    .select('subscription_status')
-    .eq('user_id', session.user.id)
+    .select('subscription_status, subscription_end')
+    .eq('user_id', user.id)
     .single()
 
+  // A null subscription_end = no expiry (unlimited testers). A past one = lapsed —
+  // this is what makes the one-time season pass actually expire after 90 days.
+  const notExpired = !sub?.subscription_end || new Date(sub.subscription_end) > new Date()
   const isActive =
-    sub?.subscription_status === 'active' ||
-    sub?.subscription_status === 'trialing'
+    notExpired &&
+    (sub?.subscription_status === 'active' ||
+     sub?.subscription_status === 'trialing')
 
   if (!isActive) {
     return NextResponse.redirect(new URL('/pricing', req.url))

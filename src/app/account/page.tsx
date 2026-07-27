@@ -9,7 +9,7 @@ interface Subscription {
   subscription_status: string
   subscription_end: string | null
   stripe_customer_id: string | null
-  leagues_limit: number
+  sports_limit: number
   divisions_limit: number
   teams_limit: number
 }
@@ -146,7 +146,7 @@ export default function AccountPage() {
 
           <p className="text-2xl font-bold text-gray-900 font-[Oswald] mb-1">{plan.name}</p>
           <p className="text-sm text-gray-500 mb-4">
-            {plan.leaguesLimit >= 999 ? 'Unlimited' : plan.leaguesLimit} league{plan.leaguesLimit !== 1 ? 's' : ''} ·{' '}
+            {plan.sportsLimit >= 999 ? 'Unlimited' : plan.sportsLimit} sport{plan.sportsLimit !== 1 ? 's' : ''} ·{' '}
             {plan.divisionsLimit >= 999 ? 'Unlimited' : plan.divisionsLimit} divisions ·{' '}
             {plan.teamsLimit >= 999 ? 'Unlimited' : plan.teamsLimit} teams
           </p>

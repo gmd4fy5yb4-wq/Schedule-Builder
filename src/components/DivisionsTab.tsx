@@ -9,7 +9,7 @@ import { getPlan } from '@/lib/plans'
 interface Props {
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
-  planLimits?: PlanLimits & { planTier?: string }
+  planLimits?: Pick<PlanLimits, 'divisionsLimit' | 'teamsLimit'> & { planTier?: string }
 }
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36) }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { checkLimits } from '@/lib/plans'
+import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
 
 const schema = z.object({
@@ -32,22 +33,16 @@ export async function POST(req: NextRequest) {
   // Check subscription limits
   const { data: sub } = await serviceSupabase
     .from('user_subscriptions')
-    .select('leagues_limit, divisions_limit, teams_limit')
+    .select('sports_limit, divisions_limit, teams_limit')
     .eq('user_id', session.user.id)
     .single()
 
-  const limits = sub ?? { leagues_limit: 1, divisions_limit: 2, teams_limit: 8 }
-
-  // Count owned leagues
-  const { count: ownedCount } = await serviceSupabase
-    .from('leagues')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', session.user.id)
+  const limits = sub ?? { sports_limit: 1, divisions_limit: 1, teams_limit: 8 }
 
   const state = parsed.data.state as unknown as AppState
   const limitCheck = checkLimits(
-    { leaguesLimit: limits.leagues_limit, divisionsLimit: limits.divisions_limit, teamsLimit: limits.teams_limit },
-    (ownedCount ?? 0) + 1,  // +1 for the league we're about to create
+    { sportsLimit: limits.sports_limit, divisionsLimit: limits.divisions_limit, teamsLimit: limits.teams_limit, adminsLimit: 999 },
+    getSports(state.season).length,
     state.divisions ?? []
   )
 
