@@ -17,7 +17,6 @@ import FieldCalendarTab from '@/components/FieldCalendarTab'
 import AutoScheduleTab from '@/components/AutoScheduleTab'
 import StandingsTab from '@/components/StandingsTab'
 import CoachesTab from '@/components/CoachesTab'
-import LinkedCalendarsTab from '@/components/LinkedCalendarsTab'
 import DashboardTab from '@/components/DashboardTab'
 import LeagueGate from '@/components/LeagueGate'
 
@@ -456,13 +455,13 @@ export default function Home() {
   }
 
   const sc = getSportConfig(state.season.sport)
-  const TABS = ['Dashboard', 'Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches', 'Other Leagues']
+  const TABS = ['Dashboard', 'Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches']
   // Visual nav clusters (indices into TABS): overview → day-to-day operation → one-time setup.
   // Content switch/onNavigate() below still key off these same TABS indices unchanged.
   const NAV_GROUPS = [
     { label: 'Overview', indices: [0] },
     { label: 'Operate', indices: [5, 6, 7, 9, 10] },
-    { label: 'Setup', indices: [1, 2, 3, 4, 8, 11] },
+    { label: 'Setup', indices: [1, 2, 3, 4, 8] },
   ]
   const themeStyle = buildThemeVars(getTheme(state.season.theme))
 
@@ -661,7 +660,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
             {NAV_GROUPS.map((group, gi) => {
-              const visible = group.indices.filter(i => !(readOnly && (i >= 1 && i <= 4 || i === 8 || i === 11)))
+              const visible = group.indices.filter(i => !(readOnly && (i >= 1 && i <= 4 || i === 8)))
               if (visible.length === 0) return null
               return (
                 <div key={group.label} className="flex items-stretch">
@@ -696,7 +695,6 @@ export default function Home() {
         {tab === 8  && <AutoScheduleTab state={state} setState={setState} />}
         {tab === 9  && <StandingsTab state={state} readOnly={readOnly} />}
         {tab === 10 && <CoachesTab state={state} readOnly={readOnly} />}
-        {tab === 11 && <LinkedCalendarsTab state={state} setState={setState} readOnly={readOnly} />}
       </main>
 
       {showSnapshots && leagueCode && (
