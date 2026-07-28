@@ -554,6 +554,19 @@ export default function Home() {
               </button>
             )}
 
+            {/* Prospect Card cross-app link */}
+            {!readOnly && (
+              <a
+                href="https://www.getprospectcard.com"
+                target="_blank"
+                rel="noopener"
+                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
+                title="Prospect Card — player recruiting cards by Alfred Digital"
+              >
+                Prospect Card ↗
+              </a>
+            )}
+
             {/* Sync status */}
             {!readOnly && (
               <div className="text-xs">

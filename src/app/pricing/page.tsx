@@ -146,7 +146,11 @@ export default function PricingPage() {
           </a>
         </div>
 
-        <p className="text-center text-gray-400 text-xs mt-8">
+        <p className="text-center text-gray-500 text-sm mt-8">
+          Also use Prospect Card? Your Alfred Sports Bundle takes 20% off — applied automatically at checkout.
+        </p>
+
+        <p className="text-center text-gray-400 text-xs mt-4">
           Already have an account?{' '}
           <a href="/login" className="underline text-gray-500">Sign in</a>
         </p>
