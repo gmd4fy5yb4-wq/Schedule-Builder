@@ -90,7 +90,7 @@ export default function UmpiresTab({ state, setState }: Props) {
           </div>
           <button
             onClick={addUmpire}
-            className="mt-3 bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition"
+            className="mt-3 bg-[var(--fd-primary)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary-dark)] transition"
           >Add {sc.officialSingular}</button>
         </div>
 
@@ -194,7 +194,7 @@ export default function UmpiresTab({ state, setState }: Props) {
           </div>
           <button
             onClick={addStaff}
-            className="mt-3 bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition"
+            className="mt-3 bg-[var(--fd-primary)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary-dark)] transition"
           >Add Staff Member</button>
         </div>
 

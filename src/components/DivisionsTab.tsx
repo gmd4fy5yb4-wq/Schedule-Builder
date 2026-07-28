@@ -192,7 +192,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
           <button
             onClick={addDivision}
             disabled={!newDivName.trim() || divisionsAtLimit}
-            className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Add Division
           </button>
@@ -434,7 +434,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                   <button
                     onClick={() => addTeam(div.id)}
                     disabled={teamsAtLimit}
-                    className="bg-[var(--fd-accent)] text-white px-3 py-1.5 rounded text-sm hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="bg-[var(--fd-primary)] text-white px-3 py-1.5 rounded text-sm hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >Add</button>
                 </div>
                 {teamsAtLimit && <UpgradePrompt limitType="teams" planName={planName} />}

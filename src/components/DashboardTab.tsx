@@ -69,6 +69,15 @@ function EditIcon() {
   )
 }
 
+function CalendarIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <rect x="3" y="5" width="18" height="16" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 3v4M8 3v4M3 10h18" />
+    </svg>
+  )
+}
+
 function CoachList({ label, coaches }: { label: string; coaches: Coach[] }) {
   const sorted = [...coaches].sort((a, b) => {
     if (a.role === 'head' && b.role !== 'head') return -1
@@ -355,7 +364,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
         </div>
         <button
           onClick={() => onNavigate(5)}
-          className="text-sm text-[var(--fd-accent)] hover:underline font-medium"
+          className="text-sm text-[var(--fd-primary)] hover:underline font-medium"
         >
           View full schedule →
         </button>
@@ -364,12 +373,12 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
       {/* ── Empty state ───────────────────────────────────────────────── */}
       {totalEvents === 0 && (
         <div className="bg-white rounded-xl border p-16 text-center">
-          <div className="text-5xl mb-4">📅</div>
+          <CalendarIcon className="w-12 h-12 mb-4 mx-auto text-gray-300" />
           <p className="text-xl font-semibold text-gray-600">No events this week</p>
           <p className="text-sm text-gray-400 mt-1">Nothing scheduled for {dateRange(todayStart, weekEnd)}</p>
           <button
             onClick={() => onNavigate(5)}
-            className="mt-5 text-sm bg-[var(--fd-accent)] hover:bg-[var(--fd-primary)] text-white font-semibold px-5 py-2 rounded-lg transition"
+            className="mt-5 text-sm bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-white font-semibold px-5 py-2 rounded-lg transition"
           >
             View full schedule
           </button>
@@ -411,17 +420,14 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                     className={`flex-1 min-w-0 bg-white rounded-xl border border-gray-200 shadow-sm ${g.confirmed ? 'ring-1 ring-green-300' : ''}`}
                   >
                     <div className="flex">
-                      {/* Division color strip */}
-                      <div className={`w-1.5 flex-shrink-0 ${c.header} rounded-tl-xl rounded-bl-xl`} />
-
                       <div className="flex-1 min-w-0">
                         {/* Card header */}
-                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-tr-xl">
+                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-t-xl">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${c.pill}`}>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded border ${c.pill} ${c.border}`}>
                               {div?.name ?? 'Unknown Division'}
                             </span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-accent)]">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-primary)]">
                               {sc.eventSingular}
                             </span>
                             <span className="text-sm font-semibold text-gray-800">{fmtTime(g.time)}</span>
@@ -468,7 +474,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                             {!readOnly && (
                               <button
                                 onClick={() => openEdit(g)}
-                                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[var(--fd-accent)] hover:bg-[#eeeef6] px-2.5 py-1.5 rounded-lg transition"
+                                className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[var(--fd-primary)] hover:bg-[#eeeef6] px-2.5 py-1.5 rounded-lg transition"
                               >
                                 <EditIcon />
                                 Edit
@@ -595,14 +601,11 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                     className="flex-1 min-w-0 bg-white rounded-xl border border-gray-200 shadow-sm opacity-90"
                   >
                     <div className="flex">
-                      {/* Division color strip (lighter for practice) */}
-                      <div className={`w-1.5 flex-shrink-0 ${c.header} opacity-50 rounded-tl-xl rounded-bl-xl`} />
-
                       <div className="flex-1 min-w-0">
                         {/* Card header */}
-                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-tr-xl">
+                        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-t-xl">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${c.pill}`}>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded border ${c.pill} ${c.border}`}>
                               {div?.name ?? 'Unknown Division'}
                             </span>
                             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
@@ -616,7 +619,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                           {!readOnly && (
                             <button
                               onClick={() => openEdit(p)}
-                              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[var(--fd-accent)] hover:bg-[#eeeef6] px-2.5 py-1.5 rounded-lg transition"
+                              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[var(--fd-primary)] hover:bg-[#eeeef6] px-2.5 py-1.5 rounded-lg transition"
                             >
                               <EditIcon />
                               Edit

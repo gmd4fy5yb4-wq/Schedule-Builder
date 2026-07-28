@@ -88,7 +88,7 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
             <button
               onClick={handleSave}
               disabled={!newName.trim() || saving}
-              className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>

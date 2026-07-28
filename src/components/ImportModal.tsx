@@ -104,7 +104,7 @@ export default function ImportModal({ state, onImport, onClose }: Props) {
             onClick={() => fileRef.current?.click()}
             className={`border-2 border-dashed rounded-lg px-4 py-10 text-center cursor-pointer transition-colors ${
               dragging
-                ? 'border-[var(--fd-accent)] bg-red-50'
+                ? 'border-[var(--fd-primary)] bg-[#f5f5fb]'
                 : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
             }`}
           >

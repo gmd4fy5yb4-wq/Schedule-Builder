@@ -17,6 +17,7 @@ import FieldCalendarTab from '@/components/FieldCalendarTab'
 import AutoScheduleTab from '@/components/AutoScheduleTab'
 import StandingsTab from '@/components/StandingsTab'
 import CoachesTab from '@/components/CoachesTab'
+import LinkedCalendarsTab from '@/components/LinkedCalendarsTab'
 import DashboardTab from '@/components/DashboardTab'
 import LeagueGate from '@/components/LeagueGate'
 
@@ -455,7 +456,14 @@ export default function Home() {
   }
 
   const sc = getSportConfig(state.season.sport)
-  const TABS = ['Dashboard', 'Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches']
+  const TABS = ['Dashboard', 'Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches', 'Other Leagues']
+  // Visual nav clusters (indices into TABS): overview → day-to-day operation → one-time setup.
+  // Content switch/onNavigate() below still key off these same TABS indices unchanged.
+  const NAV_GROUPS = [
+    { label: 'Overview', indices: [0] },
+    { label: 'Operate', indices: [5, 6, 7, 9, 10] },
+    { label: 'Setup', indices: [1, 2, 3, 4, 8, 11] },
+  ]
   const themeStyle = buildThemeVars(getTheme(state.season.theme))
 
   if (!hydrated) {
@@ -473,7 +481,7 @@ export default function Home() {
           <p className="text-2xl">🔗</p>
           <h2 className="text-lg font-semibold text-gray-800">Link not found</h2>
           <p className="text-sm text-gray-500">This view-only link is no longer valid. Ask the league admin to share a new link.</p>
-          <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-accent)] underline hover:text-[var(--fd-primary)]">Go to FieldDay Planner</a>
+          <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-primary)] underline hover:text-[var(--fd-primary-dark)]">Go to FieldDay Planner</a>
         </div>
       </div>
     )
@@ -539,7 +547,7 @@ export default function Home() {
             {!readOnly && (
               <button
                 onClick={copyReadOnlyLink}
-                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-accent)] rounded-lg px-3 py-1.5 transition"
+                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
                 title="Copy a view-only link for coaches/parents"
               >
                 {roLinkCopied ? 'Copied!' : 'Share View-Only Link'}
@@ -571,7 +579,7 @@ export default function Home() {
                 {user ? (
                   <button
                     onClick={handleSignOut}
-                    className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] rounded px-2 py-0.5"
+                    className="text-[var(--fd-primary-light)] hover:text-white transition text-xs border border-[var(--fd-primary-muted)] rounded px-2 py-0.5"
                     title="Sign out"
                   >
                     Sign Out
@@ -579,7 +587,7 @@ export default function Home() {
                 ) : (
                   <button
                     onClick={handleLeave}
-                    className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] hover:border-[var(--fd-accent)] rounded px-2 py-0.5"
+                    className="text-[var(--fd-primary-light)] hover:text-white transition text-xs border border-[var(--fd-primary-muted)] rounded px-2 py-0.5"
                     title="Leave this league"
                   >
                     Leave
@@ -632,25 +640,31 @@ export default function Home() {
         </div>
       )}
 
-      {/* Tab nav — hide setup/admin tabs in read-only mode */}
+      {/* Tab nav — hide setup/admin tabs in read-only mode.
+          Grouped into Overview / Operate / Setup so the 11 tabs read as clusters
+          instead of one flat row; indices stay the ones the switch below and
+          onNavigate() calls expect, only the visual order changes. */}
       <div className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
-            {TABS.map((label, i) => {
-              // Hide admin-only tabs from view-only viewers:
-              // 1–4 = Setup, Divisions & Teams, Fields, Umpires/Staff
-              // 8   = Auto-Schedule
-              if (readOnly && (i >= 1 && i <= 4 || i === 8)) return null
+            {NAV_GROUPS.map((group, gi) => {
+              const visible = group.indices.filter(i => !(readOnly && (i >= 1 && i <= 4 || i === 8 || i === 11)))
+              if (visible.length === 0) return null
               return (
-                <button
-                  key={label}
-                  onClick={() => setTab(i)}
-                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    tab === i ? 'border-[var(--fd-accent)] text-[var(--fd-accent)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {label}
-                </button>
+                <div key={group.label} className="flex items-stretch">
+                  {gi > 0 && <span className="w-px my-2.5 bg-gray-200" />}
+                  {visible.map(i => (
+                    <button
+                      key={TABS[i]}
+                      onClick={() => setTab(i)}
+                      className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        tab === i ? 'border-[var(--fd-primary)] text-[var(--fd-primary)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {TABS[i]}
+                    </button>
+                  ))}
+                </div>
               )
             })}
           </nav>
@@ -669,6 +683,7 @@ export default function Home() {
         {tab === 8  && <AutoScheduleTab state={state} setState={setState} />}
         {tab === 9  && <StandingsTab state={state} readOnly={readOnly} />}
         {tab === 10 && <CoachesTab state={state} readOnly={readOnly} />}
+        {tab === 11 && <LinkedCalendarsTab state={state} setState={setState} readOnly={readOnly} />}
       </main>
 
       {showSnapshots && leagueCode && (

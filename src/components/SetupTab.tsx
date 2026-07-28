@@ -74,7 +74,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
         <h2 className="text-xl font-semibold text-gray-800">League Setup</h2>
         <button
           onClick={() => setShowImport(true)}
-          className="text-sm font-medium text-[var(--fd-accent)] border border-[var(--fd-accent)] rounded-lg px-3 py-1.5 hover:bg-red-50 transition"
+          className="text-sm font-medium text-[var(--fd-primary)] border border-[var(--fd-primary)] rounded-lg px-3 py-1.5 hover:bg-[#f5f5fb] transition"
         >
           Import from CSV
         </button>
@@ -102,7 +102,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
                   disabled={disabled}
                   className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition ${
                     active
-                      ? 'border-[var(--fd-accent)] bg-red-50 text-[var(--fd-accent)] ring-1 ring-[var(--fd-accent)]'
+                      ? 'border-[var(--fd-primary)] bg-[#f5f5fb] text-[var(--fd-primary)] ring-1 ring-[var(--fd-primary)]'
                       : disabled
                         ? 'border-gray-100 text-gray-300 cursor-not-allowed'
                         : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -203,7 +203,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
             <label className="block text-xs text-gray-500 mb-1">Date</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={newBlackout}
               onChange={e => setNewBlackout(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addBlackout()}
@@ -212,7 +212,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
           <div className="flex-1 min-w-[140px]">
             <label className="block text-xs text-gray-500 mb-1">Label (optional)</label>
             <input
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="e.g. Memorial Day"
               value={blackoutLabel}
               onChange={e => setBlackoutLabel(e.target.value)}
@@ -222,7 +222,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
           <button
             onClick={addBlackout}
             disabled={!newBlackout}
-            className="bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-accent-hover)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Add
           </button>
@@ -265,9 +265,9 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
       {(() => {
         const sc = getSportConfig(selectedSports[0])
         return (
-          <div className="bg-[#f5f5fb] border border-[#eeeef6] rounded-lg p-4 text-sm text-green-800">
-            <p className="font-medium mb-1">Getting started</p>
-            <ol className="list-decimal list-inside space-y-1 text-[var(--fd-accent)]">
+          <div className="bg-[#f5f5fb] border border-[#eeeef6] rounded-lg p-4 text-sm text-gray-700">
+            <p className="font-medium mb-1 text-gray-800">Getting started</p>
+            <ol className="list-decimal list-inside space-y-1">
               <li>Fill in season dates and game duration here</li>
               <li>Add blackout dates for holidays or field closures</li>
               <li>Add teams to each division in <strong>Divisions &amp; Teams</strong></li>

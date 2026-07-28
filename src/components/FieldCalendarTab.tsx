@@ -97,8 +97,8 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
               onClick={() => setSelectedFieldId(field.id)}
               className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition ${
                 isSelected
-                  ? 'bg-[var(--fd-accent)] text-white border-[var(--fd-primary)] font-semibold shadow-sm'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-[var(--fd-accent)] hover:bg-[#f5f5fb]'
+                  ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)] font-semibold shadow-sm'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-[var(--fd-primary)] hover:bg-[#f5f5fb]'
               }`}
             >
               <div className="font-medium truncate">{field.name}</div>
@@ -158,7 +158,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                 <button onClick={prevMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
                 <h3 className="font-semibold text-gray-800 flex-1 text-center">{MONTHS[month]} {year}</h3>
                 <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
-                <button onClick={goToday} className="text-xs text-[var(--fd-accent)] hover:text-[#a8102e] border border-[var(--fd-accent)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
+                <button onClick={goToday} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
               </div>
 
               {/* Day-of-week headers */}
@@ -207,7 +207,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                       {/* Date number + indicators */}
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
-                          isToday ? 'bg-[var(--fd-accent)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
+                          isToday ? 'bg-[var(--fd-primary)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
                         }`}>{day}</span>
 
                         <div className="flex items-center gap-1">
@@ -218,7 +218,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                             ? <span className="text-xs text-red-300 italic">closed</span>
                             : !readOnly && <button
                                 onClick={() => openAdd(dateStr)}
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-accent)] hover:bg-[#eeeef6] transition text-base leading-none"
+                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none"
                                 title="Add event at this field"
                               >+</button>
                           }

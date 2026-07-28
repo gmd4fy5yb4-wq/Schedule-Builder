@@ -461,7 +461,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                                       onClick={() => toggleTeamPreferredDay(div.id, team.id, i)}
                                       className={`text-xs px-1.5 py-0.5 rounded border transition ${
                                         checked
-                                          ? 'bg-[var(--fd-accent)] text-white border-[var(--fd-accent)]'
+                                          ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]'
                                           : 'bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-400'
                                       }`}
                                     >
@@ -591,7 +591,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
         <button
           onClick={handleGenerate}
           disabled={generating || !state.season.startDate || !state.season.endDate || state.fields.length === 0}
-          className="bg-[var(--fd-accent)] text-white px-8 py-3 rounded-lg font-semibold text-base hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+          className="bg-[var(--fd-primary)] text-white px-8 py-3 rounded-lg font-semibold text-base hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           style={{ fontFamily: 'Oswald, sans-serif' }}
         >
           {generating ? (
@@ -620,7 +620,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
       {conflicts.length > 0 && (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b bg-[#f5f5fb] flex items-center gap-3">
-            <span className="w-7 h-7 rounded-full bg-[var(--fd-accent)] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">3</span>
+            <span className="w-7 h-7 rounded-full bg-[var(--fd-primary)] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">3</span>
             <span className="font-semibold text-gray-800" style={{ fontFamily: 'Oswald, sans-serif' }}>
               Conflict Resolution
             </span>
@@ -723,7 +723,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           <div className="border-t px-5 py-3">
             <button
               onClick={() => setShowAllConflicts(v => !v)}
-              className="text-xs text-[var(--fd-accent)] hover:underline"
+              className="text-xs text-[var(--fd-primary)] hover:underline"
             >
               {showAllConflicts ? '▲ Hide all conflicts' : `▼ View all conflicts (${conflicts.length})`}
             </button>
@@ -865,7 +865,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                     <span className="text-sm font-medium text-gray-700">
                       Add {preview.length} game{preview.length !== 1 ? 's' : ''} to your existing schedule?
                     </span>
-                    <button onClick={() => commitPreview('append')} className="bg-[var(--fd-accent)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary)] transition">
+                    <button onClick={() => commitPreview('append')} className="bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition">
                       Yes, Append
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
@@ -884,7 +884,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                   <>
                     <button
                       onClick={() => setCommitMode('append')}
-                      className="bg-[var(--fd-accent)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary)] transition"
+                      className="bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition"
                     >
                       Append to Existing Schedule
                     </button>

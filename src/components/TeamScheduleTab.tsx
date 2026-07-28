@@ -180,7 +180,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                 {!readOnly && (
                   <button
                     onClick={openAddForTeam}
-                    className="ml-auto bg-[var(--fd-accent)] hover:bg-[var(--fd-primary)] text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+                    className="ml-auto bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
                   >
                     + Add Event
                   </button>
@@ -193,7 +193,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
               <div className="bg-white rounded-lg border p-12 text-center text-gray-400 italic">
                 No events scheduled for {selectedTeam?.name} yet.
                 <br />
-                <button onClick={openAddForTeam} className="mt-3 text-sm text-[var(--fd-accent)] hover:text-[var(--fd-accent)] font-medium underline underline-offset-2">
+                <button onClick={openAddForTeam} className="mt-3 text-sm text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] font-medium underline underline-offset-2">
                   Add their first event
                 </button>
               </div>
@@ -230,7 +230,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                             <td className="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">{fmtDate(g.date)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap">{fmtTime(g.time)}</td>
                             <td className="px-4 py-2.5">
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-accent)]">{sc.eventSingular}</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-primary)]">{sc.eventSingular}</span>
                             </td>
                             <td className="px-4 py-2.5 font-medium text-gray-800">{opp?.name ?? <span className="text-gray-400 italic">Unknown</span>}</td>
                             <td className="px-4 py-2.5">

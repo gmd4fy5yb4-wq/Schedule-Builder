@@ -26,6 +26,18 @@ export interface EventForm {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36) }
+
+function TrophyIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h8" />
+      <path d="M12 17v4" />
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+      <path d="M17 5h2a2 2 0 0 1-2 4" />
+      <path d="M7 5H5a2 2 0 0 0 2 4" />
+    </svg>
+  )
+}
 export function toMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
 export function minsToTime(mins: number) { const h = Math.floor(mins / 60) % 24; const m = mins % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` }
 export function fmtTime(t: string) { if (!t) return ''; const [h, m] = t.split(':').map(Number); return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}` }
@@ -405,7 +417,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                       <button
                         type="button"
                         onClick={() => setBulkReview(prev => prev!.map((i, j) => j === idx ? { ...i, action: 'keep' } : i))}
-                        className={`px-2.5 py-1 border-l transition ${item.action === 'keep' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
+                        className={`px-2.5 py-1 border-l transition ${item.action === 'keep' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-500 hover:bg-gray-100'}`}
                       >
                         Keep anyway
                       </button>
@@ -459,7 +471,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 type="button"
                 onClick={confirmBulkSave}
                 disabled={willCreate === 0}
-                className="px-5 py-2 text-sm font-semibold bg-[var(--fd-accent)] text-white rounded-xl hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-5 py-2 text-sm font-semibold bg-[var(--fd-primary)] text-white rounded-xl hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Create {willCreate} Event{willCreate !== 1 ? 's' : ''}
               </button>
@@ -501,11 +513,11 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             <div className="grid grid-cols-3 rounded-xl border overflow-hidden">
               <button
                 onClick={() => upd({ type: 'game', endTime: defaultEndTime(f.time, state.season.gameDurationMinutes || 90), teamId: '' })}
-                className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >{sc.eventSingular}</button>
               <button
                 onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '' })}
-                className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >Practice</button>
               <button
                 onClick={() => upd({ type: 'special', endTime: defaultEndTime(f.time, 60), divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '' })}
@@ -645,7 +657,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   <span className="text-base">🔁</span> Repeat this event
                 </span>
-                <span className={`w-9 h-5 rounded-full transition-colors relative ${repeat.enabled ? 'bg-[var(--fd-accent)]' : 'bg-gray-300'}`}>
+                <span className={`w-9 h-5 rounded-full transition-colors relative ${repeat.enabled ? 'bg-[var(--fd-primary)]' : 'bg-gray-300'}`}>
                   <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${repeat.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </span>
               </button>
@@ -663,7 +675,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                           key={freq}
                           type="button"
                           onClick={() => updRepeat({ frequency: freq })}
-                          className={`py-2 font-medium capitalize transition border-r last:border-r-0 ${repeat.frequency === freq ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                          className={`py-2 font-medium capitalize transition border-r last:border-r-0 ${repeat.frequency === freq ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                         >
                           {freq}
                         </button>
@@ -678,14 +690,14 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                       <button
                         type="button"
                         onClick={() => updRepeat({ endType: 'count' })}
-                        className={`py-2 font-medium transition border-r ${repeat.endType === 'count' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                        className={`py-2 font-medium transition border-r ${repeat.endType === 'count' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                       >
                         # of occurrences
                       </button>
                       <button
                         type="button"
                         onClick={() => updRepeat({ endType: 'date' })}
-                        className={`py-2 font-medium transition ${repeat.endType === 'date' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                        className={`py-2 font-medium transition ${repeat.endType === 'date' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                       >
                         End date
                       </button>
@@ -740,7 +752,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             <div className="border rounded-xl overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
                 <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <span className="text-base">🏆</span> Game Result
+                  <TrophyIcon className="w-4 h-4 text-gray-500" /> Game Result
                 </span>
                 {f.result !== undefined && (
                   <button
@@ -837,7 +849,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             <button
               onClick={save}
               disabled={!canSave()}
-              className="px-5 py-2 text-sm font-semibold bg-[var(--fd-accent)] text-white rounded-xl hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2 text-sm font-semibold bg-[var(--fd-primary)] text-white rounded-xl hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saveLabel}
             </button>

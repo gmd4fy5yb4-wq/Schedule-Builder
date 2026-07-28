@@ -2,6 +2,22 @@
 import { useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
 
+// Translates raw Supabase Auth error strings into copy a user can act on,
+// instead of surfacing SDK internals (rate-limit wording, etc.) directly.
+function friendlyAuthError(message: string): string {
+  const m = message.toLowerCase()
+  if (m.includes('rate limit') || m.includes('security purposes')) {
+    return 'Too many attempts — please wait a minute and try again.'
+  }
+  if (m.includes('email') && (m.includes('invalid') || m.includes('valid'))) {
+    return "That doesn't look like a valid email address."
+  }
+  if (m.includes('network') || m.includes('fetch')) {
+    return 'Network error — check your connection and try again.'
+  }
+  return "Something went wrong sending your sign-in code. Please try again."
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
@@ -42,7 +58,7 @@ export default function LoginPage() {
     })
 
     if (authError) {
-      setError(authError.message)
+      setError(friendlyAuthError(authError.message))
       setLoading(false)
       return
     }
@@ -54,7 +70,7 @@ export default function LoginPage() {
   async function handleVerifyCode(e: React.FormEvent) {
     e.preventDefault()
     const trimmedCode = code.trim()
-    if (trimmedCode.length < 6) return
+    if (trimmedCode.length < 8) return
     setVerifyLoading(true)
     setVerifyError('')
 
@@ -95,7 +111,7 @@ export default function LoginPage() {
                 <div className="text-4xl mb-3">📬</div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Check your email</h2>
                 <p className="text-gray-500 text-sm">
-                  We sent a sign-in link and a 6-digit code to <strong>{email}</strong>.
+                  We sent a sign-in link and an 8-digit code to <strong>{email}</strong>.
                 </p>
               </div>
 
@@ -113,14 +129,14 @@ export default function LoginPage() {
                     maxLength={8}
                     value={code}
                     onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                    placeholder="123456"
+                    placeholder="12345678"
                     className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-center text-xl font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-[#00013a] focus:border-transparent"
                   />
                 </div>
                 {verifyError && <p className="text-red-600 text-sm">{verifyError}</p>}
                 <button
                   type="submit"
-                  disabled={verifyLoading || code.length < 6}
+                  disabled={verifyLoading || code.length < 8}
                   className="w-full py-2.5 px-4 rounded-lg bg-[#00013a] text-white text-sm font-semibold disabled:opacity-50 hover:bg-[#000128] transition-colors"
                 >
                   {verifyLoading ? 'Verifying…' : 'Sign in'}

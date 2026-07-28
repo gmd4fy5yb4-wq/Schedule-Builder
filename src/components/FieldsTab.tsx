@@ -81,7 +81,7 @@ export default function FieldsTab({ state, setState }: Props) {
         </div>
         <button
           onClick={addField}
-          className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition"
+          className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary-dark)] transition"
         >Add {sc.venueSingular}</button>
       </div>
 
@@ -93,7 +93,7 @@ export default function FieldsTab({ state, setState }: Props) {
         {state.fields.map((field, idx) => (
           <div key={field.id} className="bg-white rounded-lg border shadow-sm px-4 py-3">
             <div className="flex items-center gap-3">
-              <span className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full bg-[#eeeef6] text-[var(--fd-accent)] text-xs font-bold">{idx + 1}</span>
+              <span className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full bg-[#eeeef6] text-[var(--fd-primary)] text-xs font-bold">{idx + 1}</span>
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {/* Field name */}
                 <input

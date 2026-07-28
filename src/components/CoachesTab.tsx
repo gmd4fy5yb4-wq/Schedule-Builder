@@ -115,7 +115,7 @@ export default function CoachesTab({ state }: Props) {
             <button
               key={s}
               onClick={() => setSortBy(s)}
-              className={`px-3 py-1 rounded border text-xs font-medium transition ${sortBy === s ? 'bg-[var(--fd-accent)] text-white border-[var(--fd-accent)]' : 'text-gray-500 border-gray-200 hover:border-gray-400'}`}
+              className={`px-3 py-1 rounded border text-xs font-medium transition ${sortBy === s ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]' : 'text-gray-500 border-gray-200 hover:border-gray-400'}`}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -175,7 +175,7 @@ export default function CoachesTab({ state }: Props) {
                     {/* Phone */}
                     <td className="px-4 py-3 text-gray-600">
                       {coach.phone
-                        ? <a href={`tel:${coach.phone}`} className="hover:text-[var(--fd-accent)] transition">{coach.phone}</a>
+                        ? <a href={`tel:${coach.phone}`} className="hover:text-[var(--fd-primary)] transition">{coach.phone}</a>
                         : <span className="text-gray-300">—</span>
                       }
                     </td>
@@ -183,7 +183,7 @@ export default function CoachesTab({ state }: Props) {
                     {/* Email */}
                     <td className="px-4 py-3 text-gray-600">
                       {coach.email
-                        ? <a href={`mailto:${coach.email}`} className="hover:text-[var(--fd-accent)] transition truncate block max-w-[180px]">{coach.email}</a>
+                        ? <a href={`mailto:${coach.email}`} className="hover:text-[var(--fd-primary)] transition truncate block max-w-[180px]">{coach.email}</a>
                         : <span className="text-gray-300">—</span>
                       }
                     </td>

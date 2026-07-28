@@ -217,9 +217,9 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}{totalSpecial > 0 ? ` · ${totalSpecial} special` : ''}</span>
           <div className="flex rounded border overflow-hidden text-sm">
-            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
-            <button onClick={() => setView('day')} className={`px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-accent)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
+            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
+            <button onClick={() => setView('day')} className={`px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
+            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
             <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50">
@@ -319,7 +319,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             <button onClick={prevMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
             <h3 className="font-semibold text-gray-800 flex-1 text-center">{MONTHS[month]} {year}</h3>
             <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
-            <button onClick={goToday} className="text-xs text-[var(--fd-accent)] hover:text-[#a8102e] border border-[var(--fd-accent)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
+            <button onClick={goToday} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
           </div>
 
           {/* Day-of-week headers */}
@@ -367,13 +367,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     <span
                       onClick={() => { setSelectedDay(dateStr); setView('day') }}
                       className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--fd-accent)] transition ${
-                        isToday ? 'bg-[var(--fd-accent)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
+                        isToday ? 'bg-[var(--fd-primary)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
                       }`}
                       title="View day schedule"
                     >{day}</span>
                     {isBlackout
                       ? <span className="text-xs text-red-300 italic">closed</span>
-                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-accent)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
+                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
                     }
                   </div>
 
@@ -476,7 +476,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         </td>
                         <td className="px-3 py-2">
                           {item.type === 'game'
-                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-accent)] font-medium">{sc.eventSingular}</span>
+                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-primary)] font-medium">{sc.eventSingular}</span>
                             : item.type === 'special'
                               ? <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Special</span>
                               : <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">Practice</span>}
@@ -576,10 +576,10 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               <h3 className="font-semibold text-gray-800 flex-1 text-center">{dayLabel}</h3>
               <button onClick={goNext} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
               {selectedDay !== todayStr && (
-                <button onClick={() => setSelectedDay(todayStr)} className="text-xs text-[var(--fd-accent)] hover:text-[#a8102e] border border-[var(--fd-accent)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
+                <button onClick={() => setSelectedDay(todayStr)} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
               )}
               {!readOnly && (
-                <button onClick={() => openAdd(selectedDay)} className="text-xs bg-[var(--fd-accent)] text-white rounded px-2 py-1 hover:bg-[#a8102e] transition">+ Add</button>
+                <button onClick={() => openAdd(selectedDay)} className="text-xs bg-[var(--fd-primary)] text-white rounded px-2 py-1 hover:bg-[var(--fd-primary-dark)] transition">+ Add</button>
               )}
             </div>
 
