@@ -29,8 +29,8 @@ export const THEMES: Theme[] = [
     primaryDark: '#0d1f16',
     primaryLight: '#a7c9b4',
     primaryMuted: '#6fa888',
-    accent: '#16a34a',
-    accentHover: '#15803d',
+    accent: '#12873d',
+    accentHover: '#0f7033',
   },
   {
     id: 'ocean',
@@ -39,8 +39,8 @@ export const THEMES: Theme[] = [
     primaryDark: '#071a30',
     primaryLight: '#93c5fd',
     primaryMuted: '#60a5fa',
-    accent: '#0284c7',
-    accentHover: '#0369a1',
+    accent: '#027cbb',
+    accentHover: '#02679b',
   },
   {
     id: 'royal',
@@ -59,8 +59,8 @@ export const THEMES: Theme[] = [
     primaryDark: '#0c0a09',
     primaryLight: '#d6d3d1',
     primaryMuted: '#a8a29e',
-    accent: '#ea580c',
-    accentHover: '#c2410c',
+    accent: '#c2490a',
+    accentHover: '#ab4109',
   },
   {
     id: 'midnight',
@@ -69,8 +69,8 @@ export const THEMES: Theme[] = [
     primaryDark: '#000000',
     primaryLight: '#d4d4d8',
     primaryMuted: '#a1a1aa',
-    accent: '#d97706',
-    accentHover: '#b45309',
+    accent: '#a95d05',
+    accentHover: '#955204',
   },
 ]
 

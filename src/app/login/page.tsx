@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
+import Icon from '@/components/Icon'
 
 // Translates raw Supabase Auth error strings into copy a user can act on,
 // instead of surfacing SDK internals (rate-limit wording, etc.) directly.
@@ -97,18 +98,18 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo / brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#00013a] text-white text-2xl font-bold mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-[#00013a] text-white text-2xl font-bold mb-4">
             FD
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 font-[Oswald]">FieldDay Planner</h1>
+          <h1 className="text-2xl font-bold text-gray-900">FieldDay Planner</h1>
           <p className="text-gray-500 text-sm mt-1">Schedule any sport, any league</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
           {sent ? (
             <div>
               <div className="text-center mb-5">
-                <div className="text-4xl mb-3">📬</div>
+                <Icon name="mail" className="w-10 h-10 mx-auto mb-3 text-[var(--fd-primary)]" />
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Check your email</h2>
                 <p className="text-gray-500 text-sm">
                   We sent a sign-in link and an 8-digit code to <strong>{email}</strong>.

@@ -90,7 +90,7 @@ export default function ImportModal({ state, onImport, onClose }: Props) {
             </div>
             <button
               onClick={downloadTemplate}
-              className="text-sm font-medium text-blue-700 border border-blue-300 rounded px-3 py-1.5 bg-white hover:bg-blue-50 transition whitespace-nowrap ml-4"
+              className="text-sm font-medium text-blue-700 border border-blue-300 rounded-lg px-3 py-1.5 bg-white hover:bg-blue-50 transition whitespace-nowrap ml-4"
             >
               Download Template
             </button>
@@ -149,7 +149,7 @@ export default function ImportModal({ state, onImport, onClose }: Props) {
                       { label: sc.venuePlural, value: result.fields.length },
                       { label: sc.officialPlural, value: result.umpires.length },
                     ].map(({ label, value }) => (
-                      <div key={label} className="flex items-center justify-between bg-white rounded px-3 py-2 border">
+                      <div key={label} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border">
                         <span className="text-gray-500">{label}</span>
                         <span className={`font-bold ${value > 0 ? 'text-gray-800' : 'text-gray-300'}`}>{value}</span>
                       </div>
@@ -190,14 +190,14 @@ export default function ImportModal({ state, onImport, onClose }: Props) {
         <div className="flex gap-3 justify-end p-4 border-t bg-gray-50 rounded-b-xl">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm rounded border bg-white hover:bg-gray-50 transition"
+            className="px-4 py-2 text-sm rounded-lg border bg-white hover:bg-gray-50 transition"
           >
             Cancel
           </button>
           <button
             onClick={() => canImport && onImport(result!)}
             disabled={!canImport}
-            className="px-4 py-2 text-sm rounded bg-[var(--fd-accent)] text-white hover:bg-[var(--fd-accent-hover)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm rounded-lg bg-[var(--fd-accent)] text-white hover:bg-[var(--fd-accent-hover)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {hasExistingData ? 'Replace & Import' : 'Import'}
           </button>

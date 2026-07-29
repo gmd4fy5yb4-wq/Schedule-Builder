@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice, ScheduledSpecialEvent } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
+import Icon from './Icon'
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 export interface EventForm {
@@ -390,7 +391,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
 
           {/* Header */}
           <div className="px-6 py-4 border-b">
-            <h3 className="font-semibold text-gray-900 text-base">⚠️ Scheduling Conflicts Found</h3>
+            <h3 className="font-semibold text-gray-900 text-base flex items-center gap-2"><Icon name="alert" className="w-4 h-4 text-amber-600" />Scheduling Conflicts Found</h3>
             <p className="text-sm text-gray-500 mt-0.5">
               {bulkReview.length} of {allDates.length} dates have conflicts. Choose what to do for each.
             </p>
@@ -655,7 +656,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition"
               >
                 <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <span className="text-base">🔁</span> Repeat this event
+                  <Icon name="repeat" className="w-4 h-4" /> Repeat this event
                 </span>
                 <span className={`w-9 h-5 rounded-full transition-colors relative ${repeat.enabled ? 'bg-[var(--fd-primary)]' : 'bg-gray-300'}`}>
                   <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${repeat.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />

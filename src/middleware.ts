@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { isWritable } from '@/lib/plans'
 
 /** Redirect domains → canonical domain (308 Permanent Redirect). */
 const REDIRECT_HOSTS = new Set([
@@ -83,25 +84,38 @@ export async function middleware(req: NextRequest) {
 
   // Not logged in
   if (!user) {
+    // An /api caller reads res.json(); handing it a 307 to an HTML login page makes
+    // the fetch blow up on parse and surface as a bogus "Network error". Same rule as
+    // the expiry gate below.
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
+    }
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Check subscription status
+  // A lapsed plan no longer bounces the user to /pricing. Locking an admin out of a
+  // schedule their coaches are still reading destroys the trust the renewal depends
+  // on (finding 3) — so the app renders read-only instead and the gate moves to
+  // writes only. Reads (GET) always pass; anything that changes state does not.
+  const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+  if (!isMutation) return response
+
   const { data: sub } = await supabase
     .from('user_subscriptions')
     .select('subscription_status, subscription_end')
     .eq('user_id', user.id)
     .single()
 
-  // A null subscription_end = no expiry (unlimited testers). A past one = lapsed —
-  // this is what makes the one-time season pass actually expire after 90 days.
-  const notExpired = !sub?.subscription_end || new Date(sub.subscription_end) > new Date()
-  const isActive =
-    notExpired &&
-    (sub?.subscription_status === 'active' ||
-     sub?.subscription_status === 'trialing')
-
-  if (!isActive) {
+  if (!isWritable(sub)) {
+    // JSON for API callers, a redirect for a real form/page POST. Never redirect an
+    // /api route — the client reads the body, and an HTML login page there surfaces
+    // as an unexplained "Network error".
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json(
+        { error: 'Your plan has expired. Renew to make changes — your league stays exactly as it is.', expired: true },
+        { status: 403 }
+      )
+    }
     return NextResponse.redirect(new URL('/pricing', req.url))
   }
 

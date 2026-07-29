@@ -11,6 +11,7 @@ import {
   geocodeField,
   fetchDailyWeather,
 } from '@/lib/weather'
+import Icon from './Icon'
 
 interface Props {
   state: AppState
@@ -92,7 +93,7 @@ function CoachList({ label, coaches }: { label: string; coaches: Coach[] }) {
           <div key={coach.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
             <span className="font-semibold text-gray-800">{coach.name}</span>
             {coach.role && (
-              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+              <span className={`text-xs px-1.5 py-0.5 rounded-lg font-medium ${
                 coach.role === 'head' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
               }`}>
                 {coach.role === 'head' ? 'Head Coach' : 'Assistant'}
@@ -121,9 +122,9 @@ function WeatherCard({ data, loading }: { data?: DayWeather; loading?: boolean }
     return (
       <div className="w-32 flex-shrink-0 bg-sky-50 border border-sky-100 rounded-xl flex flex-col items-center justify-center gap-2 p-3 animate-pulse">
         <div className="w-10 h-10 bg-sky-200 rounded-full" />
-        <div className="w-14 h-3 bg-sky-200 rounded" />
-        <div className="w-10 h-4 bg-sky-200 rounded" />
-        <div className="w-12 h-3 bg-sky-200 rounded" />
+        <div className="w-14 h-3 bg-sky-200 rounded-lg" />
+        <div className="w-10 h-4 bg-sky-200 rounded-lg" />
+        <div className="w-12 h-3 bg-sky-200 rounded-lg" />
       </div>
     )
   }
@@ -142,10 +143,10 @@ function WeatherCard({ data, loading }: { data?: DayWeather; loading?: boolean }
         <p className="text-xs text-gray-400 mt-0.5">Low {data.tempLow}°</p>
       </div>
       {isRainy && (
-        <p className="text-xs font-medium text-blue-600">💧 {data.precipChance}%</p>
+        <p className="text-xs font-medium text-blue-600 flex items-center gap-1"><Icon name="droplet" className="w-3.5 h-3.5" />{data.precipChance}%</p>
       )}
       {isWindy && (
-        <p className="text-xs text-gray-500">💨 {data.windSpeed} mph</p>
+        <p className="text-xs text-gray-500 flex items-center gap-1"><Icon name="wind" className="w-3.5 h-3.5" />{data.windSpeed} mph</p>
       )}
     </div>
   )
@@ -424,10 +425,10 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                         {/* Card header */}
                         <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-t-xl">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded border ${c.pill} ${c.border}`}>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${c.pill} ${c.border}`}>
                               {div?.name ?? 'Unknown Division'}
                             </span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-primary)]">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-[#eeeef6] text-[var(--fd-primary)]">
                               {sc.eventSingular}
                             </span>
                             <span className="text-sm font-semibold text-gray-800">{fmtTime(g.time)}</span>
@@ -457,7 +458,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                                   id={`confirm-${g.id}`}
                                   checked={!!g.confirmed}
                                   onChange={() => toggleConfirm(g.id)}
-                                  className="w-4 h-4 rounded cursor-pointer accent-green-600"
+                                  className="w-4 h-4 rounded-lg cursor-pointer accent-green-600"
                                 />
                                 <label
                                   htmlFor={`confirm-${g.id}`}
@@ -490,12 +491,12 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className="flex items-center gap-1.5">
                               <span className="text-xl font-bold text-gray-900">{homeTeam?.name ?? 'TBD'}</span>
-                              <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-semibold">Home</span>
+                              <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-lg font-semibold">Home</span>
                             </div>
                             <span className="text-lg text-gray-400 font-medium">vs</span>
                             <div className="flex items-center gap-1.5">
                               <span className="text-xl font-bold text-gray-900">{awayTeam?.name ?? 'TBD'}</span>
-                              <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-semibold">Away</span>
+                              <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-lg font-semibold">Away</span>
                             </div>
                           </div>
 
@@ -556,7 +557,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                                 {homeTeam?.name ?? 'Home'} {g.result.homeScore} – {g.result.awayScore} {awayTeam?.name ?? 'Away'}
                               </span>
                               {g.result.homeScore !== g.result.awayScore && (
-                                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-green-100 text-green-700">
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-green-100 text-green-700">
                                   {g.result.homeScore > g.result.awayScore ? homeTeam?.name : awayTeam?.name} Win
                                 </span>
                               )}
@@ -605,10 +606,10 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                         {/* Card header */}
                         <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap bg-gray-50 border-b rounded-t-xl">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded border ${c.pill} ${c.border}`}>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${c.pill} ${c.border}`}>
                               {div?.name ?? 'Unknown Division'}
                             </span>
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-gray-100 text-gray-600">
                               Practice
                             </span>
                             <span className="text-sm font-semibold text-gray-800">{fmtTime(p.time)}</span>

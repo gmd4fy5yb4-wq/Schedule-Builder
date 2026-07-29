@@ -132,7 +132,7 @@ export default function SnapshotModal({ leagueCode, userName, currentState, onRe
                       {restoreConfirm === snap.id ? (
                         <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
                           <span className="text-xs text-amber-700 font-medium">Replace current schedule?</span>
-                          <button onClick={() => handleRestore(snap)} className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded hover:bg-amber-600 transition">Restore</button>
+                          <button onClick={() => handleRestore(snap)} className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-lg hover:bg-amber-600 transition">Restore</button>
                           <button onClick={() => setRestoreConfirm(null)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
                         </div>
                       ) : (

@@ -80,6 +80,30 @@ export function minPaidTierForSports(sportCount: number): Plan {
   return paid.find(p => p.sportsLimit >= Math.max(1, sportCount)) ?? paid[paid.length - 1]
 }
 
+/** The subscription columns that decide access. Shaped loosely so middleware, the
+ *  save/create routes and the client can all pass whatever they happened to select. */
+export interface SubscriptionState {
+  subscription_status?: string | null
+  subscription_end?: string | null
+}
+
+/**
+ * Single source of truth for "may this user still change things?".
+ *
+ * A NULL subscription_end means no expiry — that covers the 4 plan_tier='unlimited'
+ * tester rows AND a trial whose clock has not started yet (migration 014). A past
+ * one means lapsed, which is what makes the 90-day season pass actually expire.
+ *
+ * Lapsed users keep READ access (the app renders read-only); this gate is only
+ * about writes. Middleware, /api/leagues/save and /api/leagues/create must all
+ * agree, or the UI and the server disagree about who is locked out.
+ */
+export function isWritable(sub: SubscriptionState | null | undefined): boolean {
+  if (!sub) return false
+  const notExpired = !sub.subscription_end || new Date(sub.subscription_end) > new Date()
+  return notExpired && (sub.subscription_status === 'active' || sub.subscription_status === 'trialing')
+}
+
 export interface LimitCheckResult {
   allowed: boolean
   reason?: string

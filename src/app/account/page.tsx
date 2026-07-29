@@ -115,7 +115,7 @@ export default function AccountPage() {
         <div className="flex items-center justify-between">
           <div>
             <a href="/" className="text-sm text-gray-500 hover:text-gray-700">← Back to app</a>
-            <h1 className="text-2xl font-bold text-gray-900 font-[Oswald] mt-1">My Account</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mt-1">My Account</h1>
           </div>
           <button
             onClick={handleSignOut}
@@ -126,7 +126,7 @@ export default function AccountPage() {
         </div>
 
         {/* Profile */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-3">Account</h2>
           <p className="text-sm text-gray-500">
             Signed in as <span className="font-medium text-gray-800">{user?.email}</span>
@@ -134,7 +134,7 @@ export default function AccountPage() {
         </div>
 
         {/* Subscription */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-start justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Plan</h2>
             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
@@ -144,7 +144,7 @@ export default function AccountPage() {
             </span>
           </div>
 
-          <p className="text-2xl font-bold text-gray-900 font-[Oswald] mb-1">{plan.name}</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">{plan.name}</h2>
           <p className="text-sm text-gray-500 mb-4">
             {plan.sportsLimit >= 999 ? 'Unlimited' : plan.sportsLimit} sport{plan.sportsLimit !== 1 ? 's' : ''} ·{' '}
             {plan.divisionsLimit >= 999 ? 'Unlimited' : plan.divisionsLimit} divisions ·{' '}
@@ -176,7 +176,7 @@ export default function AccountPage() {
         </div>
 
         {/* Owned leagues */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-4">Your Leagues</h2>
           {leagues.length === 0 ? (
             <p className="text-sm text-gray-400">No leagues linked to your account yet.</p>
@@ -200,7 +200,7 @@ export default function AccountPage() {
         </div>
 
         {/* Claim a league */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-2">Claim an Existing League</h2>
           <p className="text-sm text-gray-500 mb-4">
             Already have a league code? Enter it here to link it to your account so only you can manage it.

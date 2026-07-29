@@ -5,6 +5,7 @@ import { exportToExcel, exportToCSV } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
 import EventModal, { type EventForm, emptyForm, formFromEvent, toMins, minsToTime, fmtTime } from './EventModal'
 import { getSportConfig } from '@/lib/sports'
+import Icon from './Icon'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; readOnly?: boolean }
 
@@ -216,25 +217,25 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <h2 className="text-xl font-semibold text-gray-800">Schedule</h2>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}{totalSpecial > 0 ? ` · ${totalSpecial} special` : ''}</span>
-          <div className="flex rounded border overflow-hidden text-sm">
+          <div className="flex rounded-lg border overflow-hidden text-sm">
             <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
             <button onClick={() => setView('day')} className={`px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
             <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
-            <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition disabled:opacity-50">
+            <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50">
               {exporting ? 'Exporting…' : 'Export Excel'}
             </button>
           )}
           {totalGames > 0 && !readOnly && (
-            <button onClick={doExportCSV} disabled={exportingCsv} className="bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700 transition disabled:opacity-50">
+            <button onClick={doExportCSV} disabled={exportingCsv} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-emerald-700 transition disabled:opacity-50">
               {exportingCsv ? 'Exporting…' : 'Export CSV'}
             </button>
           )}
           {teamsWithCoachEmails.length > 0 && !readOnly && (
             <button
               onClick={openNotifyModal}
-              className="bg-violet-600 text-white px-4 py-1.5 rounded text-sm hover:bg-violet-700 transition"
+              className="bg-violet-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-violet-700 transition"
               title="Send schedule emails to coaches"
             >
               Notify Coaches
@@ -242,13 +243,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           )}
           {(totalGames + totalPractices + totalSpecial) > 0 && !readOnly && (
             clearConfirm ? (
-              <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded px-2 py-1">
+              <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
                 <span className="text-xs text-red-700 font-medium">Clear all events?</span>
-                <button onClick={clearSchedule} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded hover:bg-red-600 transition">Yes, clear</button>
+                <button onClick={clearSchedule} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-lg hover:bg-red-600 transition">Yes, clear</button>
                 <button onClick={() => setClearConfirm(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
               </div>
             ) : (
-              <button onClick={() => setClearConfirm(true)} className="text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded transition">
+              <button onClick={() => setClearConfirm(true)} className="text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-lg transition">
                 Clear All
               </button>
             )
@@ -269,7 +270,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <div className="flex gap-2 flex-wrap items-center bg-white rounded-lg border px-3 py-2.5">
           <span className="text-sm font-medium text-gray-500 mr-1">Filter:</span>
           <select
-            className="border rounded px-2 py-1.5 text-sm"
+            className="border rounded-lg px-2 py-1.5 text-sm"
             value={filterDiv}
             onChange={e => { setFilterDiv(e.target.value); setFilterTeam('all') }}
           >
@@ -277,7 +278,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             {state.divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
           <select
-            className="border rounded px-2 py-1.5 text-sm"
+            className="border rounded-lg px-2 py-1.5 text-sm"
             value={filterTeam}
             onChange={e => setFilterTeam(e.target.value)}
           >
@@ -285,7 +286,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             {teamsForFilter.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <select
-            className="border rounded px-2 py-1.5 text-sm"
+            className="border rounded-lg px-2 py-1.5 text-sm"
             value={filterType}
             onChange={e => setFilterType(e.target.value as 'all' | 'game' | 'practice' | 'special')}
           >
@@ -297,7 +298,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           {(filterDiv !== 'all' || filterTeam !== 'all' || filterType !== 'all') && (
             <button
               onClick={() => { setFilterDiv('all'); setFilterTeam('all'); setFilterType('all') }}
-              className="text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded px-2 py-1.5 transition"
+              className="text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2 py-1.5 transition"
             >
               Clear
             </button>
@@ -316,10 +317,10 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
           {/* Month nav */}
           <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b">
-            <button onClick={prevMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
+            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
             <h3 className="font-semibold text-gray-800 flex-1 text-center">{MONTHS[month]} {year}</h3>
-            <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
-            <button onClick={goToday} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
+            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
+            <button onClick={goToday} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded-lg px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
           </div>
 
           {/* Day-of-week headers */}
@@ -416,7 +417,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                                 setTooltip({ ev, x: rect.left, y: rect.top })
                               }}
                               onMouseLeave={() => setTooltip(null)}
-                              className={`w-full text-left ${textSize} ${pad} rounded truncate border transition hover:opacity-75 ${isSpecial ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} ${
+                              className={`w-full text-left ${textSize} ${pad} rounded-lg truncate border transition hover:opacity-75 ${isSpecial ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} ${
                                 isSpecial   ? 'bg-amber-50 text-amber-700 border-amber-300'
                                 : isPractice ? 'bg-gray-100 text-gray-600 border-gray-200'
                                 : `${c!.bg} ${c!.text} ${c!.border}`
@@ -471,15 +472,15 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         <td className="px-3 py-2">
                           {isSpecial
                             ? <span className="text-xs text-gray-400 italic">—</span>
-                            : <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c!.pill}`}>{divMap.get((item as ScheduledGame | ScheduledPractice).divisionId)?.name}</span>
+                            : <span className={`text-xs px-1.5 py-0.5 rounded-lg font-medium ${c!.pill}`}>{divMap.get((item as ScheduledGame | ScheduledPractice).divisionId)?.name}</span>
                           }
                         </td>
                         <td className="px-3 py-2">
                           {item.type === 'game'
-                            ? <span className="text-xs px-1.5 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-primary)] font-medium">{sc.eventSingular}</span>
+                            ? <span className="text-xs px-1.5 py-0.5 rounded-lg bg-[#eeeef6] text-[var(--fd-primary)] font-medium">{sc.eventSingular}</span>
                             : item.type === 'special'
-                              ? <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Special</span>
-                              : <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">Practice</span>}
+                              ? <span className="text-xs px-1.5 py-0.5 rounded-lg bg-amber-100 text-amber-700 font-medium">Special</span>
+                              : <span className="text-xs px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-600 font-medium">Practice</span>}
                         </td>
                         <td className="px-3 py-2 font-medium">
                           {isSpecial ? sp.name : item.type === 'game' ? teamMap.get((item as ScheduledGame).homeTeamId)?.name : teamMap.get((item as ScheduledPractice).teamId)?.name}
@@ -489,7 +490,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {item.type === 'game' && (item as ScheduledGame).result !== undefined ? (
-                            <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded">
+                            <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-lg">
                               {(item as ScheduledGame).result!.homeScore}–{(item as ScheduledGame).result!.awayScore}
                             </span>
                           ) : (
@@ -572,14 +573,14 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
             {/* Day nav header */}
             <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b">
-              <button onClick={goPrev} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
+              <button onClick={goPrev} className="p-1.5 rounded-lg hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
               <h3 className="font-semibold text-gray-800 flex-1 text-center">{dayLabel}</h3>
-              <button onClick={goNext} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
+              <button onClick={goNext} className="p-1.5 rounded-lg hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
               {selectedDay !== todayStr && (
-                <button onClick={() => setSelectedDay(todayStr)} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
+                <button onClick={() => setSelectedDay(todayStr)} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded-lg px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
               )}
               {!readOnly && (
-                <button onClick={() => openAdd(selectedDay)} className="text-xs bg-[var(--fd-primary)] text-white rounded px-2 py-1 hover:bg-[var(--fd-primary-dark)] transition">+ Add</button>
+                <button onClick={() => openAdd(selectedDay)} className="text-xs bg-[var(--fd-primary)] text-white rounded-lg px-2 py-1 hover:bg-[var(--fd-primary-dark)] transition">+ Add</button>
               )}
             </div>
 
@@ -632,7 +633,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                       <div
                         key={ev.id}
                         onClick={() => openEdit(ev)}
-                        className={`absolute rounded border cursor-pointer hover:opacity-90 transition overflow-hidden shadow-sm ${
+                        className={`absolute rounded-lg border cursor-pointer hover:opacity-90 transition overflow-hidden shadow-sm ${
                           isSpecial ? 'bg-amber-50 border-amber-300' : `${c!.bg} ${c!.border}`
                         }`}
                         style={{ top, height, width, left }}
@@ -679,10 +680,10 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2 text-xs">
-        {state.divisions.map(d => { const c = getDivisionColor(d.id, state.divisions); return <span key={d.id} className={`px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>{d.name} {sc.eventSingular.toLowerCase()}</span> })}
-        <span className="px-2 py-0.5 rounded border bg-gray-100 text-gray-600 border-gray-200">Practice</span>
-        <span className="px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-300">Special Event</span>
-        <span className="px-2 py-0.5 rounded border bg-red-50 text-red-400 border-red-200">Blackout date</span>
+        {state.divisions.map(d => { const c = getDivisionColor(d.id, state.divisions); return <span key={d.id} className={`px-2 py-0.5 rounded-lg border ${c.bg} ${c.text} ${c.border}`}>{d.name} {sc.eventSingular.toLowerCase()}</span> })}
+        <span className="px-2 py-0.5 rounded-lg border bg-gray-100 text-gray-600 border-gray-200">Practice</span>
+        <span className="px-2 py-0.5 rounded-lg border bg-amber-50 text-amber-700 border-amber-300">Special Event</span>
+        <span className="px-2 py-0.5 rounded-lg border bg-red-50 text-red-400 border-red-200">Blackout date</span>
       </div>
 
       {modal.open && (
@@ -711,7 +712,9 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           >
             <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-sm w-72">
               <div className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isSpecial ? 'text-amber-600' : c!.text}`}>
-                {isSpecial ? '⭐ Special Event' : `${div?.name ?? ''} ${isGame ? sc.eventSingular : 'Practice'}`}
+                {isSpecial
+                  ? <span className="flex items-center gap-1"><Icon name="star" className="w-3.5 h-3.5" />Special Event</span>
+                  : `${div?.name ?? ''} ${isGame ? sc.eventSingular : 'Practice'}`}
               </div>
               {isSpecial ? (
                 <div className="space-y-1">
@@ -738,17 +741,17 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-gray-500 flex-shrink-0">Home</span>
                       <span className={`font-medium truncate ${homeWon ? 'text-green-700' : 'text-gray-800'}`}>{homeName}</span>
-                      {homeWon && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex-shrink-0">WIN</span>}
+                      {homeWon && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-lg flex-shrink-0">WIN</span>}
                     </div>
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-gray-500 flex-shrink-0">Away</span>
                       <span className={`font-medium truncate ${awayWon ? 'text-green-700' : 'text-gray-800'}`}>{awayName}</span>
-                      {awayWon && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded flex-shrink-0">WIN</span>}
+                      {awayWon && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-lg flex-shrink-0">WIN</span>}
                     </div>
                     {r !== undefined && (
                       <div className="flex justify-between items-center pt-1 border-t border-gray-100 mt-1">
                         <span className="text-gray-500">{tied ? 'Final (Tie)' : 'Final'}</span>
-                        <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs tracking-wide">
+                        <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-lg text-xs tracking-wide">
                           {r.homeScore}–{r.awayScore}
                         </span>
                       </div>
@@ -816,7 +819,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                       const emailCount = team.coaches?.filter(c => c.email).length ?? 0
                       const checked = notifyTeamIds.has(team.id)
                       return (
-                        <label key={team.id} className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                        <label key={team.id} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={checked}

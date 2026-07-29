@@ -155,10 +155,10 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
 
               {/* Month nav */}
               <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b">
-                <button onClick={prevMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
+                <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-200 transition text-gray-600 text-lg leading-none">‹</button>
                 <h3 className="font-semibold text-gray-800 flex-1 text-center">{MONTHS[month]} {year}</h3>
-                <button onClick={nextMonth} className="p-1.5 rounded hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
-                <button onClick={goToday} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
+                <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-200 transition text-gray-600 text-lg leading-none">›</button>
+                <button onClick={goToday} className="text-xs text-[var(--fd-primary)] hover:text-[var(--fd-primary-dark)] border border-[var(--fd-primary)] rounded-lg px-2 py-1 hover:bg-[#f5f5fb] transition">Today</button>
               </div>
 
               {/* Day-of-week headers */}
@@ -244,7 +244,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                                 <button
                                   key={ev.id}
                                   onClick={() => openEdit(ev)}
-                                  className={`w-full text-left ${textSize} ${pad} rounded truncate border transition hover:opacity-75 ${
+                                  className={`w-full text-left ${textSize} ${pad} rounded-lg truncate border transition hover:opacity-75 ${
                                     isPractice ? 'bg-gray-100 text-gray-600 border-gray-200' : `${c.bg} ${c.text} ${c.border}`
                                   }`}
                                   title={`${fmtTime(ev.time)}–${fmtTime(minsToTime(endMins))} — ${label}`}

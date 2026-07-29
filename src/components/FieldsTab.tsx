@@ -58,21 +58,21 @@ export default function FieldsTab({ state, setState }: Props) {
         <h3 className="font-medium text-gray-700 mb-3">Add {sc.venueSingular}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <input
-            className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
             placeholder={`${sc.venueSingular} name *`}
             value={newField.name}
             onChange={e => setNewField(f => ({ ...f, name: e.target.value }))}
             onKeyDown={e => e.key === 'Enter' && addField()}
           />
           <input
-            className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
             placeholder="Location name (e.g. Eisenhower Park)"
             value={newField.location}
             onChange={e => setNewField(f => ({ ...f, location: e.target.value }))}
             onKeyDown={e => e.key === 'Enter' && addField()}
           />
           <input
-            className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+            className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
             placeholder="Street address (for directions)"
             value={newField.address}
             onChange={e => setNewField(f => ({ ...f, address: e.target.value }))}
@@ -81,7 +81,7 @@ export default function FieldsTab({ state, setState }: Props) {
         </div>
         <button
           onClick={addField}
-          className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary-dark)] transition"
+          className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded-lg text-sm hover:bg-[var(--fd-primary-dark)] transition"
         >Add {sc.venueSingular}</button>
       </div>
 
@@ -97,14 +97,14 @@ export default function FieldsTab({ state, setState }: Props) {
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {/* Field name */}
                 <input
-                  className="border rounded px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+                  className="border rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
                   placeholder={`${sc.venueSingular} name`}
                   value={field.name}
                   onChange={e => updateField(field.id, { name: e.target.value })}
                 />
                 {/* Location name */}
                 <input
-                  className="border rounded px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+                  className="border rounded-lg px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
                   placeholder="Location name (optional)"
                   value={field.location}
                   onChange={e => updateField(field.id, { location: e.target.value })}
@@ -112,7 +112,7 @@ export default function FieldsTab({ state, setState }: Props) {
                 {/* Address + map button */}
                 <div className="flex gap-1.5">
                   <input
-                    className="flex-1 min-w-0 border rounded px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+                    className="flex-1 min-w-0 border rounded-lg px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
                     placeholder="Street address (for map)"
                     value={field.address}
                     onChange={e => updateField(field.id, { address: e.target.value })}
@@ -123,7 +123,7 @@ export default function FieldsTab({ state, setState }: Props) {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Get directions in Google Maps"
-                      className="flex-shrink-0 flex items-center gap-1 border border-blue-200 rounded px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition"
+                      className="flex-shrink-0 flex items-center gap-1 border border-blue-200 rounded-lg px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition"
                     >
                       <MapPinIcon />
                       <span className="hidden sm:inline">Map</span>

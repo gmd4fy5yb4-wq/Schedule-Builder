@@ -153,7 +153,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-bold text-gray-900">{selectedTeam?.name}</h2>
                   {selectedDiv && (
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${getDivisionColor(selectedDiv.id, state.divisions).pill}`}>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${getDivisionColor(selectedDiv.id, state.divisions).pill}`}>
                       {selectedDiv.name}
                     </span>
                   )}
@@ -230,11 +230,11 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                             <td className="px-4 py-2.5 font-medium text-gray-800 whitespace-nowrap">{fmtDate(g.date)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap">{fmtTime(g.time)}</td>
                             <td className="px-4 py-2.5">
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#eeeef6] text-[var(--fd-primary)]">{sc.eventSingular}</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-[#eeeef6] text-[var(--fd-primary)]">{sc.eventSingular}</span>
                             </td>
                             <td className="px-4 py-2.5 font-medium text-gray-800">{opp?.name ?? <span className="text-gray-400 italic">Unknown</span>}</td>
                             <td className="px-4 py-2.5">
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded ${isHome ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${isHome ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
                                 {isHome ? 'Home' : 'Away'}
                               </span>
                             </td>
@@ -245,7 +245,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                                 const won  = myScore > oppScore
                                 const lost = myScore < oppScore
                                 return (
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-lg whitespace-nowrap ${
                                     won  ? 'bg-green-100 text-green-700' :
                                     lost ? 'bg-red-100 text-red-600'    :
                                            'bg-gray-100 text-gray-600'
@@ -283,7 +283,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                             <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">{fmtDate(p.date)}</td>
                             <td className="px-4 py-2.5 whitespace-nowrap">{fmtTime(p.time)}</td>
                             <td className="px-4 py-2.5">
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">Practice</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-gray-100 text-gray-600">Practice</span>
                             </td>
                             <td className="px-4 py-2.5 text-gray-400 italic">—</td>
                             <td className="px-4 py-2.5 text-gray-400">—</td>

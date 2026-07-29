@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { AppState } from '@/lib/types'
 import { SPORTS, getSportConfig, getSports } from '@/lib/sports'
 import { THEMES } from '@/lib/themes'
-import { minPaidTierForSports, type PlanLimits } from '@/lib/plans'
+import { minPaidTierForSports, getPlan, type PlanLimits, type PlanTier } from '@/lib/plans'
 import type { ImportResult } from '@/lib/importCSV'
 import ImportModal from './ImportModal'
 import UpgradePrompt from './UpgradePrompt'
@@ -113,7 +113,14 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
               )
             })}
           </div>
-          {atSportsLimit && <UpgradePrompt limitType="sports" planName={neededPlan.name} />}
+          {atSportsLimit && (
+            <UpgradePrompt
+              limitType="sports"
+              planName={getPlan((planLimits?.planTier ?? 'trial') as PlanTier).name}
+              planTier={planLimits?.planTier ?? 'trial'}
+              neededPlanName={neededPlan.name}
+            />
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Theme</label>
@@ -141,7 +148,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
           <input
-            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
             value={season.leagueName}
             onChange={e => update('leagueName', e.target.value)}
           />
@@ -152,7 +159,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Season Start</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.startDate}
               onChange={e => update('startDate', e.target.value)}
             />
@@ -161,7 +168,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Season End</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.endDate}
               onChange={e => update('endDate', e.target.value)}
             />
@@ -173,7 +180,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Game Duration (min)</label>
             <input
               type="number" min={30} max={240} step={15}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.gameDurationMinutes}
               onChange={e => update('gameDurationMinutes', Number(e.target.value))}
             />
@@ -182,7 +189,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Practice Duration (min)</label>
             <input
               type="number" min={30} max={240} step={15}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={season.practiceDurationMinutes}
               onChange={e => update('practiceDurationMinutes', Number(e.target.value))}
             />
@@ -203,7 +210,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
             <label className="block text-xs text-gray-500 mb-1">Date</label>
             <input
               type="date"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={newBlackout}
               onChange={e => setNewBlackout(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addBlackout()}
@@ -212,7 +219,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
           <div className="flex-1 min-w-[140px]">
             <label className="block text-xs text-gray-500 mb-1">Label (optional)</label>
             <input
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="e.g. Memorial Day"
               value={blackoutLabel}
               onChange={e => setBlackoutLabel(e.target.value)}
@@ -222,7 +229,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
           <button
             onClick={addBlackout}
             disabled={!newBlackout}
-            className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-accent-hover)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded-lg text-sm hover:bg-[var(--fd-accent-hover)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Add
           </button>
@@ -237,7 +244,7 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
               // Labels stored as "date::label" or just "date"
               const [d, label] = date.includes('::') ? date.split('::') : [date, '']
               return (
-                <div key={date} className="flex items-center justify-between bg-red-50 border border-red-100 rounded px-3 py-2">
+                <div key={date} className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-red-800">{fmtDate(d)}</span>
                     {label && <span className="text-xs text-red-500">{label}</span>}

@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import type { AppState } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
+import Icon from './Icon'
 
 interface Props { state: AppState; readOnly?: boolean }
 
@@ -90,7 +91,7 @@ export default function CoachesTab({ state }: Props) {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-gray-800">Coaches</h2>
         <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">👥</p>
+          <Icon name="users" className="w-10 h-10 mx-auto mb-3" />
           <p className="font-medium">No coaches added yet</p>
           <p className="text-sm mt-1">Go to <strong>Divisions &amp; Teams</strong> and expand a team to add coaches.</p>
         </div>
@@ -115,7 +116,7 @@ export default function CoachesTab({ state }: Props) {
             <button
               key={s}
               onClick={() => setSortBy(s)}
-              className={`px-3 py-1 rounded border text-xs font-medium transition ${sortBy === s ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]' : 'text-gray-500 border-gray-200 hover:border-gray-400'}`}
+              className={`px-3 py-1 rounded-lg border text-xs font-medium transition ${sortBy === s ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]' : 'text-gray-500 border-gray-200 hover:border-gray-400'}`}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -196,7 +197,7 @@ export default function CoachesTab({ state }: Props) {
                           return (
                             <div key={idx} className="flex items-center gap-2 flex-wrap">
                               {coach.assignments.length > 1 && roleBadge(a.role)}
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg border ${c.bg} ${c.text} ${c.border}`}>
                                 {a.divisionName}
                               </span>
                               <span className="text-sm text-gray-700">{a.teamName}</span>

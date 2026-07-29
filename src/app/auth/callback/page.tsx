@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
+import Icon from '@/components/Icon'
 
 /**
  * Client-side auth callback — handles Supabase implicit flow.
@@ -64,7 +65,7 @@ export default function AuthCallbackPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-sm text-center">
-          <div className="text-4xl mb-4">⚠️</div>
+          <Icon name="alert" className="w-10 h-10 mx-auto mb-4 text-amber-500" />
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Sign-in failed</h2>
           <p className="text-gray-500 text-sm mb-6">{errorMsg}</p>
           <a

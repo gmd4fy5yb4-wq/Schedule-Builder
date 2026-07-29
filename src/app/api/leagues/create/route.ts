@@ -2,7 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
-import { checkLimits } from '@/lib/plans'
+import { checkLimits, isWritable } from '@/lib/plans'
 import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
 
@@ -33,9 +33,19 @@ export async function POST(req: NextRequest) {
   // Check subscription limits
   const { data: sub } = await serviceSupabase
     .from('user_subscriptions')
-    .select('sports_limit, divisions_limit, teams_limit')
+    .select('sports_limit, divisions_limit, teams_limit, subscription_status, subscription_end')
     .eq('user_id', session.user.id)
     .single()
+
+  // Expiry gate — see the same block in /api/leagues/save. Middleware no longer
+  // redirects lapsed users to /pricing (they get a read-only app instead), so the
+  // write gate has to live in the write routes.
+  if (!isWritable(sub)) {
+    return NextResponse.json(
+      { error: 'Your plan has expired. Renew to create a new league.', expired: true },
+      { status: 403 }
+    )
+  }
 
   const limits = sub ?? { sports_limit: 1, divisions_limit: 1, teams_limit: 8 }
 

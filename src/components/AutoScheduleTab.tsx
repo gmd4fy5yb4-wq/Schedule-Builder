@@ -396,7 +396,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                               <button
                                 key={i}
                                 onClick={() => toggleDivisionDay(div.id, i)}
-                                className={`text-xs px-2 py-1 rounded border font-medium transition ${
+                                className={`text-xs px-2 py-1 rounded-lg border font-medium transition ${
                                   checked
                                     ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]'
                                     : 'bg-white text-gray-500 border-gray-300 hover:border-[var(--fd-primary)] hover:text-[var(--fd-primary)]'
@@ -415,7 +415,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">Start time:</span>
                           <select
-                            className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+                            className="border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
                             value={div.preferredStartTime ?? ''}
                             onChange={e => setDivisionStartTime(div.id, e.target.value)}
                           >
@@ -432,14 +432,14 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                         <div className="mt-4 space-y-2">
                           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team Preferences</p>
                           {div.teams.map(team => (
-                            <div key={team.id} className="bg-white rounded border px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <div key={team.id} className="bg-white rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2">
                               <span className="text-sm font-medium text-gray-700 min-w-[100px]">{team.name}</span>
 
                               {/* Home field */}
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs text-gray-500">Home field:</span>
                                 <select
-                                  className="border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)]"
+                                  className="border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)]"
                                   value={team.homeFieldId ?? ''}
                                   onChange={e => setTeamHomeField(div.id, team.id, e.target.value)}
                                 >
@@ -459,7 +459,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                                     <button
                                       key={i}
                                       onClick={() => toggleTeamPreferredDay(div.id, team.id, i)}
-                                      className={`text-xs px-1.5 py-0.5 rounded border transition ${
+                                      className={`text-xs px-1.5 py-0.5 rounded-lg border transition ${
                                         checked
                                           ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]'
                                           : 'bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-400'
@@ -529,12 +529,12 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                       <div className="flex gap-2 flex-wrap items-end">
                         <input
                           type="date"
-                          className="border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                          className="border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
                           value={fieldBlackoutDate[field.id] ?? ''}
                           onChange={e => setFieldBlackoutDate(v => ({ ...v, [field.id]: e.target.value }))}
                         />
                         <input
-                          className="flex-1 min-w-[100px] border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                          className="flex-1 min-w-[100px] border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
                           placeholder="Reason (optional)"
                           value={fieldBlackoutLabel[field.id] ?? ''}
                           onChange={e => setFieldBlackoutLabel(v => ({ ...v, [field.id]: e.target.value }))}
@@ -543,7 +543,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                         <button
                           onClick={() => addFieldBlackout(field.id)}
                           disabled={!fieldBlackoutDate[field.id]}
-                          className="text-xs bg-orange-500 text-white px-3 py-1.5 rounded hover:bg-orange-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="text-xs bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           Add Blackout
                         </button>
@@ -647,14 +647,14 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                   <button
                     onClick={() => setConflictIndex(i => Math.max(0, i - 1))}
                     disabled={conflictIndex === 0}
-                    className="px-2 py-1 rounded border text-xs disabled:opacity-30 hover:bg-gray-50 transition"
+                    className="px-2 py-1 rounded-lg border text-xs disabled:opacity-30 hover:bg-gray-50 transition"
                   >
                     ‹ Prev
                   </button>
                   <button
                     onClick={() => setConflictIndex(i => Math.min(pendingConflicts.length - 1, i + 1))}
                     disabled={conflictIndex >= pendingConflicts.length - 1}
-                    className="px-2 py-1 rounded border text-xs disabled:opacity-30 hover:bg-gray-50 transition"
+                    className="px-2 py-1 rounded-lg border text-xs disabled:opacity-30 hover:bg-gray-50 transition"
                   >
                     Next ›
                   </button>
@@ -847,7 +847,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                           <td className="px-4 py-2 text-gray-600">{getTeamName(g.awayTeamId)}</td>
                           <td className="px-4 py-2 text-gray-600">{fieldMap.get(g.fieldId)?.name ?? '—'}</td>
                           <td className="px-4 py-2">
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${c.pill}`}>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-lg font-medium ${c.pill}`}>
                               {divisionMap.get(g.divisionId)?.name ?? g.divisionId}
                             </span>
                           </td>
