@@ -7,18 +7,21 @@ import { minPaidTierForSports, getPlan, type PlanLimits, type PlanTier } from '@
 import type { ImportResult } from '@/lib/importCSV'
 import ImportModal from './ImportModal'
 import UpgradePrompt from './UpgradePrompt'
+import PlanPanel from './PlanPanel'
+import type { PlanPanelSubscription } from '@/lib/planUsage'
 
 interface Props {
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
   planLimits?: Pick<PlanLimits, 'sportsLimit'> & { planTier?: string }
+  sub?: PlanPanelSubscription
 }
 
 function fmtDate(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function SetupTab({ state, setState, planLimits }: Props) {
+export default function SetupTab({ state, setState, planLimits, sub }: Props) {
   const { season } = state
   const selectedSports = getSports(season)
   const sportsLimit = planLimits?.sportsLimit ?? 3
@@ -70,6 +73,9 @@ export default function SetupTab({ state, setState, planLimits }: Props) {
 
   return (
     <div className="max-w-xl space-y-6">
+      {/* Usage against the plan, where the limits are actually being spent. */}
+      {sub && <PlanPanel state={state} sub={sub} />}
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-800">League Setup</h2>
         <button
