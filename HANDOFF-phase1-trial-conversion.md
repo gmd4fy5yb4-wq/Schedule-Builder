@@ -68,11 +68,29 @@ Verified against the live Sports DB on 2026-07-29.
 
 ---
 
+## Signup / auth — fixed 2026-07-29, don't undo it
+
+**"Confirm email" is OFF in Supabase (Authentication → Providers → Email). Leave it off.**
+
+With it on, a brand-new address got Supabase's *Confirm signup* template rather than *Magic Link*. That template has a link but **no 8-digit code** — while the app's "Check your email" screen promises a code and autofocuses the code field. Clicking the link confirmed the address without creating a session, so the user landed back at `/login`, entered their email again, and only then (now an existing user) got the real magic-link email with the code. Two emails; it read as broken on the first try.
+
+Off, a new signup gets one email with link + code and is in ~13 seconds. Verified on `greg+test8`: `confirmation_sent_at` NULL, `email_confirmed_at` == `created_at`, no second email. **No app code was changed** — `signInWithOtp`, `/auth/callback` and the copy were all correct; they described an email new users weren't receiving.
+
+This has regressed once (config changed mid-day 2026-07-28). To check: a non-null `confirmation_sent_at` on a recent `auth.users` row means confirmation is back on.
+
 ## Open items carried forward
 
-- **The authenticated surfaces from Phase 0 were never visually verified** — nav group labels, the expired banner, the tier-aware upgrade copy. I had no way to log in. The trial bar lands in the same header region, so verify all of it in one pass.
+- ~~Nav group labels unverified~~ **Verified 2026-07-29 by screenshot** — OVERVIEW / OPERATE / SETUP render with the divider, emoji→SVG is clean, radius and type sweeps look right.
+- ~~Signup path unverified~~ **Half verified.** `fd_014` confirmed working: `test6`, `test7`, `test8` all landed with `trial_started_at` and `subscription_end` NULL and 3/10/100 limits. **Still unverified: the clock actually starting.** Generate a schedule on `greg+test8` and confirm `subscription_end` becomes now+14d.
+- **The expired banner and tier-aware upgrade copy are still unverified** — no lapsed account owns a league to view them with. The trial bar lands in the same header region, so verify them in the same pass.
 - **Locked-edit toast was deliberately skipped.** The persistent amber banner plus disabled inputs seemed sufficient; add it if a lapsed user finds the read-only state confusing.
-- **Signup path is unverified end to end.** `fd_014` is applied and the trigger confirmed enabled, but nobody has signed up since. Worth a throwaway account: confirm the row lands with `subscription_end = NULL`, then generate a schedule and confirm the 14 days get stamped.
+
+## Two UI observations from the post-Phase-0 screenshots
+
+Neither is a Phase 0 defect; both are worth a decision during Phase 1 since they sit in the header region the trial bar lands in.
+
+- **The active nav tab renders as a full rounded box, not the underline the code specifies.** `border-b-2` is a bottom border only, so that box is the browser focus ring — it competes with, and visually beats, the real active indicator.
+- **Auto-Schedule sits under the SETUP group.** Generating a schedule is an operating action. The grouping predates Phase 0, but now that the labels are rendered the mismatch is legible in a way it wasn't before.
 
 ## Testing
 

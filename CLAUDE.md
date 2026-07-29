@@ -32,6 +32,12 @@ RESEND_FROM_EMAIL=     # must be @alfred-digital.com (only verified Resend domai
 ## Auth
 Magic link via Supabase. **Must use `flowType: 'implicit'`** (not PKCE) — implicit flow is required so email links work when opened in a different browser than where the OTP was requested. This is intentional and must not be changed to PKCE.
 
+**"Confirm email" is OFF in Supabase (Authentication → Providers → Email) — deliberately. Do not turn it back on.** With it on, a brand-new address gets Supabase's *Confirm signup* template instead of *Magic Link*. That template carries a link but **no 8-digit code**, so the user lands on the "Check your email" screen — which promises a code and autofocuses the code field — with an email that doesn't contain one. Clicking the link confirmed the address without creating a session, dropping them back at `/login` to enter their email a second time. Only then, as an existing user, did they get the real magic-link email with the code. Two emails, and it read as broken on the first attempt.
+
+With confirmation off, a new signup gets one magic-link email containing both link and code, and is signed in ~13 seconds after submitting (verified `greg+test8`, 2026-07-29: `confirmation_sent_at` NULL, `email_confirmed_at` == `created_at`, no second email). No security is lost — this app is passwordless, so the user must still open the mailbox to get in; confirmation was a second proof of the same thing.
+
+This regressed once already (auth config changed mid-day 2026-07-28; `test1`/`test4` signed up in one step before it, `test5`–`test7` needed two after). To check whether it has regressed again: `select email, confirmation_sent_at, recovery_sent_at, last_sign_in_at from auth.users order by created_at desc limit 3` — a non-null `confirmation_sent_at` on a recent signup means it is back on.
+
 ## Email (two separate Resend paths)
 - **Magic links:** sent by Supabase Auth via custom SMTP → Resend, from an `@alfred-digital.com` sender. Configured in the Supabase dashboard, NOT via app env vars.
 - **Coach notifications (`notify-coaches`):** app uses the Resend SDK with `RESEND_API_KEY` + `RESEND_FROM_EMAIL` from env. From-domain must be Resend-verified (`alfred-digital.com` only — free tier = 1 domain).
