@@ -3,16 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
 import { isWritable } from '@/lib/plans'
-import { trialBanner } from '@/lib/trial'
+import { trialBanner, isUnnamedLeague, DEFAULT_LEAGUE_NAME } from '@/lib/trial'
 import type { PlanPanelSubscription } from '@/lib/planUsage'
-
-interface SubscriptionRow extends PlanPanelSubscription {
-  plan_tier: string
-  subscription_status: string | null
-  sports_limit: number
-  divisions_limit: number
-  teams_limit: number
-}
 import { getTheme, buildThemeVars } from '@/lib/themes'
 import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
 import { getSupabase } from '@/lib/supabase'
@@ -33,8 +25,16 @@ import LeagueGate from '@/components/LeagueGate'
 import TrialBar from '@/components/TrialBar'
 import Icon from '@/components/Icon'
 
+interface SubscriptionRow extends PlanPanelSubscription {
+  plan_tier: string
+  subscription_status: string | null
+  sports_limit: number
+  divisions_limit: number
+  teams_limit: number
+}
+
 const DEFAULT: AppState = {
-  season: { leagueName: 'My League', sport: 'softball', startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
+  season: { leagueName: DEFAULT_LEAGUE_NAME, sport: 'softball', startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
   divisions: [],
   blackoutDates: [],
   fields: [],
@@ -537,7 +537,19 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50" style={themeStyle}>
       <header className="bg-[var(--fd-primary)] text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <h1 className="text-xl font-bold">{state.season.leagueName || 'FieldDay Planner'}</h1>
+          {/* A league still on the placeholder name gets the title as a prompt.
+              LeagueGate only started asking for a name recently, so most existing
+              leagues are called "My League" and their admins never saw the field. */}
+          {isUnnamedLeague(state.season) && !readOnly ? (
+            <button
+              onClick={() => setTab(1)}
+              className="text-xl font-bold text-white/90 border-b-2 border-dashed border-white/40 hover:text-white hover:border-white/70 transition"
+            >
+              Name your league →
+            </button>
+          ) : (
+            <h1 className="text-xl font-bold">{state.season.leagueName || 'FieldDay Planner'}</h1>
+          )}
 
           <div className="flex items-center gap-3 flex-wrap">
             {/* Read-only badge */}
