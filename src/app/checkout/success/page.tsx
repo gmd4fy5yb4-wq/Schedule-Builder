@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
+import Icon from '@/components/Icon'
 
 // Stripe redirects here after checkout. The webhook that writes user_subscriptions
 // races the browser redirect, so we poll the row until it's active, then forward
@@ -40,10 +41,10 @@ export default function CheckoutSuccessPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+      <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
         {!timedOut ? (
           <>
-            <div className="text-4xl mb-3">🎉</div>
+            <Icon name="check" className="w-10 h-10 mx-auto mb-3 text-green-600" />
             <h1 className="text-lg font-semibold text-gray-900 mb-1">Payment received</h1>
             <p className="text-gray-500 text-sm">Setting up your subscription…</p>
           </>

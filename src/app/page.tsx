@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
+import { isWritable } from '@/lib/plans'
 import { getTheme, buildThemeVars } from '@/lib/themes'
 import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
 import { getSupabase } from '@/lib/supabase'
@@ -19,6 +20,7 @@ import StandingsTab from '@/components/StandingsTab'
 import CoachesTab from '@/components/CoachesTab'
 import DashboardTab from '@/components/DashboardTab'
 import LeagueGate from '@/components/LeagueGate'
+import Icon from '@/components/Icon'
 
 const DEFAULT: AppState = {
   season: { leagueName: 'My League', sport: 'softball', startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
@@ -96,6 +98,9 @@ export default function Home() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [codeCopied, setCodeCopied] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
+  // Lapsed plan. Distinct from readOnly-by-share-link: an expired OWNER still sees
+  // their league code, setup tabs and share controls — they have just lost editing.
+  const [expired, setExpired] = useState(false)
   const [viewTokenError, setViewTokenError] = useState(false)
   const [roLinkCopied, setRoLinkCopied] = useState(false)
   const [showSnapshots, setShowSnapshots] = useState(false)
@@ -229,10 +234,14 @@ export default function Home() {
       if (session?.user) {
         const { data: sub } = await sb
           .from('user_subscriptions')
-          .select('sports_limit, divisions_limit, teams_limit, plan_tier')
+          .select('sports_limit, divisions_limit, teams_limit, plan_tier, subscription_status, subscription_end')
           .eq('user_id', session.user.id)
           .single()
         if (sub) setPlanLimits({ sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
+        // Lapsed plan → read-only app instead of the old /pricing lockout. The server
+        // enforces the same rule (isWritable in the save/create routes); this only
+        // stops the UI from offering edits it knows will be rejected.
+        if (sub && !isWritable(sub)) { setExpired(true); setReadOnly(true) }
       }
     })
     const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
@@ -456,7 +465,17 @@ export default function Home() {
 
   const sc = getSportConfig(state.season.sport)
   const TABS = ['Dashboard', 'Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches']
+  // Visual nav clusters (indices into TABS): overview → day-to-day operation → one-time setup.
+  // Content switch/onNavigate() below still key off these same TABS indices unchanged.
+  const NAV_GROUPS = [
+    { label: 'Overview', indices: [0] },
+    { label: 'Operate', indices: [5, 6, 7, 9, 10] },
+    { label: 'Setup', indices: [1, 2, 3, 4, 8] },
+  ]
   const themeStyle = buildThemeVars(getTheme(state.season.theme))
+  // A share-link viewer, as opposed to an owner whose plan lapsed. Only the former
+  // should lose the admin chrome (league code, share link, setup tabs).
+  const isViewer = readOnly && !expired
 
   if (!hydrated) {
     return (
@@ -469,11 +488,11 @@ export default function Home() {
   if (viewTokenError) {
     return (
       <div className="min-h-screen bg-[var(--fd-primary)] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center space-y-4">
-          <p className="text-2xl">🔗</p>
+        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center space-y-4">
+          <Icon name="link" className="w-8 h-8 mx-auto text-gray-400" />
           <h2 className="text-lg font-semibold text-gray-800">Link not found</h2>
           <p className="text-sm text-gray-500">This view-only link is no longer valid. Ask the league admin to share a new link.</p>
-          <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-accent)] underline hover:text-[var(--fd-primary)]">Go to FieldDay Planner</a>
+          <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-primary)] underline hover:text-[var(--fd-primary-dark)]">Go to FieldDay Planner</a>
         </div>
       </div>
     )
@@ -497,12 +516,12 @@ export default function Home() {
             {/* Read-only badge */}
             {readOnly && (
               <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">
-                View Only
+                {expired ? 'Read Only' : 'View Only'}
               </span>
             )}
 
             {/* League code badge — hidden from read-only viewers */}
-            {!readOnly && (
+            {!isViewer && (
               <div className="flex items-center gap-2 bg-[var(--fd-primary)] rounded-lg px-3 py-1.5">
                 <span className="text-[var(--fd-primary-muted)] text-xs font-medium">LEAGUE</span>
                 <span className="font-mono font-bold tracking-widest">{leagueCode}</span>
@@ -525,7 +544,7 @@ export default function Home() {
             )}
 
             {/* Snapshots button */}
-            {!readOnly && (
+            {!isViewer && (
               <button
                 onClick={() => setShowSnapshots(true)}
                 className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
@@ -536,10 +555,10 @@ export default function Home() {
             )}
 
             {/* Share read-only link (admins only) */}
-            {!readOnly && (
+            {!isViewer && (
               <button
                 onClick={copyReadOnlyLink}
-                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-accent)] rounded-lg px-3 py-1.5 transition"
+                className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
                 title="Copy a view-only link for coaches/parents"
               >
                 {roLinkCopied ? 'Copied!' : 'Share View-Only Link'}
@@ -547,7 +566,7 @@ export default function Home() {
             )}
 
             {/* Prospect Card cross-app link */}
-            {!readOnly && (
+            {!isViewer && (
               <a
                 href="https://www.getprospectcard.com"
                 target="_blank"
@@ -575,7 +594,7 @@ export default function Home() {
                 {user && (
                   <a
                     href="/account"
-                    className="text-[var(--fd-primary-light)] hover:text-white transition text-xs border border-[var(--fd-primary-muted)] rounded px-2 py-0.5"
+                    className="text-[var(--fd-primary-light)] hover:text-white transition text-xs border border-[var(--fd-primary-muted)] rounded-lg px-2 py-0.5"
                     title="Account & billing"
                   >
                     Account
@@ -584,7 +603,7 @@ export default function Home() {
                 {user ? (
                   <button
                     onClick={handleSignOut}
-                    className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] rounded px-2 py-0.5"
+                    className="text-[var(--fd-primary-light)] hover:text-white transition text-xs border border-[var(--fd-primary-muted)] rounded-lg px-2 py-0.5"
                     title="Sign out"
                   >
                     Sign Out
@@ -592,7 +611,7 @@ export default function Home() {
                 ) : (
                   <button
                     onClick={handleLeave}
-                    className="text-[var(--fd-accent)] hover:text-white transition text-xs border border-[var(--fd-accent)] hover:border-[var(--fd-accent)] rounded px-2 py-0.5"
+                    className="text-[var(--fd-primary-light)] hover:text-white transition text-xs border border-[var(--fd-primary-muted)] rounded-lg px-2 py-0.5"
                     title="Leave this league"
                   >
                     Leave
@@ -619,7 +638,7 @@ export default function Home() {
         <div className="bg-amber-50 border-b border-amber-200">
           <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2 text-sm text-amber-800">
-              <span className="text-base">🔄</span>
+              <Icon name="refresh" className="w-4 h-4 shrink-0" />
               <span>
                 <strong>{pendingRemote.updatedBy}</strong> updated this schedule.
                 {pendingRemote.updatedAt && (
@@ -645,25 +664,58 @@ export default function Home() {
         </div>
       )}
 
-      {/* Tab nav — hide setup/admin tabs in read-only mode */}
+      {/* Expired plan — the app stays fully readable, editing is what stops.
+          Coaches keep their view-only link working, which is the whole point:
+          locking the admin out of a live schedule is what kills the renewal. */}
+      {expired && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+            <p className="text-sm text-amber-900">
+              <span className="font-semibold">Your plan has expired.</span>{' '}
+              Your league, schedule and share links all still work — you just can&apos;t make changes until you renew.
+            </p>
+            <a
+              href="/pricing"
+              className="shrink-0 text-xs font-semibold bg-amber-900 text-white rounded-lg px-3 py-2 hover:bg-amber-800 transition"
+            >
+              Renew plan →
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Tab nav — hide setup/admin tabs in read-only mode.
+          Grouped into Overview / Operate / Setup so the 11 tabs read as clusters
+          instead of one flat row; indices stay the ones the switch below and
+          onNavigate() calls expect, only the visual order changes. */}
       <div className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
-            {TABS.map((label, i) => {
-              // Hide admin-only tabs from view-only viewers:
-              // 1–4 = Setup, Divisions & Teams, Fields, Umpires/Staff
-              // 8   = Auto-Schedule
-              if (readOnly && (i >= 1 && i <= 4 || i === 8)) return null
+            {NAV_GROUPS.map((group, gi) => {
+              const visible = group.indices.filter(i => !(isViewer && (i >= 1 && i <= 4 || i === 8)))
+              if (visible.length === 0) return null
               return (
-                <button
-                  key={label}
-                  onClick={() => setTab(i)}
-                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    tab === i ? 'border-[var(--fd-accent)] text-[var(--fd-accent)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {label}
-                </button>
+                <div key={group.label} className="flex items-stretch">
+                  {gi > 0 && <span className="w-px my-2.5 bg-gray-200" />}
+                  <div className="flex flex-col">
+                    <span className="px-5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500 select-none whitespace-nowrap">
+                      {group.label}
+                    </span>
+                    <div className="flex items-stretch">
+                      {visible.map(i => (
+                        <button
+                          key={TABS[i]}
+                          onClick={() => setTab(i)}
+                          className={`px-5 pt-1 pb-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                            tab === i ? 'border-[var(--fd-primary)] text-[var(--fd-primary)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          {TABS[i]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               )
             })}
           </nav>

@@ -173,7 +173,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
           <div className="flex-1 min-w-[160px]">
             <label className="block text-xs text-gray-500 mb-1">Division Name</label>
             <input
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="e.g. 6U Minors, 10U Majors…"
               value={newDivName}
               onChange={e => setNewDivName(e.target.value)}
@@ -184,7 +184,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
             <label className="block text-xs text-gray-500 mb-1">Games / team</label>
             <input
               type="number" min={1} max={50}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               value={newDivGames}
               onChange={e => setNewDivGames(Number(e.target.value))}
             />
@@ -192,12 +192,12 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
           <button
             onClick={addDivision}
             disabled={!newDivName.trim() || divisionsAtLimit}
-            className="bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded-lg text-sm hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             + Add Division
           </button>
         </div>
-        {divisionsAtLimit && <UpgradePrompt limitType="divisions" planName={planName} />}
+        {divisionsAtLimit && <UpgradePrompt limitType="divisions" planName={planName} planTier={planLimits?.planTier} />}
       </div>
 
       {/* ── Division list ── */}
@@ -233,7 +233,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                   <span className={`${c.text} opacity-70`}>Games/team:</span>
                   <input
                     type="number" min={1} max={50}
-                    className={`w-14 border rounded px-1.5 py-0.5 text-center text-xs focus:outline-none focus:ring-1 focus:ring-current bg-white`}
+                    className={`w-14 border rounded-lg px-1.5 py-0.5 text-center text-xs focus:outline-none focus:ring-1 focus:ring-current bg-white`}
                     value={div.gamesPerTeam}
                     onChange={e => updateGames(div.id, Number(e.target.value))}
                   />
@@ -245,7 +245,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                     <span className="text-xs text-red-600 font-medium">
                       {scheduleCount > 0 ? `Delete + ${scheduleCount} scheduled events?` : 'Delete division?'}
                     </span>
-                    <button onClick={() => removeDivision(div.id)} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded hover:bg-red-600 transition">Yes</button>
+                    <button onClick={() => removeDivision(div.id)} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-lg hover:bg-red-600 transition">Yes</button>
                     <button onClick={() => setDeleteConfirm(null)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
                   </div>
                 ) : (
@@ -270,23 +270,23 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                     const isExpandedCoaches = expandedCoaches[team.id]
                     const nc = newCoach[team.id] ?? { name: '', phone: '', email: '' }
                     return (
-                      <div key={team.id} className="border rounded overflow-hidden">
+                      <div key={team.id} className="border rounded-lg overflow-hidden">
                         <div className="flex items-center gap-2 px-2 py-1">
                           <input
-                            className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)]"
+                            className="flex-1 border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)]"
                             value={team.name}
                             onChange={e => updateTeamName(div.id, team.id, e.target.value)}
                           />
                           <button
                             onClick={() => setExpandedCoaches(v => ({ ...v, [team.id]: !v[team.id] }))}
-                            className={`flex-shrink-0 text-xs px-2 py-1 rounded border transition ${coaches.length > 0 ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                            className={`flex-shrink-0 text-xs px-2 py-1 rounded-lg border transition ${coaches.length > 0 ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
                             title="Team coaches"
                           >
                             {coaches.length > 0 ? `${coaches.length} Coach${coaches.length !== 1 ? 'es' : ''}` : 'Coaches'}
                           </button>
                           <button
                             onClick={() => setExpandedBlackouts(v => ({ ...v, [team.id]: !v[team.id] }))}
-                            className={`flex-shrink-0 text-xs px-2 py-1 rounded border transition ${blackouts.length > 0 ? 'border-orange-300 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                            className={`flex-shrink-0 text-xs px-2 py-1 rounded-lg border transition ${blackouts.length > 0 ? 'border-orange-300 text-orange-600 bg-orange-50 hover:bg-orange-100' : 'border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
                             title="Team blackout dates"
                           >
                             {blackouts.length > 0 ? blackouts.length + ' Blackouts' : 'Blackouts'}
@@ -308,9 +308,9 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                             {coaches.length > 0 && (
                               <div className="space-y-1">
                                 {coaches.map(coach => (
-                                  <div key={coach.id} className="flex items-center gap-2 bg-white rounded border border-blue-100 px-2 py-1 flex-wrap">
+                                  <div key={coach.id} className="flex items-center gap-2 bg-white rounded-lg border border-blue-100 px-2 py-1 flex-wrap">
                                     <select
-                                      className="text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 text-blue-700 font-semibold flex-shrink-0"
+                                      className="text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-400 rounded-lg px-1 text-blue-700 font-semibold flex-shrink-0"
                                       value={coach.role ?? 'head'}
                                       onChange={e => updateCoach(div.id, team.id, coach.id, 'role', e.target.value)}
                                     >
@@ -318,19 +318,19 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                                       <option value="assistant">Asst. Coach</option>
                                     </select>
                                     <input
-                                      className="flex-1 min-w-[80px] text-sm bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 font-medium"
+                                      className="flex-1 min-w-[80px] text-sm bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded-lg px-1 font-medium"
                                       value={coach.name}
                                       onChange={e => updateCoach(div.id, team.id, coach.id, 'name', e.target.value)}
                                       placeholder="Name"
                                     />
                                     <input
-                                      className="w-28 text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 text-gray-500"
+                                      className="w-28 text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded-lg px-1 text-gray-500"
                                       value={coach.phone}
                                       onChange={e => updateCoach(div.id, team.id, coach.id, 'phone', e.target.value)}
                                       placeholder="Phone"
                                     />
                                     <input
-                                      className="w-32 text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 text-gray-500"
+                                      className="w-32 text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded-lg px-1 text-gray-500"
                                       value={coach.email}
                                       onChange={e => updateCoach(div.id, team.id, coach.id, 'email', e.target.value)}
                                       placeholder="Email"
@@ -343,7 +343,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                             {/* Add coach form */}
                             <div className="flex gap-2 flex-wrap items-center">
                               <select
-                                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white text-blue-700 font-semibold flex-shrink-0"
+                                className="border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white text-blue-700 font-semibold flex-shrink-0"
                                 value={nc.role ?? 'head'}
                                 onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, role: e.target.value as 'head' | 'assistant' } }))}
                               >
@@ -351,20 +351,20 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                                 <option value="assistant">Asst. Coach</option>
                               </select>
                               <input
-                                className="flex-1 min-w-[100px] border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                className="flex-1 min-w-[100px] border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                                 placeholder="Coach name *"
                                 value={nc.name}
                                 onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, name: e.target.value } }))}
                                 onKeyDown={e => e.key === 'Enter' && addCoach(div.id, team.id)}
                               />
                               <input
-                                className="w-28 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                className="w-28 border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                                 placeholder="Phone"
                                 value={nc.phone}
                                 onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, phone: e.target.value } }))}
                               />
                               <input
-                                className="w-32 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                className="w-32 border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                                 placeholder="Email"
                                 value={nc.email}
                                 onChange={e => setNewCoach(n => ({ ...n, [team.id]: { ...nc, email: e.target.value } }))}
@@ -372,7 +372,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                               <button
                                 onClick={() => addCoach(div.id, team.id)}
                                 disabled={!nc.name.trim()}
-                                className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="text-xs bg-blue-500 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
                               >Add</button>
                             </div>
                           </div>
@@ -399,12 +399,12 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                             <div className="flex gap-2 flex-wrap items-end">
                               <input
                                 type="date"
-                                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                className="border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
                                 value={newBlackoutDate[team.id] || ''}
                                 onChange={e => setNewBlackoutDate(v => ({ ...v, [team.id]: e.target.value }))}
                               />
                               <input
-                                className="flex-1 min-w-[100px] border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                                className="flex-1 min-w-[100px] border rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
                                 placeholder="Reason (optional)"
                                 value={newBlackoutLabel[team.id] || ''}
                                 onChange={e => setNewBlackoutLabel(v => ({ ...v, [team.id]: e.target.value }))}
@@ -413,7 +413,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                               <button
                                 onClick={() => addTeamBlackout(div.id, team.id, blackouts)}
                                 disabled={!newBlackoutDate[team.id]}
-                                className="text-xs bg-orange-500 text-white px-3 py-1.5 rounded hover:bg-orange-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="text-xs bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
                               >Add</button>
                             </div>
                           </div>
@@ -425,7 +425,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
 
                 <div className="flex gap-2">
                   <input
-                    className="flex-1 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+                    className="flex-1 border rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
                     placeholder="Team name…"
                     value={newTeam[div.id] || ''}
                     onChange={e => setNewTeam(n => ({ ...n, [div.id]: e.target.value }))}
@@ -434,10 +434,10 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
                   <button
                     onClick={() => addTeam(div.id)}
                     disabled={teamsAtLimit}
-                    className="bg-[var(--fd-accent)] text-white px-3 py-1.5 rounded text-sm hover:bg-[var(--fd-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="bg-[var(--fd-primary)] text-white px-3 py-1.5 rounded-lg text-sm hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"
                   >Add</button>
                 </div>
-                {teamsAtLimit && <UpgradePrompt limitType="teams" planName={planName} />}
+                {teamsAtLimit && <UpgradePrompt limitType="teams" planName={planName} planTier={planLimits?.planTier} />}
                 <p className="text-xs text-gray-400 mt-2">{div.teams.length} team{div.teams.length !== 1 ? 's' : ''}</p>
               </div>
             </div>

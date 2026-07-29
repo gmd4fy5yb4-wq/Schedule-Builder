@@ -8,6 +8,18 @@ interface Props {
   readOnly: boolean
 }
 
+function TrophyIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h8" />
+      <path d="M12 17v4" />
+      <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+      <path d="M17 5h2a2 2 0 0 1-2 4" />
+      <path d="M7 5H5a2 2 0 0 0 2 4" />
+    </svg>
+  )
+}
+
 interface TeamRecord {
   teamId: string
   teamName: string
@@ -92,7 +104,7 @@ export default function StandingsTab({ state }: Props) {
   if (state.divisions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-        <p className="text-4xl mb-3">🏆</p>
+        <TrophyIcon className="w-10 h-10 mb-3 text-gray-300" />
         <p className="font-medium">No divisions set up yet</p>
         <p className="text-sm mt-1">Add divisions and teams in the Divisions & Teams tab.</p>
       </div>
@@ -167,8 +179,8 @@ export default function StandingsTab({ state }: Props) {
                           className={`border-b last:border-0 ${isLeader && r.GP > 0 ? 'bg-[#f9f9fd]' : 'hover:bg-gray-50'}`}
                         >
                           <td className="px-4 py-2.5">
-                            <span className={`font-medium ${isLeader && r.GP > 0 ? 'text-[var(--fd-accent)]' : 'text-gray-800'}`}>
-                              {isLeader && r.GP > 0 && <span className="mr-1 text-xs">🥇</span>}
+                            <span className={`font-medium ${isLeader && r.GP > 0 ? 'text-[var(--fd-primary)]' : 'text-gray-800'}`}>
+                              {isLeader && r.GP > 0 && <TrophyIcon className="w-3.5 h-3.5 mr-1 inline-block align-text-bottom" />}
                               {r.teamName}
                             </span>
                           </td>

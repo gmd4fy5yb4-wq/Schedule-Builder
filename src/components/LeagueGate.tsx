@@ -93,13 +93,13 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                   if (!user) { window.location.href = `/login?next=${encodeURIComponent(window.location.search || '/')}`; return }
                   setMode('create'); setError('')
                 }}
-                className="w-full bg-[var(--fd-accent)] text-white py-3.5 rounded-xl font-semibold text-base hover:bg-[var(--fd-primary)] transition"
+                className="w-full bg-[var(--fd-primary)] text-white py-3.5 rounded-xl font-semibold text-base hover:bg-[var(--fd-primary-dark)] transition"
               >
                 Create New League
               </button>
               <button
                 onClick={() => { setMode('join'); setError('') }}
-                className="w-full border-2 border-[var(--fd-accent)] text-[var(--fd-accent)] py-3.5 rounded-xl font-semibold text-base hover:bg-[#f5f5fb] transition"
+                className="w-full border-2 border-[var(--fd-primary)] text-[var(--fd-primary)] py-3.5 rounded-xl font-semibold text-base hover:bg-[#f5f5fb] transition"
               >
                 Join Existing League
               </button>
@@ -146,7 +146,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               <button
                 onClick={handleCreate}
                 disabled={loading || !name.trim()}
-                className="w-full bg-[var(--fd-accent)] text-white py-3 rounded-xl font-semibold hover:bg-[var(--fd-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[var(--fd-primary)] text-white py-3 rounded-xl font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Creating league…' : 'Create League'}
               </button>
@@ -187,7 +187,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               <button
                 onClick={handleJoin}
                 disabled={loading || !name.trim() || joinCode.length !== 6}
-                className="w-full bg-[var(--fd-accent)] text-white py-3 rounded-xl font-semibold hover:bg-[var(--fd-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[var(--fd-primary)] text-white py-3 rounded-xl font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Joining…' : 'Join League'}
               </button>

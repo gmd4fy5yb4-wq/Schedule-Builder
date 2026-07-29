@@ -42,7 +42,7 @@ export default function PricingPage() {
           <a href="/" className="inline-flex items-center gap-2 text-gray-500 text-sm mb-8 hover:text-gray-700">
             ← Back to app
           </a>
-          <h1 className="text-4xl font-bold text-gray-900 font-[Oswald] mb-3">Choose your plan</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">Choose your plan</h1>
           <p className="text-gray-500 text-lg">Start with a free trial. Upgrade as your league grows.</p>
         </div>
 
@@ -59,7 +59,7 @@ export default function PricingPage() {
             return (
               <div
                 key={plan.tier}
-                className={`relative bg-white rounded-2xl border-2 p-8 flex flex-col ${
+                className={`relative bg-white rounded-xl border-2 p-8 flex flex-col ${
                   isPopular ? 'border-[#00013a] shadow-lg' : 'border-gray-200 shadow-sm'
                 }`}
               >
@@ -72,7 +72,7 @@ export default function PricingPage() {
                 )}
 
                 <div className="mb-6">
-                  <h2 className="text-xl font-bold text-gray-900 font-[Oswald] mb-1">{plan.name}</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h2>
                   <div className="flex items-end gap-1 mb-1">
                     <span className="text-4xl font-bold text-gray-900">${plan.annualPriceUsd}</span>
                     <span className="text-gray-400 text-sm mb-1">/year</span>
@@ -133,7 +133,7 @@ export default function PricingPage() {
         </div>
 
         {/* Free trial note */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 text-center shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-1">Free Trial</h3>
           <p className="text-gray-500 text-sm">
             Sign up and get full Pro access free for 14 days — up to 3 sports and 10 divisions. No credit card required.

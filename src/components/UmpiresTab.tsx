@@ -69,20 +69,20 @@ export default function UmpiresTab({ state, setState }: Props) {
           <h3 className="font-medium text-gray-700 mb-3">Add {sc.officialSingular}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input
-              className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="Name *"
               value={umpireForm.name}
               onChange={e => setUmpireForm(f => ({ ...f, name: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && addUmpire()}
             />
             <input
-              className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="Phone (optional)"
               value={umpireForm.phone}
               onChange={e => setUmpireForm(f => ({ ...f, phone: e.target.value }))}
             />
             <input
-              className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="Email (optional)"
               value={umpireForm.email}
               onChange={e => setUmpireForm(f => ({ ...f, email: e.target.value }))}
@@ -90,7 +90,7 @@ export default function UmpiresTab({ state, setState }: Props) {
           </div>
           <button
             onClick={addUmpire}
-            className="mt-3 bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition"
+            className="mt-3 bg-[var(--fd-primary)] text-white px-4 py-2 rounded-lg text-sm hover:bg-[var(--fd-primary-dark)] transition"
           >Add {sc.officialSingular}</button>
         </div>
 
@@ -113,21 +113,21 @@ export default function UmpiresTab({ state, setState }: Props) {
                   <tr key={u.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-2">
                       <input
-                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded px-1"
+                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded-lg px-1"
                         value={u.name}
                         onChange={e => updateUmpire(u.id, 'name', e.target.value)}
                       />
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded px-1 text-gray-600"
+                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded-lg px-1 text-gray-600"
                         value={u.phone}
                         onChange={e => updateUmpire(u.id, 'phone', e.target.value)}
                       />
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded px-1 text-gray-600"
+                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded-lg px-1 text-gray-600"
                         value={u.email}
                         onChange={e => updateUmpire(u.id, 'email', e.target.value)}
                       />
@@ -166,27 +166,27 @@ export default function UmpiresTab({ state, setState }: Props) {
           <h3 className="font-medium text-gray-700 mb-3">Add Staff Member</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <input
-              className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="Name *"
               value={staffForm.name}
               onChange={e => setStaffForm(f => ({ ...f, name: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && addStaff()}
             />
             <select
-              className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)] bg-white"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)] bg-white"
               value={staffForm.role}
               onChange={e => setStaffForm(f => ({ ...f, role: e.target.value }))}
             >
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
             <input
-              className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="Phone (optional)"
               value={staffForm.phone}
               onChange={e => setStaffForm(f => ({ ...f, phone: e.target.value }))}
             />
             <input
-              className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
               placeholder="Email (optional)"
               value={staffForm.email}
               onChange={e => setStaffForm(f => ({ ...f, email: e.target.value }))}
@@ -194,7 +194,7 @@ export default function UmpiresTab({ state, setState }: Props) {
           </div>
           <button
             onClick={addStaff}
-            className="mt-3 bg-[var(--fd-accent)] text-white px-4 py-2 rounded text-sm hover:bg-[var(--fd-primary)] transition"
+            className="mt-3 bg-[var(--fd-primary)] text-white px-4 py-2 rounded-lg text-sm hover:bg-[var(--fd-primary-dark)] transition"
           >Add Staff Member</button>
         </div>
 
@@ -217,14 +217,14 @@ export default function UmpiresTab({ state, setState }: Props) {
                   <tr key={m.id} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="px-4 py-2">
                       <input
-                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded px-1 font-medium"
+                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded-lg px-1 font-medium"
                         value={m.name}
                         onChange={e => updateStaff(m.id, 'name', e.target.value)}
                       />
                     </td>
                     <td className="px-4 py-2">
                       <select
-                        className="border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded px-1 text-gray-600 text-sm"
+                        className="border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded-lg px-1 text-gray-600 text-sm"
                         value={m.role}
                         onChange={e => updateStaff(m.id, 'role', e.target.value)}
                       >
@@ -235,14 +235,14 @@ export default function UmpiresTab({ state, setState }: Props) {
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded px-1 text-gray-600"
+                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded-lg px-1 text-gray-600"
                         value={m.phone}
                         onChange={e => updateStaff(m.id, 'phone', e.target.value)}
                       />
                     </td>
                     <td className="px-4 py-2">
                       <input
-                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded px-1 text-gray-600"
+                        className="border-0 bg-transparent w-full focus:outline-none focus:ring-1 focus:ring-[var(--fd-accent)] rounded-lg px-1 text-gray-600"
                         value={m.email}
                         onChange={e => updateStaff(m.id, 'email', e.target.value)}
                       />

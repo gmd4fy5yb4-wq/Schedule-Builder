@@ -2,7 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
-import { checkLimits } from '@/lib/plans'
+import { checkLimits, isWritable } from '@/lib/plans'
 import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
 
@@ -33,8 +33,19 @@ export async function POST(req: NextRequest) {
   // knows the code can save. owner_id is used only for limit counting (who created it).
   const [{ data: league }, { data: sub }] = await Promise.all([
     serviceSupabase.from('leagues').select('owner_id').eq('id', code).single(),
-    serviceSupabase.from('user_subscriptions').select('sports_limit, divisions_limit, teams_limit').eq('user_id', session.user.id).single(),
+    serviceSupabase.from('user_subscriptions').select('sports_limit, divisions_limit, teams_limit, plan_tier, trial_started_at, subscription_status, subscription_end').eq('user_id', session.user.id).single(),
   ])
+
+  // Expiry is no longer enforced by a middleware redirect (lapsed users now get a
+  // read-only app instead of a /pricing wall), so the write gate lives here. Without
+  // this an expired user could still POST straight to this route.
+  // A NULL subscription_end = no expiry (unlimited testers, unstarted trials).
+  if (!isWritable(sub)) {
+    return NextResponse.json(
+      { error: 'Your plan has expired. Renew to make changes — your league stays exactly as it is.', expired: true },
+      { status: 403 }
+    )
+  }
 
   // Enforce limits only against the current user's own leagues (not shared leagues
   // they are collaborating on). Use the owner's limits if this is someone else's league.
@@ -69,6 +80,29 @@ export async function POST(req: NextRequest) {
 
   if (upsertError) {
     return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
+  }
+
+  // Trial clock (migration fd_014): the 14 days start the first time a trial user saves
+  // a league whose schedule has actually been generated — not at signup, which burned
+  // the whole trial for off-season admins (finding 2).
+  //
+  // The .eq('plan_tier','trial') + .is('trial_started_at', null) filters make this
+  // one-shot and unable to touch a tester or a paying subscriber, so it is safe to
+  // run on every save rather than reading first.
+  // ponytail: fires on any save of an already-generated schedule, not strictly the
+  // generation event. Same outcome (they've seen a schedule), one query, no new state.
+  if (state.schedule?.generatedAt) {
+    const startedAt = new Date()
+    const endsAt = new Date(startedAt.getTime() + 14 * 24 * 60 * 60 * 1000)
+    const { error: clockError } = await serviceSupabase
+      .from('user_subscriptions')
+      .update({ trial_started_at: startedAt.toISOString(), subscription_end: endsAt.toISOString() })
+      .eq('user_id', session.user.id)
+      .eq('plan_tier', 'trial')
+      .is('trial_started_at', null)
+    // Non-fatal: the league is already saved. A failed clock start just means the
+    // trial stays unstarted and the next save tries again.
+    if (clockError) console.error('trial clock start failed', clockError)
   }
 
   return NextResponse.json({ success: true })

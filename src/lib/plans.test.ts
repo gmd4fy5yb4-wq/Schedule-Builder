@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/plans.test.ts
 import assert from 'node:assert'
-import { checkLimits, getPlan, minPaidTierForSports } from './plans'
+import { checkLimits, getPlan, minPaidTierForSports, isWritable } from './plans'
 
 const div = (teams = 0) => ({ teams: Array(teams).fill(0) })
 const starter = getPlan('starter')   // sports 1, divisions 3, teams 24
@@ -30,5 +30,23 @@ assert.equal(minPaidTierForSports(1).tier, 'starter', '1 sport → Starter')
 assert.equal(minPaidTierForSports(2).tier, 'pro', '2 sports → Pro')
 assert.equal(minPaidTierForSports(3).tier, 'pro', '3 sports → Pro')
 assert.equal(minPaidTierForSports(4).tier, 'org', '4 sports → Org')
+
+// isWritable — the write gate. Middleware, /api/leagues/save and /api/leagues/create
+// all defer to it, so a wrong answer here either locks out a paying customer or
+// hands free edits to a lapsed one.
+const future = new Date(Date.now() + 86_400_000).toISOString()
+const past   = new Date(Date.now() - 86_400_000).toISOString()
+
+assert.equal(isWritable({ subscription_status: 'active', subscription_end: future }), true, 'active + future end → writable')
+assert.equal(isWritable({ subscription_status: 'trialing', subscription_end: future }), true, 'trialing + future end → writable')
+assert.equal(isWritable({ subscription_status: 'active', subscription_end: null }), true, 'null end = no expiry (testers)')
+assert.equal(isWritable({ subscription_status: 'trialing', subscription_end: null }), true, 'trial whose clock has not started yet')
+assert.equal(isWritable({ subscription_status: 'active', subscription_end: past }), false, 'lapsed season pass → read-only')
+assert.equal(isWritable({ subscription_status: 'trialing', subscription_end: past }), false, 'burnt-out trial → read-only')
+assert.equal(isWritable({ subscription_status: 'canceled', subscription_end: future }), false, 'canceled → read-only even before end date')
+assert.equal(isWritable({ subscription_status: 'past_due', subscription_end: future }), false, 'past_due → read-only')
+assert.equal(isWritable(null), false, 'no subscription row → read-only, never writable')
+assert.equal(isWritable(undefined), false, 'missing row → read-only')
+assert.equal(isWritable({}), false, 'empty row → read-only (no status = not active)')
 
 console.log('✓ plans.ts — all checks passed')
