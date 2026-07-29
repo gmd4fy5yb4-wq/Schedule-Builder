@@ -34,6 +34,19 @@ export function trialBanner(
   return { kind: 'running', daysLeft: Math.ceil((end - now.getTime()) / DAY_MS) }
 }
 
+/** The name every league was born with before the gate asked for one. */
+export const DEFAULT_LEAGUE_NAME = 'My League'
+
+/**
+ * True while a league is still carrying the placeholder name. 9 of the 12 leagues
+ * in production are in this state — LeagueGate never had a name field, so the
+ * only way to set one was to find it in Setup.
+ */
+export function isUnnamedLeague(season: { leagueName?: string }): boolean {
+  const name = (season.leagueName ?? '').trim()
+  return name === '' || name === DEFAULT_LEAGUE_NAME
+}
+
 export interface ChecklistStep {
   label: string
   detail: string
@@ -50,9 +63,10 @@ export function checklistSteps(state: AppState): ChecklistStep[] {
   const teamCount = state.divisions.reduce((n, d) => n + d.teams.length, 0)
   return [
     {
-      label: 'Set season dates & sport',
-      detail: 'When the season runs, and what you play',
-      done: Boolean(state.season.startDate && state.season.endDate),
+      label: 'Name your league & set season dates',
+      // Plain text — this string is rendered as a JSX child, not as HTML.
+      detail: 'What it’s called, when it runs, and what you play',
+      done: !isUnnamedLeague(state.season) && Boolean(state.season.startDate && state.season.endDate),
       tab: 1,
       cta: 'Open setup',
     },
