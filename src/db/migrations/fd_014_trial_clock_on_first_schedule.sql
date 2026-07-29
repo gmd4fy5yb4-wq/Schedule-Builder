@@ -1,9 +1,12 @@
--- Migration 014: Start the 14-day trial clock at first schedule generation, not signup.
+-- Migration fd_014: Start the 14-day trial clock at first schedule generation, not signup.
 -- Run in the Supabase SQL editor for Alfred Digital Sports (actgfxrinoxlyrprzkoh).
 --
 -- Why: migration 013 stamped subscription_end = now()+14d at signup. An admin who
 -- signs up in the off-season burns the entire trial before they ever build a
 -- schedule, and churns without seeing the product work (design review, finding 2).
+--
+-- Apply as name "fd_014_trial_clock_on_first_schedule" (app-prefixed: the Sports DB is
+-- shared, and Prospect Card already has its own 014).
 --
 -- New shape: signup writes trial_started_at = NULL and subscription_end = NULL.
 -- Middleware already reads a NULL subscription_end as "no expiry", so an unstarted

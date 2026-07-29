@@ -91,7 +91,7 @@ export interface SubscriptionState {
  * Single source of truth for "may this user still change things?".
  *
  * A NULL subscription_end means no expiry — that covers the 4 plan_tier='unlimited'
- * tester rows AND a trial whose clock has not started yet (migration 014). A past
+ * tester rows AND a trial whose clock has not started yet (migration fd_014). A past
  * one means lapsed, which is what makes the 90-day season pass actually expire.
  *
  * Lapsed users keep READ access (the app renders read-only); this gate is only

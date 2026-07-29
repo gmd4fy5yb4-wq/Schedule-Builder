@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
   }
 
-  // Trial clock (migration 014): the 14 days start the first time a trial user saves
+  // Trial clock (migration fd_014): the 14 days start the first time a trial user saves
   // a league whose schedule has actually been generated — not at signup, which burned
   // the whole trial for off-season admins (finding 2).
   //

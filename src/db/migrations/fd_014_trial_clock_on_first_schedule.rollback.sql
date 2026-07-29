@@ -1,4 +1,4 @@
--- Rollback 014: restore the signup-time trial clock from migration 013.
+-- Rollback fd_014: restore the signup-time trial clock from migration 013.
 -- Rows created while 014 was live keep trial_started_at/subscription_end = NULL
 -- (i.e. an unexpiring trial) until they generate a schedule — revert the
 -- save-route trial-clock block too, or grant them a clock manually.
