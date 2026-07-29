@@ -12,6 +12,7 @@ import {
   fetchDailyWeather,
 } from '@/lib/weather'
 import Icon from './Icon'
+import FirstRunChecklist from './FirstRunChecklist'
 
 interface Props {
   state: AppState
@@ -356,6 +357,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
 
   return (
     <div className="space-y-8">
+
+      {/* First-run checklist — removes itself once the schedule is generated. */}
+      {!readOnly && <FirstRunChecklist state={state} onNavigate={onNavigate} />}
 
       {/* ── Page header ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
