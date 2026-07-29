@@ -81,8 +81,21 @@ This has regressed once (config changed mid-day 2026-07-28). To check: a non-nul
 ## Open items carried forward
 
 - ~~Nav group labels unverified~~ **Verified 2026-07-29 by screenshot** — OVERVIEW / OPERATE / SETUP render with the divider, emoji→SVG is clean, radius and type sweeps look right.
-- ~~Signup path unverified~~ **Half verified.** `fd_014` confirmed working: `test6`, `test7`, `test8` all landed with `trial_started_at` and `subscription_end` NULL and 3/10/100 limits. **Still unverified: the clock actually starting.** Generate a schedule on `greg+test8` and confirm `subscription_end` becomes now+14d.
-- **The expired banner and tier-aware upgrade copy are still unverified** — no lapsed account owns a league to view them with. The trial bar lands in the same header region, so verify them in the same pass.
+- ~~Signup path unverified~~ ~~Clock start unverified~~ **`fd_014` is verified end to end in production** (`greg+test8`, 2026-07-29): signed up 14:35:16 with `trial_started_at`/`subscription_end` NULL, generated a schedule, clock stamped 14:41:00 → 2026-08-12 14:41:00. Exactly 14 days, **5m43s after signup rather than at signup** — which is the entire point of the change. The 4 `unlimited` tester rows were untouched, as the `plan_tier='trial' AND trial_started_at IS NULL` guard requires.
+- **The expired banner and tier-aware upgrade copy are still unverified** — and this needs deliberate setup, because **none of the 9 lapsed accounts owns a league**. To see those states: take one of the unstarted trials below, generate a schedule, then backdate its `subscription_end`. The trial bar lands in the same header region, so verify all of it in one pass.
+
+### Two live accounts are sitting in the new "unstarted trial" state
+
+`greg+test6@` and `greg+test7@` signed up and never generated a schedule, so they have `subscription_end = NULL` and **the UI tells them nothing at all**. They are working examples of finding 1 — log in as one while building the trial bar's "not started yet" state.
+
+Current production distribution (2026-07-29):
+
+| Rows | State |
+|---|---|
+| 4 | `unlimited` testers — NULL, never expire, **never modify** |
+| 2 | trial, NULL — signed up, no schedule generated yet |
+| 9 | trial with a running clock |
+| 8 + 1 | lapsed — read-only, not locked out |
 - **Locked-edit toast was deliberately skipped.** The persistent amber banner plus disabled inputs seemed sufficient; add it if a lapsed user finds the read-only state confusing.
 
 ## Two UI observations from the post-Phase-0 screenshots
