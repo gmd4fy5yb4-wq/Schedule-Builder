@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/trial.test.ts
 import assert from 'node:assert'
-import { trialBanner, checklistSteps } from './trial'
+import { trialBanner, checklistSteps, isUnnamedLeague, DEFAULT_LEAGUE_NAME } from './trial'
 import type { AppState } from './types'
 
 const now = new Date('2026-07-29T12:00:00Z')
@@ -45,8 +45,17 @@ assert.equal(trialBanner({ plan_tier: 'trial', subscription_end: 'garbage' }, no
 // ── checklistSteps ───────────────────────────────────────────────────────────
 
 const team = (id: string) => ({ id, name: id, coaches: [] })
+// ── isUnnamedLeague ──────────────────────────────────────────────────────────
+
+assert.equal(isUnnamedLeague({ leagueName: DEFAULT_LEAGUE_NAME }), true, 'placeholder name → unnamed')
+assert.equal(isUnnamedLeague({ leagueName: '   ' }), true, 'whitespace → unnamed')
+assert.equal(isUnnamedLeague({}), true, 'missing name → unnamed')
+assert.equal(isUnnamedLeague({ leagueName: 'Cedar Valley Little League' }), false, 'real name → named')
+// Close but not equal — a real league may well be called this.
+assert.equal(isUnnamedLeague({ leagueName: 'My League 2026' }), false, 'only the exact placeholder counts')
+
 const blank = {
-  season: { leagueName: 'My League', startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
+  season: { leagueName: DEFAULT_LEAGUE_NAME, startDate: '', endDate: '', gameDurationMinutes: 90, practiceDurationMinutes: 90 },
   blackoutDates: [],
   divisions: [],
   fields: [],
@@ -61,9 +70,17 @@ assert.deepEqual(checklistSteps(blank).map(s => s.done), [false, false, false, f
 const oneTeam = { ...blank, divisions: [{ id: 'd1', name: 'Majors', teams: [team('a')] }] } as unknown as AppState
 assert.equal(checklistSteps(oneTeam)[1].done, false, 'division with 1 team → step 2 not done')
 
-const ready = {
+// Dates alone no longer finish step 1 — the 9 production leagues still called
+// "My League" have dates set and had nothing telling them to rename.
+const datedButUnnamed = {
   ...blank,
   season: { ...blank.season, startDate: '2026-04-06', endDate: '2026-06-27' },
+} as unknown as AppState
+assert.equal(checklistSteps(datedButUnnamed)[0].done, false, 'dates set but still "My League" → step 1 open')
+
+const ready = {
+  ...blank,
+  season: { ...blank.season, leagueName: 'Cedar Valley Little League', startDate: '2026-04-06', endDate: '2026-06-27' },
   divisions: [{ id: 'd1', name: 'Majors', teams: [team('a'), team('b')] }],
   fields: [{ id: 'f1', name: 'Diamond 1' }],
   schedule: { ...blank.schedule, generatedAt: '2026-07-29T14:41:00Z' },
