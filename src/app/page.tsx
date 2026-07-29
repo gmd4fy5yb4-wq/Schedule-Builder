@@ -3,7 +3,16 @@ import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
 import { isWritable } from '@/lib/plans'
-import { trialBanner, type TrialBanner } from '@/lib/trial'
+import { trialBanner } from '@/lib/trial'
+import type { PlanPanelSubscription } from '@/lib/planUsage'
+
+interface SubscriptionRow extends PlanPanelSubscription {
+  plan_tier: string
+  subscription_status: string | null
+  sports_limit: number
+  divisions_limit: number
+  teams_limit: number
+}
 import { getTheme, buildThemeVars } from '@/lib/themes'
 import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
 import { getSupabase } from '@/lib/supabase'
@@ -109,9 +118,9 @@ export default function Home() {
   const [pendingRemote, setPendingRemote] = useState<{ data: AppState; updatedBy: string; updatedAt: string } | null>(null)
 
   const [user, setUser] = useState<User | null>(null)
-  const [planLimits, setPlanLimits] = useState<{ sportsLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
-  // What the trial bar should say, or null for "say nothing" — see trialBanner().
-  const [trial, setTrial] = useState<TrialBanner | null>(null)
+  // The user_subscriptions row, kept whole. The plan limits, the trial bar and the
+  // plan panel are all views of it — deriving beats storing the same fetch 3 times.
+  const [sub, setSub] = useState<SubscriptionRow | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
@@ -241,8 +250,7 @@ export default function Home() {
           .select('sports_limit, divisions_limit, teams_limit, plan_tier, subscription_status, subscription_end')
           .eq('user_id', session.user.id)
           .single()
-        if (sub) setPlanLimits({ sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
-        setTrial(trialBanner(sub))
+        setSub(sub as SubscriptionRow | null)
         // Lapsed plan → read-only app instead of the old /pricing lockout. The server
         // enforces the same rule (isWritable in the save/create routes); this only
         // stops the UI from offering edits it knows will be rejected.
@@ -479,6 +487,10 @@ export default function Home() {
     { label: 'Operate', indices: [8, 5, 6, 7, 9, 10] },
     { label: 'Setup', indices: [1, 2, 3, 4] },
   ]
+  const trial = trialBanner(sub)
+  const planLimits = sub
+    ? { sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier }
+    : undefined
   const themeStyle = buildThemeVars(getTheme(state.season.theme))
   // A share-link viewer, as opposed to an owner whose plan lapsed. Only the former
   // should lose the admin chrome (league code, share link, setup tabs).
@@ -747,8 +759,8 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
-        {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
-        {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
+        {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} />}
+        {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
         {tab === 3  && <FieldsTab state={state} setState={setState} />}
         {tab === 4  && <UmpiresTab state={state} setState={setState} />}
         {tab === 5  && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}

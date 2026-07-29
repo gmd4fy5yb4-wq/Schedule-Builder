@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabase'
 import { getPlan } from '@/lib/plans'
+import { billingLine } from '@/lib/planUsage'
 import type { User } from '@supabase/supabase-js'
 
 interface Subscription {
@@ -9,6 +10,7 @@ interface Subscription {
   subscription_status: string
   subscription_end: string | null
   stripe_customer_id: string | null
+  billing_period: string | null
   sports_limit: number
   divisions_limit: number
   teams_limit: number
@@ -151,12 +153,7 @@ export default function AccountPage() {
             {plan.teamsLimit >= 999 ? 'Unlimited' : plan.teamsLimit} teams
           </p>
 
-          {sub?.subscription_end && (
-            <p className="text-xs text-gray-400 mb-4">
-              {sub.subscription_status === 'canceled' ? 'Access until' : 'Renews'}{' '}
-              {new Date(sub.subscription_end).toLocaleDateString()}
-            </p>
-          )}
+          {sub && <p className="text-sm text-gray-600 mb-4">{billingLine(sub)}</p>}
 
           <div className="flex gap-3">
             {sub?.stripe_customer_id ? (
