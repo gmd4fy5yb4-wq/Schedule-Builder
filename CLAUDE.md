@@ -5,17 +5,6 @@
 **Live URL:** fielddayplanner.app (aliases: getfieldday.app all redirect to canonical)
 **Vercel project:** fieldday-planner
 
-## Stack
-Next.js 15 · React 19 · TypeScript · Tailwind · Supabase (Postgres + auth) · Stripe · Resend
-
-## Commands
-```bash
-cd fieldday-planner
-npm run dev    # localhost:3000
-npm run build
-npm run start
-```
-
 ## Env Vars (copy .env.local.example → .env.local)
 ```
 NEXT_PUBLIC_SUPABASE_URL=
@@ -66,23 +55,6 @@ Status: **Sports-based pricing BUILT and verified end-to-end in test mode (June 
 - ✅ **Trial trigger RESTORED (migration 013, June 17 2026).** The `handle_new_user` / `on_auth_user_created` trigger was missing in the Sports DB (so new signups got no `user_subscriptions` row and were gated straight to `/pricing`). 013 recreates it with sports-model trial values (3/10/100, `subscription_end=now()+14d`) and backfilled the 6 rowless users. Verified: trigger enabled on `auth.users`; testers + legacy `small` row untouched.
 - 🛑 **Tester accounts — do not modify.** 4 accounts have `plan_tier='unlimited'` (an invalid value vs code's `trial/starter/pro/org`), `active`, no Stripe link, `subscription_end=NULL` (never expires). Migration 012 set their `sports_limit=999`. These are real-world testers depending on the app: **never change their access, and never complete a Stripe checkout while signed in as one** (the webhook would overwrite the protected row).
 - ℹ️ **`user_subscriptions → auth.users` FK is NOT `ON DELETE CASCADE` in prod** (migration 002 source says it is — prod drift). To delete a user, delete their `user_subscriptions` row first.
-
-## Key Architecture
-- Lazy Supabase singleton: `src/lib/supabase.ts`
-- Auth + subscription middleware: `src/middleware.ts`
-- Payment handling: `src/lib/stripe.ts`, `src/app/api/payments/`
-- Email notifications: `src/app/api/notify-coaches/` via Resend
-- Geocoding: `src/app/api/geocode/`
-- League routes: `src/app/api/league/`, `src/app/api/leagues/`
-- DB migrations: `src/db/migrations/` — run in Supabase SQL editor in order; never use Supabase CLI
-
-## Routes
-- `/` — landing / home
-- `/login` — magic link auth
-- `/account` — user account management
-- `/pricing` — subscription tiers (annual + season pass)
-- `/checkout/success` — post-payment landing; polls for the row then forwards to `/` (subscription-exempt in middleware)
-- `/auth/callback` — Supabase auth redirect handler
 
 ## Common Gotchas
 - `flowType: 'implicit'` is required — do not change to PKCE
