@@ -1,10 +1,16 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { leagueExists, loadLeague, createLeague } from '@/lib/sync'
+import { loadLeague, createLeague } from '@/lib/sync'
 import type { AppState } from '@/lib/types'
 import { SPORTS } from '@/lib/sports'
 import { getSupabase } from '@/lib/supabase'
+import { minPaidTierForSports, getPlan } from '@/lib/plans'
 import type { User } from '@supabase/supabase-js'
+
+// Every new league starts on the trial, which covers 3 sports. Capping the picker
+// there keeps the gate from creating a league the create route would reject.
+// More sports are addable later in Setup once a bigger plan is in place.
+const TRIAL_SPORTS_LIMIT = getPlan('trial').sportsLimit
 
 interface Props {
   defaultState: AppState
@@ -16,7 +22,8 @@ type Mode = 'choose' | 'create' | 'join'
 export default function LeagueGate({ defaultState, onJoin }: Props) {
   const [mode, setMode] = useState<Mode>('choose')
   const [name, setName] = useState('')
-  const [sport, setSport] = useState('softball')
+  const [leagueName, setLeagueName] = useState('')
+  const [sports, setSports] = useState<string[]>(['softball'])
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -29,11 +36,30 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     })
   }, [])
 
+  function toggleSport(id: string) {
+    setError('')
+    setSports(prev => {
+      if (prev.includes(id)) return prev.length === 1 ? prev : prev.filter(s => s !== id)
+      if (prev.length >= TRIAL_SPORTS_LIMIT) return prev
+      return [...prev, id]
+    })
+  }
+
   async function handleCreate() {
     if (!name.trim()) { setError('Please enter your name'); return }
     setLoading(true); setError('')
 
-    const initialState = { ...defaultState, season: { ...defaultState.season, sport } }
+    const initialState = {
+      ...defaultState,
+      season: {
+        ...defaultState.season,
+        leagueName: leagueName.trim() || defaultState.season.leagueName,
+        // sports[] is the real field; sport keeps legacy readers (and snapshot
+        // restores) working — getSports() prefers the array when it's present.
+        sports,
+        sport: sports[0],
+      },
+    }
     const result = await createLeague(initialState, name.trim())
 
     if ('code' in result) {
@@ -74,7 +100,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
         {/* Logo / title */}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-white">FieldDay Planner</h1>
-          <p className="text-[var(--fd-primary-light)] mt-1">Schedule any sport, any league</p>
+          <p className="text-[var(--fd-primary-light)] mt-1">Any sport. Any league. One planner.</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -95,14 +121,18 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                 }}
                 className="w-full bg-[var(--fd-primary)] text-white py-3.5 rounded-xl font-semibold text-base hover:bg-[var(--fd-primary-dark)] transition"
               >
-                Create New League
+                Start free — create your league
               </button>
+              <p className="text-xs text-gray-500 text-center">14-day full trial · no credit card</p>
               <button
                 onClick={() => { setMode('join'); setError('') }}
                 className="w-full border-2 border-[var(--fd-primary)] text-[var(--fd-primary)] py-3.5 rounded-xl font-semibold text-base hover:bg-[#f5f5fb] transition"
               >
-                Join Existing League
+                Join with a league code
               </button>
+              <p className="text-xs text-gray-500 text-center">
+                Coaches &amp; parents: ask your admin for the code or a view-only link — no account needed.
+              </p>
               {user && (
                 <a
                   href="/account"
@@ -121,26 +151,66 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                 ← Back
               </button>
               <div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Create a new league</h2>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                <h2 className="text-lg font-semibold text-gray-800">Create your league</h2>
+                <p className="text-sm text-gray-500 mt-1 mb-4">
+                  Everything is free for 14 days — you&rsquo;ll pick a plan later, only if you keep it.
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="gate-your-name">Your name</label>
                 <input
+                  id="gate-your-name"
                   autoFocus
                   className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
                   placeholder="e.g. Coach Johnson"
                   value={name}
                   onChange={e => setName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="gate-league-name">League name</label>
+                <input
+                  id="gate-league-name"
+                  className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+                  placeholder="e.g. Cedar Valley Little League"
+                  value={leagueName}
+                  onChange={e => setLeagueName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleCreate()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sport</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
-                  value={sport}
-                  onChange={e => setSport(e.target.value)}
-                >
-                  {SPORTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                <div className="flex items-baseline justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Sports — pick all that apply</label>
+                  <span className="text-xs text-gray-500">{sports.length} of {TRIAL_SPORTS_LIMIT}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {SPORTS.map(s => {
+                    const on = sports.includes(s.id)
+                    const full = !on && sports.length >= TRIAL_SPORTS_LIMIT
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => toggleSport(s.id)}
+                        disabled={full}
+                        aria-pressed={on}
+                        className={`px-3 py-1.5 rounded-lg text-sm border transition ${
+                          on
+                            ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)]'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300'
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    )
+                  })}
+                </div>
+                {/* The price at the moment of intent, not after the fact (finding 6). */}
+                <p className="text-xs text-gray-500 mt-3">
+                  After your free trial, this setup fits{' '}
+                  <span className="font-semibold text-gray-700">
+                    {minPaidTierForSports(sports.length).name} · ${minPaidTierForSports(sports.length).annualPriceUsd}/yr
+                  </span>{' '}
+                  — or ${minPaidTierForSports(sports.length).seasonPassPriceUsd} for a 3-month season pass.
+                </p>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <button
@@ -148,7 +218,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                 disabled={loading || !name.trim()}
                 className="w-full bg-[var(--fd-primary)] text-white py-3 rounded-xl font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating league…' : 'Create League'}
+                {loading ? 'Creating league…' : 'Create league — free for 14 days'}
               </button>
             </div>
           )}
@@ -191,11 +261,15 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
               >
                 {loading ? 'Joining…' : 'Join League'}
               </button>
-              {/* Claim prompt for authenticated users */}
               {user && (
-                <p className="text-xs text-gray-400 text-center pt-2">
-                  Is this your league?{' '}
-                  <a href="/account" className="underline text-gray-500">Claim it</a> in My Account to link it to your profile.
+                <p className="text-xs text-gray-500 text-center pt-2">
+                  Made this league before signing up?{' '}
+                  <a href="/account" className="underline">Link it to your account</a>.
+                </p>
+              )}
+              {!user && (
+                <p className="text-xs text-gray-500 text-center pt-2">
+                  Just checking a schedule? Ask your admin for a view-only link instead — no name or code needed.
                 </p>
               )}
             </div>

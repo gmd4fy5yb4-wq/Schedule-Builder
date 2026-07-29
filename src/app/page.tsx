@@ -3,6 +3,16 @@ import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
 import { isWritable } from '@/lib/plans'
+import { trialBanner } from '@/lib/trial'
+import type { PlanPanelSubscription } from '@/lib/planUsage'
+
+interface SubscriptionRow extends PlanPanelSubscription {
+  plan_tier: string
+  subscription_status: string | null
+  sports_limit: number
+  divisions_limit: number
+  teams_limit: number
+}
 import { getTheme, buildThemeVars } from '@/lib/themes'
 import { loadLeague, loadLeagueByViewToken, saveLeague, saveSnapshot, getOrCreateViewToken } from '@/lib/sync'
 import { getSupabase } from '@/lib/supabase'
@@ -20,6 +30,7 @@ import StandingsTab from '@/components/StandingsTab'
 import CoachesTab from '@/components/CoachesTab'
 import DashboardTab from '@/components/DashboardTab'
 import LeagueGate from '@/components/LeagueGate'
+import TrialBar from '@/components/TrialBar'
 import Icon from '@/components/Icon'
 
 const DEFAULT: AppState = {
@@ -107,7 +118,9 @@ export default function Home() {
   const [pendingRemote, setPendingRemote] = useState<{ data: AppState; updatedBy: string; updatedAt: string } | null>(null)
 
   const [user, setUser] = useState<User | null>(null)
-  const [planLimits, setPlanLimits] = useState<{ sportsLimit: number; divisionsLimit: number; teamsLimit: number; planTier: string } | null>(null)
+  // The user_subscriptions row, kept whole. The plan limits, the trial bar and the
+  // plan panel are all views of it — deriving beats storing the same fetch 3 times.
+  const [sub, setSub] = useState<SubscriptionRow | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
@@ -237,7 +250,7 @@ export default function Home() {
           .select('sports_limit, divisions_limit, teams_limit, plan_tier, subscription_status, subscription_end')
           .eq('user_id', session.user.id)
           .single()
-        if (sub) setPlanLimits({ sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier })
+        setSub(sub as SubscriptionRow | null)
         // Lapsed plan → read-only app instead of the old /pricing lockout. The server
         // enforces the same rule (isWritable in the save/create routes); this only
         // stops the UI from offering edits it knows will be rejected.
@@ -469,9 +482,15 @@ export default function Home() {
   // Content switch/onNavigate() below still key off these same TABS indices unchanged.
   const NAV_GROUPS = [
     { label: 'Overview', indices: [0] },
-    { label: 'Operate', indices: [5, 6, 7, 9, 10] },
-    { label: 'Setup', indices: [1, 2, 3, 4, 8] },
+    // Auto-Schedule (8) lives under Operate: generating a schedule is something you
+    // do to run the season, not a one-time setup step.
+    { label: 'Operate', indices: [8, 5, 6, 7, 9, 10] },
+    { label: 'Setup', indices: [1, 2, 3, 4] },
   ]
+  const trial = trialBanner(sub)
+  const planLimits = sub
+    ? { sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier }
+    : undefined
   const themeStyle = buildThemeVars(getTheme(state.season.theme))
   // A share-link viewer, as opposed to an owner whose plan lapsed. Only the former
   // should lose the admin chrome (league code, share link, setup tabs).
@@ -499,7 +518,15 @@ export default function Home() {
   }
 
   if (!leagueCode) {
-    return <LeagueGate defaultState={DEFAULT} onJoin={handleJoin} />
+    // The bar belongs here too: a brand-new signup has no league yet, so this
+    // screen — not the dashboard — is where they'd otherwise hear nothing about
+    // the trial at all.
+    return (
+      <>
+        {trial && <TrialBar banner={trial} />}
+        <LeagueGate defaultState={DEFAULT} onJoin={handleJoin} />
+      </>
+    )
   }
 
   const timeSince = lastUpdatedAt
@@ -664,6 +691,10 @@ export default function Home() {
         </div>
       )}
 
+      {/* Trial status. Hidden from share-link viewers (a coach has no plan) and
+          silent once the trial lapses — the amber banner below owns that state. */}
+      {trial && !isViewer && <TrialBar banner={trial} />}
+
       {/* Expired plan — the app stays fully readable, editing is what stops.
           Coaches keep their view-only link working, which is the whole point:
           locking the admin out of a live schedule is what kills the renewal. */}
@@ -706,7 +737,11 @@ export default function Home() {
                         <button
                           key={TABS[i]}
                           onClick={() => setTab(i)}
-                          className={`px-5 pt-1 pb-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                          aria-current={tab === i ? 'page' : undefined}
+                          // The default focus ring draws a full rounded box that beats the
+                          // border-b-2 active underline. focus-visible keeps the ring for
+                          // keyboard users without painting it on every mouse click.
+                          className={`px-5 pt-1 pb-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--fd-primary)] ${
                             tab === i ? 'border-[var(--fd-primary)] text-[var(--fd-primary)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                           }`}
                         >
@@ -724,8 +759,8 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
-        {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
-        {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits ?? undefined} />}
+        {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} />}
+        {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
         {tab === 3  && <FieldsTab state={state} setState={setState} />}
         {tab === 4  && <UmpiresTab state={state} setState={setState} />}
         {tab === 5  && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}

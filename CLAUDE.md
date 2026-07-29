@@ -5,17 +5,6 @@
 **Live URL:** fielddayplanner.app (aliases: getfieldday.app all redirect to canonical)
 **Vercel project:** fieldday-planner
 
-## Stack
-Next.js 15 · React 19 · TypeScript · Tailwind · Supabase (Postgres + auth) · Stripe · Resend
-
-## Commands
-```bash
-cd fieldday-planner
-npm run dev    # localhost:3000
-npm run build
-npm run start
-```
-
 ## Env Vars (copy .env.local.example → .env.local)
 ```
 NEXT_PUBLIC_SUPABASE_URL=
@@ -43,6 +32,12 @@ RESEND_FROM_EMAIL=     # must be @alfred-digital.com (only verified Resend domai
 ## Auth
 Magic link via Supabase. **Must use `flowType: 'implicit'`** (not PKCE) — implicit flow is required so email links work when opened in a different browser than where the OTP was requested. This is intentional and must not be changed to PKCE.
 
+**"Confirm email" is OFF in Supabase (Authentication → Providers → Email) — deliberately. Do not turn it back on.** With it on, a brand-new address gets Supabase's *Confirm signup* template instead of *Magic Link*. That template carries a link but **no 8-digit code**, so the user lands on the "Check your email" screen — which promises a code and autofocuses the code field — with an email that doesn't contain one. Clicking the link confirmed the address without creating a session, dropping them back at `/login` to enter their email a second time. Only then, as an existing user, did they get the real magic-link email with the code. Two emails, and it read as broken on the first attempt.
+
+With confirmation off, a new signup gets one magic-link email containing both link and code, and is signed in ~13 seconds after submitting (verified `greg+test8`, 2026-07-29: `confirmation_sent_at` NULL, `email_confirmed_at` == `created_at`, no second email). No security is lost — this app is passwordless, so the user must still open the mailbox to get in; confirmation was a second proof of the same thing.
+
+This regressed once already (auth config changed mid-day 2026-07-28; `test1`/`test4` signed up in one step before it, `test5`–`test7` needed two after). To check whether it has regressed again: `select email, confirmation_sent_at, recovery_sent_at, last_sign_in_at from auth.users order by created_at desc limit 3` — a non-null `confirmation_sent_at` on a recent signup means it is back on.
+
 ## Email (two separate Resend paths)
 - **Magic links:** sent by Supabase Auth via custom SMTP → Resend, from an `@alfred-digital.com` sender. Configured in the Supabase dashboard, NOT via app env vars.
 - **Coach notifications (`notify-coaches`):** app uses the Resend SDK with `RESEND_API_KEY` + `RESEND_FROM_EMAIL` from env. From-domain must be Resend-verified (`alfred-digital.com` only — free tier = 1 domain).
@@ -66,23 +61,6 @@ Status: **Sports-based pricing BUILT and verified end-to-end in test mode (June 
 - ✅ **Trial trigger RESTORED (migration 013, June 17 2026).** The `handle_new_user` / `on_auth_user_created` trigger was missing in the Sports DB (so new signups got no `user_subscriptions` row and were gated straight to `/pricing`). 013 recreates it with sports-model trial values (3/10/100, `subscription_end=now()+14d`) and backfilled the 6 rowless users. Verified: trigger enabled on `auth.users`; testers + legacy `small` row untouched.
 - 🛑 **Tester accounts — do not modify.** 4 accounts have `plan_tier='unlimited'` (an invalid value vs code's `trial/starter/pro/org`), `active`, no Stripe link, `subscription_end=NULL` (never expires). Migration 012 set their `sports_limit=999`. These are real-world testers depending on the app: **never change their access, and never complete a Stripe checkout while signed in as one** (the webhook would overwrite the protected row).
 - ℹ️ **`user_subscriptions → auth.users` FK is NOT `ON DELETE CASCADE` in prod** (migration 002 source says it is — prod drift). To delete a user, delete their `user_subscriptions` row first.
-
-## Key Architecture
-- Lazy Supabase singleton: `src/lib/supabase.ts`
-- Auth + subscription middleware: `src/middleware.ts`
-- Payment handling: `src/lib/stripe.ts`, `src/app/api/payments/`
-- Email notifications: `src/app/api/notify-coaches/` via Resend
-- Geocoding: `src/app/api/geocode/`
-- League routes: `src/app/api/league/`, `src/app/api/leagues/`
-- DB migrations: `src/db/migrations/` — run in Supabase SQL editor in order; never use Supabase CLI
-
-## Routes
-- `/` — landing / home
-- `/login` — magic link auth
-- `/account` — user account management
-- `/pricing` — subscription tiers (annual + season pass)
-- `/checkout/success` — post-payment landing; polls for the row then forwards to `/` (subscription-exempt in middleware)
-- `/auth/callback` — Supabase auth redirect handler
 
 ## Common Gotchas
 - `flowType: 'implicit'` is required — do not change to PKCE

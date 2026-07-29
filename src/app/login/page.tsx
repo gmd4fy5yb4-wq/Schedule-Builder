@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabase'
 import Icon from '@/components/Icon'
 
@@ -30,8 +30,19 @@ export default function LoginPage() {
   const [verifyLoading, setVerifyLoading] = useState(false)
   const [verifyError, setVerifyError] = useState('')
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
+  // Seconds until "resend" is offered again. Supabase rate-limits repeat sends,
+  // so an always-live resend button mostly produces rate-limit errors — the
+  // countdown says "wait" instead of letting the user earn one.
+  const [resendIn, setResendIn] = useState(0)
+  useEffect(() => {
+    if (resendIn <= 0) return
+    const t = setTimeout(() => setResendIn(n => n - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendIn])
+
+  // Also used by the resend link, which hands over a MouseEvent rather than a submit.
+  async function handleLogin(e?: { preventDefault: () => void }) {
+    e?.preventDefault()
     if (!email.trim()) return
     setLoading(true)
     setError('')
@@ -65,6 +76,7 @@ export default function LoginPage() {
     }
 
     setSent(true)
+    setResendIn(60)
     setLoading(false)
   }
 
@@ -102,7 +114,7 @@ export default function LoginPage() {
             FD
           </div>
           <h1 className="text-2xl font-bold text-gray-900">FieldDay Planner</h1>
-          <p className="text-gray-500 text-sm mt-1">Schedule any sport, any league</p>
+          <p className="text-gray-500 text-sm mt-1">Any sport. Any league. One planner.</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
@@ -112,7 +124,14 @@ export default function LoginPage() {
                 <Icon name="mail" className="w-10 h-10 mx-auto mb-3 text-[var(--fd-primary)]" />
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Check your email</h2>
                 <p className="text-gray-500 text-sm">
-                  We sent a sign-in link and an 8-digit code to <strong>{email}</strong>.
+                  We sent a sign-in link and an 8-digit code to <strong>{email}</strong>{' '}
+                  {/* Keeps the address so a typo can be corrected, not retyped. */}
+                  <button
+                    onClick={() => { setSent(false); setCode(''); setVerifyError(''); setError('') }}
+                    className="underline text-[#00013a]"
+                  >
+                    edit
+                  </button>
                 </p>
               </div>
 
@@ -145,18 +164,22 @@ export default function LoginPage() {
               </form>
 
               <div className="mt-4 pt-4 border-t border-gray-100 text-center space-y-1">
-                <p className="text-gray-400 text-xs">
-                  On desktop? Click the link in the email instead.
+                <p className="text-gray-500 text-xs">
+                  On desktop? Just click the link in the email.
                 </p>
-                <p className="text-gray-400 text-xs">
+                <p className="text-gray-500 text-xs">
+                  Nothing after a minute? Check spam, or{' '}
+                  {resendIn > 0 ? (
+                    <span className="text-gray-400">resend in {resendIn}s</span>
+                  ) : (
+                    <button onClick={handleLogin} disabled={loading} className="underline text-[#00013a] disabled:opacity-50">
+                      {loading ? 'sending…' : 'resend the email'}
+                    </button>
+                  )}
+                </p>
+                <p className="text-gray-500 text-xs">
                   The link and code expire in 1 hour.
                 </p>
-                <button
-                  className="mt-2 text-sm text-[#00013a] underline"
-                  onClick={() => { setSent(false); setEmail(''); setCode(''); setVerifyError('') }}
-                >
-                  Use a different email
-                </button>
               </div>
             </div>
           ) : (
@@ -197,12 +220,15 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <p className="text-center text-gray-400 text-xs mt-6">
-                New to FieldDay?{' '}
-                <a href="/pricing" className="text-[#00013a] underline">
-                  View plans
-                </a>
-              </p>
+              <div className="text-center mt-6">
+                <p className="text-gray-500 text-xs">
+                  New to FieldDay?{' '}
+                  <a href="/pricing" className="text-[#00013a] underline font-medium">
+                    Start free — create your league
+                  </a>
+                </p>
+                <p className="text-gray-400 text-xs mt-1">14-day full trial · no credit card</p>
+              </div>
             </>
           )}
         </div>
