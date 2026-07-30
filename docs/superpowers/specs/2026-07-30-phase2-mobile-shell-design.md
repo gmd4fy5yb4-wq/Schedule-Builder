@@ -94,6 +94,8 @@ All wrapped in a `@media (prefers-reduced-motion: reduce)` guard that drops them
 ## Deliberately not built
 
 - **Crimson FAB → quick-add sheet.** `EventModal` already creates events; a parallel quick-add is a second write path to keep in sync. Add when adding a game on a phone is demonstrably buried.
+
+  Amendment (2026-07-30, found while planning): the month grid's per-day `+` button is `opacity-0 group-hover:opacity-100`, and there is no hover on a touch screen — so today it is *unreachable* on a phone. Making it `opacity-100 sm:opacity-0` restores the add affordance in one class. That is what makes the FAB skippable rather than merely deferred; without it, skipping the FAB would have shipped a phone with no way to add an event.
 - **The prototype's standalone Edit sheet** (time/field chips + confirm toggle). Same reason — `EventModal` is that editor, restyled.
 - **Locked-edit toast** (carried forward from Phase 0). The handoff notes the mobile shell may change the calculus, since on a phone the amber banner scrolls away while disabled controls stay on screen. Revisit after this ships and the expired state is actually verified on a device.
 
