@@ -71,12 +71,15 @@ cp ../../.env.local .env.local
 
 `.gitignore` contains `node_modules/` with a trailing slash, which matches directories only — a *symlink* named `node_modules` is not a directory, so `git add -A` would commit it. A later `git reset --hard` then follows it and guts the real `node_modules` in the main checkout. This has happened before.
 
+Inside a worktree `.git` is a *file*, not a directory, so `>> .git/info/exclude` fails with "not a directory". Ask git for the real path instead:
+
 ```bash
-echo 'node_modules' >> .git/info/exclude
-echo '.env.local'   >> .git/info/exclude
+EX=$(git rev-parse --git-path info/exclude)
+mkdir -p "$(dirname "$EX")"
+printf 'node_modules\n.env.local\n' >> "$EX"
 ```
 
-Note: inside a worktree, `.git` is a *file* pointing at the real gitdir, but `.git/info/exclude` still resolves correctly through it. Verify with the next step.
+This resolves to the shared common gitdir (`<main>/.git/info/exclude`), which is harmless: in the main checkout `node_modules` is a real directory already covered by `.gitignore`.
 
 - [ ] **Step 4: Verify the worktree is clean and the symlink is ignored**
 
