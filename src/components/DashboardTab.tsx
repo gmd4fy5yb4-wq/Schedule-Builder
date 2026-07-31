@@ -118,7 +118,7 @@ function CoachList({ label, coaches }: { label: string; coaches: Coach[] }) {
 }
 
 /** Square weather card shown alongside each event card. */
-function WeatherCard({ data, loading }: { data?: DayWeather; loading?: boolean }) {
+function WeatherCard({ data, loading, inline = false }: { data?: DayWeather; loading?: boolean; inline?: boolean }) {
   if (loading && !data) {
     return (
       <div className="w-32 flex-shrink-0 bg-sky-50 border border-sky-100 rounded-xl flex flex-col items-center justify-center gap-2 p-3 animate-pulse">
@@ -133,6 +133,23 @@ function WeatherCard({ data, loading }: { data?: DayWeather; loading?: boolean }
   const desc = weatherDesc(data.weatherCode)
   const isRainy = data.precipChance >= 30
   const isWindy = data.windSpeed >= 15
+  if (inline) {
+    // Phone variant: a 128px square beside a 390px card leaves ~240px for the
+    // matchup. Same data, one row, inside the card instead of beside it.
+    return (
+      <div className="flex items-center gap-2 text-sm bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
+        <span className="text-xl leading-none" role="img" aria-label={desc}>{weatherEmoji(data.weatherCode)}</span>
+        <span className="font-bold text-gray-800">{data.tempHigh}°</span>
+        <span className="text-gray-500">/ {data.tempLow}°</span>
+        <span className="text-xs text-sky-700 truncate">{desc}</span>
+        {isRainy && (
+          <span className="ml-auto shrink-0 text-xs font-medium text-blue-700 flex items-center gap-1">
+            <Icon name="droplet" className="w-3.5 h-3.5" />{data.precipChance}%
+          </span>
+        )}
+      </div>
+    )
+  }
   return (
     <div className="w-32 flex-shrink-0 bg-gradient-to-b from-sky-50 to-blue-50 border border-sky-200 rounded-xl flex flex-col items-center justify-center gap-1.5 p-4 text-center shadow-sm">
       <span className="text-4xl leading-none" role="img" aria-label={desc}>
@@ -504,6 +521,13 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                             </div>
                           </div>
 
+                          {/* Phone: weather folds into the card instead of
+                              sitting beside it. `date` is the day group's key,
+                              in scope from the enclosing map. */}
+                          <div className="sm:hidden">
+                            <WeatherCard data={weatherByDate.get(date)} inline />
+                          </div>
+
                           {/* Field / Location */}
                           {field && (
                             <div className="flex items-center gap-2 text-sm">
@@ -585,12 +609,48 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                               )}
                             </div>
                           )}
+
+                          {/* Phone: the two things a coach standing in a parking
+                              lot actually needs. Each renders only when its data
+                              exists — no dead buttons. */}
+                          {(() => {
+                            const headCoach = [...homeCoaches, ...awayCoaches].find(c => c.role === 'head' && c.phone)
+                              ?? [...homeCoaches, ...awayCoaches].find(c => c.phone)
+                            const directions = field?.geocoords
+                              ? `https://www.google.com/maps/search/?api=1&query=${field.geocoords.lat},${field.geocoords.lon}`
+                              : field?.address ? mapsUrl(field.address) : null
+                            if (!headCoach && !directions) return null
+                            return (
+                              <div className="sm:hidden flex gap-2 pt-1">
+                                {headCoach && (
+                                  <a
+                                    href={`tel:${headCoach.phone}`}
+                                    className="flex-1 min-h-[44px] flex items-center justify-center rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 active:bg-gray-50"
+                                  >
+                                    Call coach
+                                  </a>
+                                )}
+                                {directions && (
+                                  <a
+                                    href={directions}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 min-h-[44px] flex items-center justify-center rounded-lg bg-[var(--fd-primary)] text-sm font-semibold text-white active:opacity-90"
+                                  >
+                                    Directions
+                                  </a>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       </div>
                     </div>
                   </div>
                   {/* Weather square */}
-                  <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
+                  <div className="hidden sm:flex">
+                    <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
+                  </div>
                   </div>
                 )
 
@@ -639,6 +699,13 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                             <span className="text-gray-400 font-normal text-base">Practice</span>
                           </div>
 
+                          {/* Phone: weather folds into the card instead of
+                              sitting beside it. `date` is the day group's key,
+                              in scope from the enclosing map. */}
+                          <div className="sm:hidden">
+                            <WeatherCard data={weatherByDate.get(date)} inline />
+                          </div>
+
                           {field && (
                             <div className="flex items-center gap-2 text-sm">
                               <PinIcon />
@@ -671,7 +738,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                     </div>
                   </div>
                   {/* Weather square */}
-                  <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
+                  <div className="hidden sm:flex">
+                    <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
+                  </div>
                   </div>
                 )
               }
