@@ -26,3 +26,28 @@
     @apply w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)] disabled:opacity-50 disabled:bg-gray-50;
   }
 }
+
+/* ── Mobile sheet motion (Phase 2) ─────────────────────────────────────────
+   Timings from the Mobile Shell prototype. The sheet curve overshoots
+   slightly, which is what makes a bottom sheet feel attached to the thumb
+   rather than tweened into place. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-sheet-up    { animation: sheet-up .3s cubic-bezier(.32, .72, .35, 1); }
+.animate-backdrop-in { animation: backdrop-in .15s ease-out; }
+
+/* Vestibular safety: motion is decoration here, never the only signal that
+   something opened. Dropping it to a single frame costs nothing. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-up,
+  .animate-backdrop-in {
+    animation-duration: .01ms;
+    animation-iteration-count: 1;
+  }
+}

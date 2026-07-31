@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice, ScheduledSpecialEvent } from '@/lib/types'
 import { exportToExcel, exportToCSV } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
@@ -21,8 +21,19 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
-  const [view, setView] = useState<'calendar' | 'list' | 'day'>('calendar')
+  // Agenda-first below 640px: a month grid on a 390px screen renders event
+  // chips too small to read, let alone tap. Read once on mount rather than
+  // through a live listener — rotating the phone should not throw away the
+  // view the user just chose.
+  const [view, setView] = useState<'calendar' | 'list' | 'day'>(
+    () => (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? 'list' : 'calendar')
+  )
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split('T')[0])
+  // One-shot scroll trigger for "tap a day in the month grid, jump to it in
+  // the agenda". Must be separate from selectedDay: selectedDay is ordinary
+  // state that outlives the jump, so keying the scroll effect on it re-fires
+  // on every later transition into the agenda (e.g. the plain Agenda tab).
+  const [pendingJump, setPendingJump] = useState<string | null>(null)
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
   const [filterDiv, setFilterDiv] = useState('all')
   const [filterTeam, setFilterTeam] = useState('all')
@@ -35,6 +46,16 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const [dragError, setDragError] = useState<string | null>(null)
   const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [tooltip, setTooltip] = useState<{ ev: ScheduledGame | ScheduledPractice | ScheduledSpecialEvent; x: number; y: number } | null>(null)
+
+  // "Tap a day to jump to it in the agenda" — the view switch and the agenda
+  // render happen in different passes, so the scroll has to happen after the
+  // agenda exists, not in the click handler that triggers it.
+  useEffect(() => {
+    if (view !== 'list' || !pendingJump) return
+    const el = document.getElementById(`agenda-${pendingJump}`)
+    el?.scrollIntoView({ block: 'start' })
+    setPendingJump(null)
+  }, [view, pendingJump])
 
   // Coach notification state
   const [notifyModal, setNotifyModal] = useState(false)
@@ -218,9 +239,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}{totalSpecial > 0 ? ` · ${totalSpecial} special` : ''}</span>
           <div className="flex rounded-lg border overflow-hidden text-sm">
-            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
-            <button onClick={() => setView('day')} className={`px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
+            {/* Phones get two choices with mobile vocabulary; Day view is a
+                desktop timeline and stays there. */}
+            <button onClick={() => setView('list')} className={`sm:hidden min-h-[44px] px-4 transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600'}`}>Agenda</button>
+            <button onClick={() => setView('calendar')} className={`sm:hidden min-h-[44px] px-4 border-l transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600'}`}>Month</button>
+            <button onClick={() => setView('calendar')} className={`hidden sm:block px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
+            <button onClick={() => setView('day')} className={`hidden sm:block px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
+            <button onClick={() => setView('list')} className={`hidden sm:block px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
             <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50">
@@ -334,7 +359,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           <div className="grid grid-cols-7">
             {/* Leading blanks */}
             {Array.from({ length: firstDow }).map((_, i) => (
-              <div key={`b${i}`} className={`min-h-[110px] bg-gray-50 border-b ${i < 6 ? 'border-r' : ''}`} />
+              <div key={`b${i}`} className={`min-h-[56px] sm:min-h-[110px] bg-gray-50 border-b ${i < 6 ? 'border-r' : ''}`} />
             ))}
 
             {/* Day cells */}
@@ -350,7 +375,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               return (
                 <div
                   key={day}
-                  className={`min-h-[110px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
+                  className={`min-h-[56px] sm:min-h-[110px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
                     isDragTarget ? 'bg-[#f5f5fb] ring-2 ring-inset ring-green-400' :
                     isBlackout ? 'bg-red-50' : 'hover:bg-slate-50 transition-colors'
                   }`}
@@ -366,7 +391,14 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                   {/* Date number + add button */}
                   <div className="flex items-center justify-between mb-1">
                     <span
-                      onClick={() => { setSelectedDay(dateStr); setView('day') }}
+                      onClick={() => {
+                        setSelectedDay(dateStr)
+                        // Day view is a desktop timeline; on a phone the grid is
+                        // a date picker and the agenda is the destination.
+                        const isMobile = window.matchMedia('(max-width: 639px)').matches
+                        if (isMobile) setPendingJump(dateStr)
+                        setView(isMobile ? 'list' : 'day')
+                      }}
                       className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--fd-accent)] transition ${
                         isToday ? 'bg-[var(--fd-primary)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
                       }`}
@@ -374,7 +406,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     >{day}</span>
                     {isBlackout
                       ? <span className="text-xs text-red-300 italic">closed</span>
-                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
+                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-9 h-9 sm:w-5 sm:h-5 shrink-0 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
                     }
                   </div>
 
@@ -385,7 +417,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     const gap      = n <= 6 ? 'space-y-0.5' : 'space-y-px'
                     const pad      = n <= 6 ? 'px-1.5 py-0.5' : 'px-1 py-px'
                     return (
-                      <div className={`flex-1 ${gap}`}>
+                      <>
+                      <div className={`hidden sm:block flex-1 ${gap}`}>
                         {events.map(ev => {
                           const isSpecial  = ev.type === 'special'
                           const isPractice = ev.type === 'practice'
@@ -428,6 +461,18 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                           )
                         })}
                       </div>
+                      {/* Phones: one dot with a count. A chip in a 390px/7-column
+                          cell is ~50px wide — unreadable and untappable. */}
+                      {n > 0 && (
+                        <button
+                          onClick={() => { setSelectedDay(dateStr); setPendingJump(dateStr); setView('list') }}
+                          className="sm:hidden mx-auto mb-1 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--fd-accent)] text-white text-[11px] font-bold"
+                          aria-label={`${n} event${n === 1 ? '' : 's'} on ${dateStr}`}
+                        >
+                          {n}
+                        </button>
+                      )}
+                      </>
                     )
                   })()}
                 </div>
@@ -439,10 +484,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               const used = firstDow + numDays
               const trail = used % 7 === 0 ? 0 : 7 - (used % 7)
               return Array.from({ length: trail }).map((_, i) => (
-                <div key={`t${i}`} className={`min-h-[110px] bg-gray-50 border-b ${i < trail - 1 ? 'border-r' : ''}`} />
+                <div key={`t${i}`} className={`min-h-[56px] sm:min-h-[110px] bg-gray-50 border-b ${i < trail - 1 ? 'border-r' : ''}`} />
               ))
             })()}
           </div>
+          <p className="sm:hidden px-4 py-3 text-xs text-center text-gray-500">
+            Tap a day to jump to it in the agenda — no tiny event chips.
+          </p>
         </div>
       )}
 
@@ -450,7 +498,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       {view === 'list' && (
         <div className="space-y-3">
           <div className="bg-white rounded-lg border overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b text-left">
@@ -512,6 +560,70 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* ── Agenda (phones) ── */}
+            <div className="sm:hidden">
+              {allItems.length === 0 && (
+                <p className="px-4 py-12 text-center text-gray-500 italic text-sm">
+                  No events yet — switch to Month and tap any day to add one.
+                </p>
+              )}
+              {(() => {
+                // Group the already-sorted, already-filtered list by date. One
+                // pass, no extra memo — allItems is at most a season's events.
+                const groups: { date: string; items: typeof allItems }[] = []
+                for (const item of allItems) {
+                  const last = groups[groups.length - 1]
+                  if (last && last.date === item.date) last.items.push(item)
+                  else groups.push({ date: item.date, items: [item] })
+                }
+                return groups.map(g => (
+                  <section key={g.date} id={`agenda-${g.date}`}>
+                    <h3 className="sticky top-0 z-[1] bg-gray-50 border-y px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-500">
+                      {fmtDateShort(g.date)}
+                    </h3>
+                    {g.items.map(item => {
+                      const isSpecial = item.type === 'special'
+                      const c = isSpecial ? null : getDivisionColor((item as ScheduledGame | ScheduledPractice).divisionId, state.divisions)
+                      const sp = item as ScheduledSpecialEvent
+                      const title = isSpecial
+                        ? sp.name
+                        : item.type === 'game'
+                          ? `${teamMap.get((item as ScheduledGame).homeTeamId)?.name ?? 'TBD'} vs ${teamMap.get((item as ScheduledGame).awayTeamId)?.name ?? 'TBD'}`
+                          : `${teamMap.get((item as ScheduledPractice).teamId)?.name ?? 'TBD'} practice`
+                      const where = isSpecial
+                        ? (sp.location ?? '')
+                        : (fieldMap.get((item as ScheduledGame | ScheduledPractice).fieldId)?.name ?? '')
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => openEdit(item)}
+                          className="w-full min-h-[64px] px-4 py-3 flex items-start gap-3 border-b last:border-0 text-left active:bg-gray-50"
+                        >
+                          <span className="w-16 shrink-0 text-sm font-semibold text-gray-800 pt-0.5">
+                            {fmtTime(item.time)}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium text-gray-900 truncate">{title}</span>
+                            <span className="block text-xs text-gray-500 truncate">
+                              {where}
+                              {item.type === 'game' && (item as ScheduledGame).result !== undefined && (
+                                <> · {(item as ScheduledGame).result!.homeScore}–{(item as ScheduledGame).result!.awayScore}</>
+                              )}
+                            </span>
+                          </span>
+                          {c && (
+                            <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-lg font-medium ${c.pill}`}>
+                              {divMap.get((item as ScheduledGame | ScheduledPractice).divisionId)?.name}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </section>
+                ))
+              })()}
             </div>
           </div>
         </div>
