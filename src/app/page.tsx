@@ -24,6 +24,8 @@ import DashboardTab from '@/components/DashboardTab'
 import LeagueGate from '@/components/LeagueGate'
 import TrialBar from '@/components/TrialBar'
 import Icon from '@/components/Icon'
+import MobileNav from '@/components/MobileNav'
+import { isTabVisible } from '@/lib/mobileNav'
 
 interface SubscriptionRow extends PlanPanelSubscription {
   plan_tier: string
@@ -101,6 +103,7 @@ type SyncStatus = 'synced' | 'saving' | 'error'
 export default function Home() {
   const [state, setState] = useState<AppState>(DEFAULT)
   const [tab, setTab] = useState(0)
+  const [kebabOpen, setKebabOpen] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [leagueCode, setLeagueCode] = useState<string | null>(null)
   const [userName, setUserName] = useState('Unknown')
@@ -536,22 +539,22 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50" style={themeStyle}>
       <header className="bg-[var(--fd-primary)] text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4 sm:flex-wrap">
           {/* A league still on the placeholder name gets the title as a prompt.
               LeagueGate only started asking for a name recently, so most existing
               leagues are called "My League" and their admins never saw the field. */}
           {isUnnamedLeague(state.season) && !readOnly ? (
             <button
               onClick={() => setTab(1)}
-              className="text-xl font-bold text-white/90 border-b-2 border-dashed border-white/40 hover:text-white hover:border-white/70 transition"
+              className="text-xl font-bold text-white/90 border-b-2 border-dashed border-white/40 hover:text-white hover:border-white/70 transition truncate min-w-0 sm:whitespace-normal sm:overflow-visible"
             >
               Name your league →
             </button>
           ) : (
-            <h1 className="text-xl font-bold">{state.season.leagueName || 'FieldDay Planner'}</h1>
+            <h1 className="text-xl font-bold truncate min-w-0 sm:whitespace-normal sm:overflow-visible">{state.season.leagueName || 'FieldDay Planner'}</h1>
           )}
 
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="hidden sm:flex items-center gap-3 flex-wrap">
             {/* Read-only badge */}
             {readOnly && (
               <span className="bg-yellow-400 text-yellow-900 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">
@@ -661,6 +664,36 @@ export default function Home() {
               <span className="text-xs text-[var(--fd-primary-muted)]">Live schedule — auto-updates every 30s</span>
             )}
           </div>
+
+          {/* Mobile: share + kebab only. Everything else moved into the
+              MobileNav sheets — the desktop cluster wraps to three lines on a
+              390px screen. */}
+          <div className="flex sm:hidden items-center gap-1">
+            {readOnly && (
+              <span className="bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                {expired ? 'Read Only' : 'View Only'}
+              </span>
+            )}
+            {!isViewer && (
+              <button
+                onClick={copyReadOnlyLink}
+                aria-label="Copy view-only link"
+                className="w-11 h-11 flex items-center justify-center rounded-lg text-[var(--fd-primary-light)] hover:text-white transition"
+              >
+                <Icon name="link" className="w-5 h-5" />
+              </button>
+            )}
+            {!isViewer && (
+              <button
+                onClick={() => setKebabOpen(true)}
+                aria-label="More actions"
+                aria-haspopup="dialog"
+                className="w-11 h-11 flex items-center justify-center rounded-lg text-[var(--fd-primary-light)] hover:text-white transition"
+              >
+                <Icon name="dots" className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Last updated bar */}
@@ -731,11 +764,11 @@ export default function Home() {
           Grouped into Overview / Operate / Setup so the 11 tabs read as clusters
           instead of one flat row; indices stay the ones the switch below and
           onNavigate() calls expect, only the visual order changes. */}
-      <div className="bg-white border-b shadow-sm sticky top-0 z-10">
+      <div className="hidden sm:block bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto">
             {NAV_GROUPS.map((group, gi) => {
-              const visible = group.indices.filter(i => !(isViewer && (i >= 1 && i <= 4 || i === 8)))
+              const visible = group.indices.filter(i => isTabVisible(i, isViewer))
               if (visible.length === 0) return null
               return (
                 <div key={group.label} className="flex items-stretch">
@@ -769,7 +802,8 @@ export default function Home() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      {/* pb-28: the fixed bottom bar is ~56px plus the home-indicator inset. */}
+      <main className="max-w-7xl mx-auto px-4 py-6 pb-28 sm:pb-6">
         {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
         {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} />}
         {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
@@ -792,6 +826,27 @@ export default function Home() {
           onClose={() => setShowSnapshots(false)}
         />
       )}
+
+      <MobileNav
+        tab={tab}
+        setTab={setTab}
+        tabLabels={TABS}
+        navOrder={NAV_GROUPS.flatMap(g => g.indices)}
+        isViewer={isViewer}
+        leagueCode={leagueCode}
+        onCopyCode={copyCode}
+        codeCopied={codeCopied}
+        syncStatus={syncStatus}
+        canUndo={canUndo}
+        onUndo={handleUndo}
+        onSnapshots={() => setShowSnapshots(true)}
+        onSignOut={handleSignOut}
+        onLeave={handleLeave}
+        isSignedIn={!!user}
+        readOnly={readOnly}
+        kebabOpen={kebabOpen}
+        onKebabChange={setKebabOpen}
+      />
     </div>
   )
 }
