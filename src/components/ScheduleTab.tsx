@@ -527,7 +527,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             {/* ── Agenda (phones) ── */}
             <div className="sm:hidden">
               {allItems.length === 0 && (
-                <p className="px-4 py-12 text-center text-gray-400 italic text-sm">
+                <p className="px-4 py-12 text-center text-gray-500 italic text-sm">
                   No events yet — switch to Month and tap any day to add one.
                 </p>
               )}
