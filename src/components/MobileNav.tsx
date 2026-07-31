@@ -199,7 +199,7 @@ export default function MobileNav(props: MobileNavProps) {
             {!isViewer && (
               <SheetRow label="Snapshots" onClick={() => { onSnapshots(); setSheet(null) }} />
             )}
-            {!readOnly && (
+            {!readOnly && isSignedIn && (
               <a
                 href="/account"
                 className="w-full min-h-[52px] px-4 flex items-center text-[15px] text-gray-800 border-t border-gray-100 active:bg-gray-50"
