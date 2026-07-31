@@ -344,7 +344,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           <div className="grid grid-cols-7">
             {/* Leading blanks */}
             {Array.from({ length: firstDow }).map((_, i) => (
-              <div key={`b${i}`} className={`min-h-[110px] bg-gray-50 border-b ${i < 6 ? 'border-r' : ''}`} />
+              <div key={`b${i}`} className={`min-h-[56px] sm:min-h-[110px] bg-gray-50 border-b ${i < 6 ? 'border-r' : ''}`} />
             ))}
 
             {/* Day cells */}
@@ -360,7 +360,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               return (
                 <div
                   key={day}
-                  className={`min-h-[110px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
+                  className={`min-h-[56px] sm:min-h-[110px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
                     isDragTarget ? 'bg-[#f5f5fb] ring-2 ring-inset ring-green-400' :
                     isBlackout ? 'bg-red-50' : 'hover:bg-slate-50 transition-colors'
                   }`}
@@ -376,7 +376,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                   {/* Date number + add button */}
                   <div className="flex items-center justify-between mb-1">
                     <span
-                      onClick={() => { setSelectedDay(dateStr); setView('day') }}
+                      onClick={() => {
+                        setSelectedDay(dateStr)
+                        // Day view is a desktop timeline; on a phone the grid is
+                        // a date picker and the agenda is the destination.
+                        setView(window.matchMedia('(max-width: 639px)').matches ? 'list' : 'day')
+                      }}
                       className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--fd-accent)] transition ${
                         isToday ? 'bg-[var(--fd-primary)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
                       }`}
@@ -384,7 +389,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     >{day}</span>
                     {isBlackout
                       ? <span className="text-xs text-red-300 italic">closed</span>
-                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
+                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 sm:w-5 sm:h-5 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
                     }
                   </div>
 
@@ -395,7 +400,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     const gap      = n <= 6 ? 'space-y-0.5' : 'space-y-px'
                     const pad      = n <= 6 ? 'px-1.5 py-0.5' : 'px-1 py-px'
                     return (
-                      <div className={`flex-1 ${gap}`}>
+                      <>
+                      <div className={`hidden sm:block flex-1 ${gap}`}>
                         {events.map(ev => {
                           const isSpecial  = ev.type === 'special'
                           const isPractice = ev.type === 'practice'
@@ -438,6 +444,18 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                           )
                         })}
                       </div>
+                      {/* Phones: one dot with a count. A chip in a 390px/7-column
+                          cell is ~50px wide — unreadable and untappable. */}
+                      {n > 0 && (
+                        <button
+                          onClick={() => { setSelectedDay(dateStr); setView('list') }}
+                          className="sm:hidden mx-auto mb-1 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--fd-accent)] text-white text-[11px] font-bold"
+                          aria-label={`${n} event${n === 1 ? '' : 's'} on ${dateStr}`}
+                        >
+                          {n}
+                        </button>
+                      )}
+                      </>
                     )
                   })()}
                 </div>
@@ -449,10 +467,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               const used = firstDow + numDays
               const trail = used % 7 === 0 ? 0 : 7 - (used % 7)
               return Array.from({ length: trail }).map((_, i) => (
-                <div key={`t${i}`} className={`min-h-[110px] bg-gray-50 border-b ${i < trail - 1 ? 'border-r' : ''}`} />
+                <div key={`t${i}`} className={`min-h-[56px] sm:min-h-[110px] bg-gray-50 border-b ${i < trail - 1 ? 'border-r' : ''}`} />
               ))
             })()}
           </div>
+          <p className="sm:hidden px-4 py-3 text-xs text-center text-gray-500">
+            Tap a day to jump to it in the agenda — no tiny event chips.
+          </p>
         </div>
       )}
 
