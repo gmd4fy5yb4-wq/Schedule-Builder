@@ -42,6 +42,17 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     }
   }, [onClose])
 
+  // The sheet is `sm:hidden` — visually gone at >=640px but still mounted,
+  // so the scroll-lock effect above never cleans up. Close it on the
+  // desktop breakpoint crossing so overflow:hidden can't outlive the sheet
+  // (e.g. tablet portrait -> landscape rotation with More open).
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 640px)')
+    function onChange(e: MediaQueryListEvent) { if (e.matches) onClose() }
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [onClose])
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/50 flex items-end animate-backdrop-in sm:hidden"

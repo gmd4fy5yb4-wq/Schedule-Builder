@@ -386,7 +386,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
     const willCreate = cleanCount + keepCount
 
     return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-0 animate-backdrop-in sm:items-center sm:p-4">
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-0 animate-backdrop-in sm:animate-none sm:items-center sm:p-4">
         <div className="bg-white rounded-t-2xl shadow-2xl w-full max-h-[92vh] flex flex-col animate-sheet-up sm:rounded-2xl sm:max-w-lg sm:animate-none" onClick={e => e.stopPropagation()}>
 
           {/* Header */}
@@ -484,8 +484,8 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-0 animate-backdrop-in sm:items-center sm:p-4" onClick={onClose}>
-      <div className="bg-white rounded-t-2xl shadow-2xl w-full max-h-[92vh] overflow-y-auto animate-sheet-up sm:rounded-2xl sm:max-w-lg sm:animate-none" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-0 animate-backdrop-in sm:animate-none sm:items-center sm:p-4" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl shadow-2xl w-full max-h-[92vh] overflow-y-auto animate-sheet-up pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-w-lg sm:animate-none sm:pb-0" onClick={e => e.stopPropagation()}>
         <div className="sm:hidden flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-gray-300" />
         </div>
@@ -853,7 +853,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
             <button
               onClick={save}
               disabled={!canSave()}
-              className="px-5 py-2 text-sm font-semibold bg-[var(--fd-primary)] text-white rounded-xl hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px] px-5 sm:min-h-0"
+              className="px-5 py-2 text-sm font-semibold bg-[var(--fd-primary)] text-white rounded-xl hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px] sm:min-h-0"
             >
               {saveLabel}
             </button>

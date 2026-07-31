@@ -648,7 +648,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                     </div>
                   </div>
                   {/* Weather square */}
-                  <div className="hidden sm:flex">
+                  <div className="hidden sm:flex shrink-0">
                     <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
                   </div>
                   </div>
@@ -738,7 +738,7 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                     </div>
                   </div>
                   {/* Weather square */}
-                  <div className="hidden sm:flex">
+                  <div className="hidden sm:flex shrink-0">
                     <WeatherCard data={weatherByDate.get(date)} loading={weatherLoading} />
                   </div>
                   </div>

@@ -546,12 +546,12 @@ export default function Home() {
           {isUnnamedLeague(state.season) && !readOnly ? (
             <button
               onClick={() => setTab(1)}
-              className="text-xl font-bold text-white/90 border-b-2 border-dashed border-white/40 hover:text-white hover:border-white/70 transition truncate min-w-0"
+              className="text-xl font-bold text-white/90 border-b-2 border-dashed border-white/40 hover:text-white hover:border-white/70 transition truncate min-w-0 sm:whitespace-normal sm:overflow-visible"
             >
               Name your league →
             </button>
           ) : (
-            <h1 className="text-xl font-bold truncate min-w-0">{state.season.leagueName || 'FieldDay Planner'}</h1>
+            <h1 className="text-xl font-bold truncate min-w-0 sm:whitespace-normal sm:overflow-visible">{state.season.leagueName || 'FieldDay Planner'}</h1>
           )}
 
           <div className="hidden sm:flex items-center gap-3 flex-wrap">
@@ -683,14 +683,16 @@ export default function Home() {
                 <Icon name="link" className="w-5 h-5" />
               </button>
             )}
-            <button
-              onClick={() => setKebabOpen(true)}
-              aria-label="More actions"
-              aria-haspopup="dialog"
-              className="w-11 h-11 flex items-center justify-center rounded-lg text-[var(--fd-primary-light)] hover:text-white transition"
-            >
-              <Icon name="dots" className="w-5 h-5" />
-            </button>
+            {!isViewer && (
+              <button
+                onClick={() => setKebabOpen(true)}
+                aria-label="More actions"
+                aria-haspopup="dialog"
+                className="w-11 h-11 flex items-center justify-center rounded-lg text-[var(--fd-primary-light)] hover:text-white transition"
+              >
+                <Icon name="dots" className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 

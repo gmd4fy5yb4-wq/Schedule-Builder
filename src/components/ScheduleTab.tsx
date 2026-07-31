@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice, ScheduledSpecialEvent } from '@/lib/types'
 import { exportToExcel, exportToCSV } from '@/lib/export'
 import { getDivisionColor } from '@/lib/divisionColors'
@@ -41,6 +41,15 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const [dragError, setDragError] = useState<string | null>(null)
   const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [tooltip, setTooltip] = useState<{ ev: ScheduledGame | ScheduledPractice | ScheduledSpecialEvent; x: number; y: number } | null>(null)
+
+  // "Tap a day to jump to it in the agenda" — the view switch and the agenda
+  // render happen in different passes, so the scroll has to happen after the
+  // agenda exists, not in the click handler that triggers it.
+  useEffect(() => {
+    if (view !== 'list' || !selectedDay) return
+    const el = document.getElementById(`agenda-${selectedDay}`)
+    el?.scrollIntoView({ block: 'start' })
+  }, [view, selectedDay])
 
   // Coach notification state
   const [notifyModal, setNotifyModal] = useState(false)
@@ -389,7 +398,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                     >{day}</span>
                     {isBlackout
                       ? <span className="text-xs text-red-300 italic">closed</span>
-                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 sm:w-5 sm:h-5 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
+                      : !readOnly && <button onClick={() => openAdd(dateStr)} className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-9 h-9 sm:w-5 sm:h-5 shrink-0 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none" title="Add event">+</button>
                     }
                   </div>
 
@@ -562,7 +571,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                   else groups.push({ date: item.date, items: [item] })
                 }
                 return groups.map(g => (
-                  <section key={g.date}>
+                  <section key={g.date} id={`agenda-${g.date}`}>
                     <h3 className="sticky top-0 z-[1] bg-gray-50 border-y px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-500">
                       {fmtDateShort(g.date)}
                     </h3>
