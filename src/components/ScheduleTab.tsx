@@ -21,7 +21,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
-  const [view, setView] = useState<'calendar' | 'list' | 'day'>('calendar')
+  // Agenda-first below 640px: a month grid on a 390px screen renders event
+  // chips too small to read, let alone tap. Read once on mount rather than
+  // through a live listener — rotating the phone should not throw away the
+  // view the user just chose.
+  const [view, setView] = useState<'calendar' | 'list' | 'day'>(
+    () => (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? 'list' : 'calendar')
+  )
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split('T')[0])
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
   const [filterDiv, setFilterDiv] = useState('all')
@@ -218,9 +224,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}{totalSpecial > 0 ? ` · ${totalSpecial} special` : ''}</span>
           <div className="flex rounded-lg border overflow-hidden text-sm">
-            <button onClick={() => setView('calendar')} className={`px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
-            <button onClick={() => setView('day')} className={`px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
+            {/* Phones get two choices with mobile vocabulary; Day view is a
+                desktop timeline and stays there. */}
+            <button onClick={() => setView('list')} className={`sm:hidden min-h-[44px] px-4 transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600'}`}>Agenda</button>
+            <button onClick={() => setView('calendar')} className={`sm:hidden min-h-[44px] px-4 border-l transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600'}`}>Month</button>
+            <button onClick={() => setView('calendar')} className={`hidden sm:block px-3 py-1.5 transition ${view === 'calendar' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Calendar</button>
+            <button onClick={() => setView('day')} className={`hidden sm:block px-3 py-1.5 border-l transition ${view === 'day' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Day</button>
+            <button onClick={() => setView('list')} className={`hidden sm:block px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
             <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50">
@@ -450,7 +460,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
       {view === 'list' && (
         <div className="space-y-3">
           <div className="bg-white rounded-lg border overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b text-left">
@@ -512,6 +522,70 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* ── Agenda (phones) ── */}
+            <div className="sm:hidden">
+              {allItems.length === 0 && (
+                <p className="px-4 py-12 text-center text-gray-400 italic text-sm">
+                  No events yet — switch to Month and tap any day to add one.
+                </p>
+              )}
+              {(() => {
+                // Group the already-sorted, already-filtered list by date. One
+                // pass, no extra memo — allItems is at most a season's events.
+                const groups: { date: string; items: typeof allItems }[] = []
+                for (const item of allItems) {
+                  const last = groups[groups.length - 1]
+                  if (last && last.date === item.date) last.items.push(item)
+                  else groups.push({ date: item.date, items: [item] })
+                }
+                return groups.map(g => (
+                  <section key={g.date}>
+                    <h3 className="sticky top-0 z-[1] bg-gray-50 border-y px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-500">
+                      {fmtDateShort(g.date)}
+                    </h3>
+                    {g.items.map(item => {
+                      const isSpecial = item.type === 'special'
+                      const c = isSpecial ? null : getDivisionColor((item as ScheduledGame | ScheduledPractice).divisionId, state.divisions)
+                      const sp = item as ScheduledSpecialEvent
+                      const title = isSpecial
+                        ? sp.name
+                        : item.type === 'game'
+                          ? `${teamMap.get((item as ScheduledGame).homeTeamId)?.name ?? 'TBD'} vs ${teamMap.get((item as ScheduledGame).awayTeamId)?.name ?? 'TBD'}`
+                          : `${teamMap.get((item as ScheduledPractice).teamId)?.name ?? 'TBD'} practice`
+                      const where = isSpecial
+                        ? (sp.location ?? '')
+                        : (fieldMap.get((item as ScheduledGame | ScheduledPractice).fieldId)?.name ?? '')
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => openEdit(item)}
+                          className="w-full min-h-[64px] px-4 py-3 flex items-start gap-3 border-b last:border-0 text-left active:bg-gray-50"
+                        >
+                          <span className="w-16 shrink-0 text-sm font-semibold text-gray-800 pt-0.5">
+                            {fmtTime(item.time)}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium text-gray-900 truncate">{title}</span>
+                            <span className="block text-xs text-gray-500 truncate">
+                              {where}
+                              {item.type === 'game' && (item as ScheduledGame).result !== undefined && (
+                                <> · {(item as ScheduledGame).result!.homeScore}–{(item as ScheduledGame).result!.awayScore}</>
+                              )}
+                            </span>
+                          </span>
+                          {c && (
+                            <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-lg font-medium ${c.pill}`}>
+                              {divMap.get((item as ScheduledGame | ScheduledPractice).divisionId)?.name}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </section>
+                ))
+              })()}
             </div>
           </div>
         </div>
