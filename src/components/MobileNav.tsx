@@ -165,7 +165,7 @@ export default function MobileNav(props: MobileNavProps) {
             {!isViewer && (
               <div className="border-t border-gray-100 mt-2 pt-4 px-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">League</span>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">League</span>
                   <button
                     onClick={onCopyCode}
                     className="min-h-[44px] flex items-center gap-2 font-mono font-bold tracking-widest text-gray-800"
@@ -177,7 +177,7 @@ export default function MobileNav(props: MobileNavProps) {
                   </button>
                 </div>
                 {!readOnly && (
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500">
                     {syncStatus === 'saving' ? 'Saving…'
                       : syncStatus === 'error' ? 'Save failed — check connection'
                       : 'Synced'}
