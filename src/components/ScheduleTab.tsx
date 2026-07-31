@@ -29,6 +29,11 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
     () => (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches ? 'list' : 'calendar')
   )
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split('T')[0])
+  // One-shot scroll trigger for "tap a day in the month grid, jump to it in
+  // the agenda". Must be separate from selectedDay: selectedDay is ordinary
+  // state that outlives the jump, so keying the scroll effect on it re-fires
+  // on every later transition into the agenda (e.g. the plain Agenda tab).
+  const [pendingJump, setPendingJump] = useState<string | null>(null)
   const [modal, setModal] = useState<{ open: boolean; initialForm: EventForm }>({ open: false, initialForm: emptyForm() })
   const [filterDiv, setFilterDiv] = useState('all')
   const [filterTeam, setFilterTeam] = useState('all')
@@ -46,10 +51,11 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   // render happen in different passes, so the scroll has to happen after the
   // agenda exists, not in the click handler that triggers it.
   useEffect(() => {
-    if (view !== 'list' || !selectedDay) return
-    const el = document.getElementById(`agenda-${selectedDay}`)
+    if (view !== 'list' || !pendingJump) return
+    const el = document.getElementById(`agenda-${pendingJump}`)
     el?.scrollIntoView({ block: 'start' })
-  }, [view, selectedDay])
+    setPendingJump(null)
+  }, [view, pendingJump])
 
   // Coach notification state
   const [notifyModal, setNotifyModal] = useState(false)
@@ -389,7 +395,9 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                         setSelectedDay(dateStr)
                         // Day view is a desktop timeline; on a phone the grid is
                         // a date picker and the agenda is the destination.
-                        setView(window.matchMedia('(max-width: 639px)').matches ? 'list' : 'day')
+                        const isMobile = window.matchMedia('(max-width: 639px)').matches
+                        if (isMobile) setPendingJump(dateStr)
+                        setView(isMobile ? 'list' : 'day')
                       }}
                       className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--fd-accent)] transition ${
                         isToday ? 'bg-[var(--fd-primary)] text-white' : isBlackout ? 'text-red-400' : 'text-gray-600'
@@ -457,7 +465,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                           cell is ~50px wide — unreadable and untappable. */}
                       {n > 0 && (
                         <button
-                          onClick={() => { setSelectedDay(dateStr); setView('list') }}
+                          onClick={() => { setSelectedDay(dateStr); setPendingJump(dateStr); setView('list') }}
                           className="sm:hidden mx-auto mb-1 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--fd-accent)] text-white text-[11px] font-bold"
                           aria-label={`${n} event${n === 1 ? '' : 's'} on ${dateStr}`}
                         >
