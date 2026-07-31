@@ -386,8 +386,8 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
     const willCreate = cleanCount + keepCount
 
     return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-0 animate-backdrop-in sm:items-center sm:p-4">
+        <div className="bg-white rounded-t-2xl shadow-2xl w-full max-h-[92vh] flex flex-col animate-sheet-up sm:rounded-2xl sm:max-w-lg sm:animate-none" onClick={e => e.stopPropagation()}>
 
           {/* Header */}
           <div className="px-6 py-4 border-b">
@@ -452,7 +452,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-between">
+          <div className="px-6 py-4 border-t bg-gray-50 sm:rounded-b-2xl flex items-center justify-between">
             <button
               type="button"
               onClick={() => { setBulkReview(null); onClose() }}
@@ -484,8 +484,11 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-0 animate-backdrop-in sm:items-center sm:p-4" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl shadow-2xl w-full max-h-[92vh] overflow-y-auto animate-sheet-up sm:rounded-2xl sm:max-w-lg sm:animate-none" onClick={e => e.stopPropagation()}>
+        <div className="sm:hidden flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
 
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-4 border-b">
@@ -832,7 +835,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 sm:rounded-b-2xl">
           {f.id ? (
             deleteConfirm ? (
               <div className="flex items-center gap-2">
@@ -846,11 +849,11 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
           ) : <div />}
 
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition min-h-[44px] sm:min-h-0">Cancel</button>
             <button
               onClick={save}
               disabled={!canSave()}
-              className="px-5 py-2 text-sm font-semibold bg-[var(--fd-primary)] text-white rounded-xl hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2 text-sm font-semibold bg-[var(--fd-primary)] text-white rounded-xl hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px] px-5 sm:min-h-0"
             >
               {saveLabel}
             </button>
