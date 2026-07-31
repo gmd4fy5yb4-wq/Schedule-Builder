@@ -22,6 +22,13 @@ const PATHS: Record<string, React.ReactNode> = {
   wind: <><path d="M12.8 19.6A2 2 0 1 0 14 16H2" /><path d="M17.7 4.4A2.5 2.5 0 1 1 19.5 8.7H2" /><path d="M9.6 15.3A2 2 0 1 0 11 12H2" /></>,
   star: <path d="m12 3 2.9 5.8 6.4.9-4.6 4.5 1 6.4-5.7-3-5.7 3 1-6.4L2.7 9.7l6.4-.9Z" />,
   alert: <><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></>,
+  home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" /></>,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
+  // Standings read as a ranking, and a bar chart says "ranking" in one glyph
+  // more clearly than a trophy does at 24px.
+  chart: <><path d="M4 20V10" /><path d="M10 20V4" /><path d="M16 20v-6" /><path d="M22 20H2" /></>,
+  menu: <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>,
+  dots: <><circle cx="12" cy="5" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="12" cy="19" r="1.2" /></>,
 }
 
 export type IconName = keyof typeof PATHS
