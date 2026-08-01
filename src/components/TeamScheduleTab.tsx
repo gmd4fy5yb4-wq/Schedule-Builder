@@ -91,10 +91,35 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
   const allTeamsCount = state.divisions.flatMap(d => d.teams).length
 
   return (
-    <div className="flex gap-6 min-h-[600px]">
+    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 sm:min-h-[600px]">
+
+      {/* Mobile team picker. A native <select> rather than the sidebar list:
+          the platform's own picker needs no scrolling past twenty teams to
+          reach the detail pane, and it gets keyboard and assistive-technology
+          behaviour for free. optgroup mirrors the sidebar's division grouping. */}
+      <div className="sm:hidden">
+        <label htmlFor="team-picker" className="block text-base font-semibold text-gray-700 mb-1.5">Teams</label>
+        <select
+          id="team-picker"
+          value={selectedTeamId ?? ''}
+          onChange={e => setSelectedTeamId(e.target.value || null)}
+          className="w-full min-h-[44px] border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
+        >
+          <option value="">Choose a team…</option>
+          {state.divisions.map(div => (
+            div.teams.length > 0 && (
+              <optgroup key={div.id} label={div.name}>
+                {div.teams.map(team => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </optgroup>
+            )
+          ))}
+        </select>
+      </div>
 
       {/* ── Sidebar ── */}
-      <div className="w-56 flex-shrink-0 space-y-3">
+      <div className="hidden sm:block w-56 flex-shrink-0 space-y-3">
         <h2 className="text-base font-semibold text-gray-700">Teams</h2>
         {allTeamsCount === 0 && (
           <p className="text-sm text-gray-400 italic">No teams added yet.</p>
@@ -163,7 +188,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
 
               <div className="flex items-center gap-4 flex-wrap">
                 {/* Stats row */}
-                <div className="flex gap-4 text-center">
+                <div className="flex flex-wrap sm:flex-nowrap gap-4 text-center">
                   <Stat label="Games" value={gameCount} />
                   <Stat label="Home" value={homeCount} />
                   <Stat label="Away" value={awayCount} />
@@ -180,7 +205,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                 {!readOnly && (
                   <button
                     onClick={openAddForTeam}
-                    className="ml-auto bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+                    className="w-full sm:w-auto sm:ml-auto min-h-[44px] sm:min-h-0 bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
                   >
                     + Add Event
                   </button>
@@ -199,6 +224,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
               </div>
             ) : (
               <div className="bg-white rounded-lg border overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b text-left">
@@ -312,6 +338,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>

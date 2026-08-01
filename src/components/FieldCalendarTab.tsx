@@ -80,14 +80,15 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
   const selectedField = state.fields.find(f => f.id === selectedFieldId)
 
   return (
-    <div className="flex gap-6 min-h-[600px]">
+    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 sm:min-h-[600px]">
 
       {/* ── Sidebar ── */}
-      <div className="w-48 flex-shrink-0 space-y-2">
+      <div className="w-full sm:w-48 flex-shrink-0 sm:space-y-2">
         <h2 className="text-base font-semibold text-gray-700">{sc.venuePlural}</h2>
         {state.fields.length === 0 && (
           <p className="text-sm text-gray-400 italic">No {sc.venuePlural.toLowerCase()} added yet. Go to the {sc.venuePlural} tab to add some.</p>
         )}
+        <div className="flex sm:block gap-2 sm:gap-0 overflow-x-auto sm:overflow-visible sm:space-y-2 pb-1 sm:pb-0">
         {state.fields.map(field => {
           const isSelected = selectedFieldId === field.id
           const count = countByField.get(field.id) ?? 0
@@ -95,7 +96,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
             <button
               key={field.id}
               onClick={() => setSelectedFieldId(field.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition ${
+              className={`w-auto shrink-0 whitespace-nowrap sm:w-full sm:whitespace-normal text-left px-3 py-2.5 rounded-lg border text-sm transition ${
                 isSelected
                   ? 'bg-[var(--fd-primary)] text-white border-[var(--fd-primary)] font-semibold shadow-sm'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-[var(--fd-primary)] hover:bg-[#f5f5fb]'
@@ -113,6 +114,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
             </button>
           )
         })}
+        </div>
       </div>
 
       {/* ── Main panel ── */}
@@ -173,7 +175,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
 
                 {/* Leading blanks */}
                 {Array.from({ length: firstDow }).map((_, i) => (
-                  <div key={`b${i}`} className={`min-h-[120px] bg-gray-50 border-b ${i < 6 ? 'border-r' : ''}`} />
+                  <div key={`b${i}`} className={`min-h-[56px] sm:min-h-[120px] bg-gray-50 border-b ${i < 6 ? 'border-r' : ''}`} />
                 ))}
 
                 {/* Day cells */}
@@ -200,7 +202,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                   return (
                     <div
                       key={day}
-                      className={`min-h-[120px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
+                      className={`min-h-[56px] sm:min-h-[120px] border-b p-1.5 relative group flex flex-col ${col < 6 ? 'border-r' : ''} ${
                         isBlackout ? 'bg-red-50' : 'hover:bg-slate-50 transition-colors'
                       }`}
                     >
@@ -218,7 +220,7 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                             ? <span className="text-xs text-red-300 italic">closed</span>
                             : !readOnly && <button
                                 onClick={() => openAdd(dateStr)}
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none"
+                                className="hidden sm:flex opacity-0 group-hover:opacity-100 w-5 h-5 shrink-0 items-center justify-center rounded-full text-[var(--fd-primary)] hover:bg-[#eeeef6] transition text-base leading-none"
                                 title="Add event at this field"
                               >+</button>
                           }
@@ -232,7 +234,8 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                         const gap      = n <= 5 ? 'space-y-0.5' : 'space-y-px'
                         const pad      = n <= 5 ? 'px-1.5 py-0.5' : 'px-1 py-px'
                         return (
-                          <div className={`flex-1 ${gap}`}>
+                          <>
+                          <div className={`hidden sm:block flex-1 ${gap}`}>
                             {events.map(ev => {
                               const c = getDivisionColor(ev.divisionId, state.divisions)
                               const isPractice = ev.type === 'practice'
@@ -254,6 +257,16 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                               )
                             })}
                           </div>
+                          {/* Phones: a count, not chips. Seven columns across
+                              390px leaves ~50px per cell, where a chip is
+                              unreadable and untappable. */}
+                          {n > 0 && (
+                            <span className="sm:hidden mx-auto mb-1 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--fd-primary)] text-white text-[11px] font-bold">
+                              {n}
+                              <span className="sr-only"> event{n === 1 ? '' : 's'} scheduled</span>
+                            </span>
+                          )}
+                          </>
                         )
                       })()}
                     </div>
@@ -265,10 +278,13 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                   const used = firstDow + numDays
                   const trail = used % 7 === 0 ? 0 : 7 - (used % 7)
                   return Array.from({ length: trail }).map((_, i) => (
-                    <div key={`t${i}`} className={`min-h-[120px] bg-gray-50 border-b ${i < trail - 1 ? 'border-r' : ''}`} />
+                    <div key={`t${i}`} className={`min-h-[56px] sm:min-h-[120px] bg-gray-50 border-b ${i < trail - 1 ? 'border-r' : ''}`} />
                   ))
                 })()}
               </div>
+              <p className="sm:hidden px-4 py-3 text-xs text-center text-gray-500">
+                Counts only on phones — open a {sc.venueSingular.toLowerCase()} on a larger screen to see and edit individual events.
+              </p>
             </div>
 
             {/* Availability legend */}
@@ -292,6 +308,22 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
 
       {modal.open && (
         <EventModal state={state} setState={setState} initialForm={modal.initialForm} onClose={closeModal} />
+      )}
+
+      {/* Mobile add-event FAB. A per-day `+` cannot fit a 51px month cell
+          beside the day number, so on phones adding is done here and the
+          date is chosen in the editor. Mirrors the Schedule tab's FAB.
+          Gated on selectedFieldId too — openAdd() writes selectedFieldId as
+          the event's fieldId, and with no field selected the calendar grid
+          (and this button's only reachable context) isn't even shown. */}
+      {!readOnly && selectedFieldId && (
+        <button
+          onClick={() => openAdd(new Date().toISOString().split('T')[0])}
+          aria-label="Add event"
+          className="sm:hidden fixed right-4 bottom-24 z-30 w-14 h-14 rounded-full bg-[var(--fd-accent)] text-white shadow-lg flex items-center justify-center text-3xl leading-none active:opacity-90"
+        >
+          +
+        </button>
       )}
     </div>
   )
