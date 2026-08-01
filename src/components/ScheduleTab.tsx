@@ -991,6 +991,21 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
           </div>
         </div>
       )}
+
+      {/* Mobile add-event FAB. Agenda is the default view on a phone and has
+          no per-day `+`, so without this there is no way to add an event from
+          the view the app opens on. Calls the same openAdd() the month grid
+          uses, so EventModal stays the single write path — no quick-add sheet,
+          no second place for a save bug to live. */}
+      {!readOnly && (
+        <button
+          onClick={() => openAdd(selectedDay)}
+          aria-label="Add event"
+          className="sm:hidden fixed right-4 bottom-24 z-30 w-14 h-14 rounded-full bg-[var(--fd-accent)] text-white shadow-lg flex items-center justify-center text-3xl leading-none active:opacity-90"
+        >
+          +
+        </button>
+      )}
     </div>
   )
 }
