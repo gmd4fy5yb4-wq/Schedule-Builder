@@ -188,7 +188,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
 
               <div className="flex items-center gap-4 flex-wrap">
                 {/* Stats row */}
-                <div className="flex flex-wrap gap-4 text-center">
+                <div className="flex flex-wrap sm:flex-nowrap gap-4 text-center">
                   <Stat label="Games" value={gameCount} />
                   <Stat label="Home" value={homeCount} />
                   <Stat label="Away" value={awayCount} />
@@ -205,7 +205,7 @@ export default function TeamScheduleTab({ state, setState, readOnly = false }: P
                 {!readOnly && (
                   <button
                     onClick={openAddForTeam}
-                    className="w-full sm:w-auto sm:ml-auto min-h-[44px] bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+                    className="w-full sm:w-auto sm:ml-auto min-h-[44px] sm:min-h-0 bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
                   >
                     + Add Event
                   </button>
