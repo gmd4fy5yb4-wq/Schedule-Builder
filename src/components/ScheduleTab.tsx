@@ -248,12 +248,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             <button onClick={() => setView('list')} className={`hidden sm:block px-3 py-1.5 border-l transition ${view === 'list' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>List</button>
           </div>
           {(totalGames + totalPractices) > 0 && !readOnly && (
-            <button onClick={doExport} disabled={exporting} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50">
+            <button onClick={doExport} disabled={exporting} className="hidden sm:block bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50">
               {exporting ? 'Exporting…' : 'Export Excel'}
             </button>
           )}
           {totalGames > 0 && !readOnly && (
-            <button onClick={doExportCSV} disabled={exportingCsv} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-emerald-700 transition disabled:opacity-50">
+            <button onClick={doExportCSV} disabled={exportingCsv} className="hidden sm:block bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-emerald-700 transition disabled:opacity-50">
               {exportingCsv ? 'Exporting…' : 'Export CSV'}
             </button>
           )}
@@ -266,8 +266,12 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               Notify Coaches
             </button>
           )}
+          {/* Desktop-only: destructive, and it was a prominent one-tap target in
+              the top third of a 390px screen. Exports are hidden alongside it
+              because a spreadsheet download on a phone is a poor experience. */}
           {(totalGames + totalPractices + totalSpecial) > 0 && !readOnly && (
-            clearConfirm ? (
+            <div className="hidden sm:block">
+            {clearConfirm ? (
               <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
                 <span className="text-xs text-red-700 font-medium">Clear all events?</span>
                 <button onClick={clearSchedule} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-lg hover:bg-red-600 transition">Yes, clear</button>
@@ -277,7 +281,8 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
               <button onClick={() => setClearConfirm(true)} className="text-sm text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-lg transition">
                 Clear All
               </button>
-            )
+            )}
+            </div>
           )}
         </div>
       </div>
@@ -990,6 +995,21 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mobile add-event FAB. Agenda is the default view on a phone and has
+          no per-day `+`, so without this there is no way to add an event from
+          the view the app opens on. Calls the same openAdd() the month grid
+          uses, so EventModal stays the single write path — no quick-add sheet,
+          no second place for a save bug to live. */}
+      {!readOnly && (
+        <button
+          onClick={() => openAdd(selectedDay)}
+          aria-label="Add event"
+          className="sm:hidden fixed right-4 bottom-24 z-30 w-14 h-14 rounded-full bg-[var(--fd-accent)] text-white shadow-lg flex items-center justify-center text-3xl leading-none active:opacity-90"
+        >
+          +
+        </button>
       )}
     </div>
   )
