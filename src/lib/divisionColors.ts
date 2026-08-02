@@ -21,3 +21,20 @@ export function getDivisionColor(divisionId: string, allDivisions: { id: string;
   if (index === -1) return DEFAULT_COLOR
   return PALETTE[index % PALETTE.length]
 }
+
+/**
+ * A two-character badge for a division, so month-grid chips are not
+ * distinguishable by hue alone (finding 16 — roughly 8% of men have a
+ * colour-vision deficiency, and the six-theme system multiplies the risk).
+ *
+ * Prefers the initials of the first two words ("10U Minors" -> "1M",
+ * "Majors" -> "MA"), falling back to the first two characters. Always
+ * uppercase, always exactly two characters when there is anything to work
+ * with, so the badges align in a column of chips.
+ */
+export function divisionInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '—'
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
+}
