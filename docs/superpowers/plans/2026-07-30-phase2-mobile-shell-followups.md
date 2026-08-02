@@ -36,3 +36,20 @@ This is the top remaining mobile item. The roadmap's original wording for the mo
 **Two things the batch did not touch**, both cosmetic rather than broken:
 - The Schedule tab's filter block still consumes ~200px before the first event on a phone.
 - A phone-only admin can no longer export or clear the schedule; those moved to desktop. Revisit with a `⋯` menu if anyone actually needs them.
+
+---
+
+## Added by the coach view-only page (2026-08-02, `main` @ `dab5896`)
+
+Phase 2 item 2 shipped. A share-link viewer now gets a purpose-built read surface instead of the admin interface: team picker (remembered per-league under `fd-coach-team:<viewToken>`), next-game hero with Directions and weather, league schedule with YOURS tags, standings with the picked row highlighted, and the "run your own league free" footer on every panel.
+
+**Deliberately not built, and why:**
+- **Add to calendar.** The only genuinely new capability on the prototype, no code in the repo, filed under Phase 4, and its behaviour varies across iOS and Android in ways this environment cannot verify. A silently broken "Add to calendar" on a parent's phone is worse than its absence. Directions ships; calendar does not.
+- **The Coaches and Field Calendar tabs**, which a viewer used to reach. Dropped per the prototype. If parents ask for coach phone numbers, the cheap answer is a contact row on the Next panel, not restoring a whole tab.
+
+**Known limits:**
+- The team picker has no Escape handling, focus trap, or focus restore — only backdrop-click closes it. `MobileNav`'s sheet *does* handle Escape, so the two are inconsistent. Pairs naturally with **Phase 2 item 3's a11y pass**, which is the last item in this phase.
+- The Schedule panel caps at 200 events with no indicator; a very large league's later dates silently drop off.
+- Desktop tab buttons are ~40px tall, under the 44px guideline. Mobile is 56px.
+
+**Caught in review, worth remembering:** the first version showed a stranger's game as the hero to every first-time visitor (because "no team picked" means "whole league" to the selection logic), dropped the league's theme, and hid special events like Opening Day that the old share view displayed. All three were regressions invisible to the type checker and the unit tests — only a browser pass against real data found them.
