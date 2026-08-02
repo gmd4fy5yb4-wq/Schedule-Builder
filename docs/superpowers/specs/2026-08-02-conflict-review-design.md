@@ -122,6 +122,7 @@ generateSchedule()  →  state.autoScheduleConflicts (shape unchanged)
 | `src/lib/conflictPlan.ts` | new |
 | `src/lib/conflictPlan.test.ts` | new |
 | `src/components/AutoScheduleTab.tsx` | rewrite the conflict block (~620–760) and `commitPreview` |
+| `src/lib/autoScheduler.ts` | reword `details[]` / `suggestions[]` at 258–311; hoist team-name lookups |
 | `src/lib/types.ts` | **not touched** |
 
 **Deleted, not extended:** the prev/next carousel (`conflictIndex` state at lines 48/186/202/226, render at
@@ -146,24 +147,62 @@ FLAGS · MOST SEVERE FIRST          [Auto-fix all fixable (9)]  [Skip all remain
 
 ┌ CONFLICT ─────────────────────────────────────────────┐
 │ Wildcats vs Eagles couldn't be placed · Majors        │
-│   12 slot(s) blocked because the field was already…   │
-│    3 slot(s) blocked by Eagles' blackout dates        │
-│   Add a field or extend the season past Jun 20        │
+│   12 slots — field already booked                     │
+│    3 slots — Eagles' blackout dates                   │
+│   Extend the season end date                          │
 │   [Skip this game]                                    │
 └───────────────────────────────────────────────────────┘
 ┌ WARNING ──────────────────────────────────────────────┐
 │ Comets vs Rockies couldn't be placed · Minors         │
-│    8 slot(s) blocked because Rockies already has a…   │
+│    8 slots — Rockies already play that day            │
 │   [Place Fri May 22, 5:30 PM · Diamond 2]  [Skip]     │
 │    ⚠ overrides Rockies' blackout on May 22            │
 └───────────────────────────────────────────────────────┘
 ```
 
-Cause and suggestion lines are `details[]` and `suggestions[]` **rendered verbatim**. An earlier draft
-parsed counts back out of that prose into structured causes; that parser was cut. It would have been a regex
-against sentences `autoScheduler.ts` generates, breaking the moment anyone rewords them, and structured
-causes would need a new field on `ScheduleConflict` — i.e. `types.ts`. The looser wording is worth deleting
-the parser.
+Cause and suggestion lines are `details[]` and `suggestions[]` **rendered verbatim** — no parsing in the
+UI layer.
+
+### Tighten the wording at the source
+
+An earlier draft parsed counts back out of the prose into structured causes. That parser was cut: it would
+have been a regex against sentences `autoScheduler.ts` generates, breaking the moment anyone reworded them,
+and structured causes would need a new field on `ScheduleConflict` — i.e. `types.ts`.
+
+Instead, **reword the strings where they are written**, in `autoScheduler.ts:258-311`, while the counts are
+still structured. Nothing outside that file reads them (verified by grep), so this is a safe rename.
+
+Add a local helper and use an em-dash cause format:
+
+```ts
+const slots = (n: number) => `${n} slot${n === 1 ? '' : 's'}`
+```
+
+| Current | Tightened |
+|---|---|
+| `12 slot(s) blocked because the field was already booked` | `12 slots — field already booked` |
+| `8 slot(s) blocked because Rockies already has a game that day` | `8 slots — Rockies already play that day` |
+| `3 slot(s) blocked by Eagles' blackout dates` | `3 slots — Eagles' blackout dates` |
+| `No valid slots were generated for this division` | `No slots exist for this division` |
+| `No available slot found after checking all constraints` | `No slot survives every constraint` |
+| `Review blackout dates for Eagles: May 9, May 16` | `Review Eagles' blackout dates: May 9, May 16` |
+| `Only Saturday, Sunday are allowed for this division — consider expanding game days` | `Majors only plays Saturday, Sunday — consider adding game days` |
+| `Try extending the season end date` | `Extend the season end date` |
+| `Add more fields or field time slots to increase availability` | `Add more fields or time slots` |
+| `Consider removing some league blackout dates (currently 12)` | `Remove some of the 12 league blackout dates` |
+| `Manually schedule this game in the Schedule tab` | `Schedule this game manually in the Schedule tab` |
+| `Add more fields or reduce team blackout dates` | unchanged |
+| `Add at least one field` / `Set a season start and end date` | unchanged |
+
+`${n} slots — field already booked` says "field", not "Diamond 2": `failReasons.fieldBooked` counts across
+every field and does not record which. Naming a specific field would mean tracking per-field counters, which
+is more state for a line of explanatory text. The mockup's "Diamond 2 already booked" is not achievable
+without that, and is not worth it.
+
+While in this block, hoist the `homeTeamName` / `awayTeamName` lookups (currently at line 313) above the
+detail builders. The same `divisions.flatMap(d => d.teams).find(...)` scan is repeated six times over the
+league's full team list; two hoisted consts remove all six. In-scope cleanup — it is the code being edited,
+not unrelated refactoring.
 
 Resolved cards collapse to one green line (`✓ Placed Fri May 22, 5:30 PM · Diamond 2` / `✓ Skipped`) with an
 **Undo** link, and sort below open flags.
@@ -225,6 +264,7 @@ before the commit, and say so on the success screen. Append is unchanged — the
 | 6 | No fields, or no season dates → every conflict is `conflict`, no candidates |
 | 7 | Empty conflict list → `[]` |
 | 8 | **The fold:** two conflicts whose only viable slot is the same one — after `autoFixAll`, exactly one is placed and the other has re-derived to `conflict`. This is the double-booking guard. |
+| 9 | `slots(1)` → `1 slot`, `slots(2)` → `2 slots` — the one branch in the reworded detail strings |
 
 ### Browser verification
 
