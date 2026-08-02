@@ -36,6 +36,11 @@ function parseBlackoutSet(entries: string[]): Set<string> {
   return new Set(entries.map(e => e.split('::')[0]))
 }
 
+/** "1 slot" / "2 slots" — used in conflict detail lines. */
+export function slots(n: number): string {
+  return `${n} slot${n === 1 ? '' : 's'}`
+}
+
 /** Generate round-robin matchup pairs for a list of team IDs */
 function generateRoundRobin(teamIds: string[]): Array<[string, string]> {
   const pairs: Array<[string, string]> = []
