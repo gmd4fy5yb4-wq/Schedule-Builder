@@ -332,7 +332,7 @@ export function conflictPlan(
 npx tsx src/lib/conflictPlan.test.ts
 ```
 
-Expected: `conflictPlan: 12/12 assertions passed`
+Expected: `conflictPlan: 14/14 assertions passed`
 
 If assertion 8 fails with two warnings, `reserved.push(candidate)` is missing or the candidate is being pushed to a copy rather than the array passed as `previewGames`.
 
@@ -471,7 +471,7 @@ Expected: no matches anywhere.
 npx tsx src/lib/conflictPlan.test.ts && npx tsc --noEmit
 ```
 
-Expected: `conflictPlan: 12/12 assertions passed`, then no `tsc` output.
+Expected: `conflictPlan: 14/14 assertions passed`, then no `tsc` output.
 
 - [ ] **Step 5: Commit**
 
