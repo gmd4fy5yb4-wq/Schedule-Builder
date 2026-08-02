@@ -500,6 +500,26 @@ export default function Home() {
   // should lose the admin chrome (league code, share link, setup tabs).
   const isViewer = readOnly && !expired
 
+  // WAI-ARIA tabs keyboard support. The visual order is NAV_GROUPS' order, not
+  // TABS' numeric order, so arrow keys must walk the flattened visible list —
+  // moving by index would jump around the screen.
+  function onTabKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    const order = NAV_GROUPS.flatMap(g => g.indices).filter(i => isTabVisible(i, isViewer))
+    const pos = order.indexOf(tab)
+    if (pos === -1) return
+    let nextPos: number | null = null
+    if (e.key === 'ArrowRight') nextPos = (pos + 1) % order.length
+    else if (e.key === 'ArrowLeft') nextPos = (pos - 1 + order.length) % order.length
+    else if (e.key === 'Home') nextPos = 0
+    else if (e.key === 'End') nextPos = order.length - 1
+    if (nextPos === null) return
+    e.preventDefault()
+    const nextTab = order[nextPos]
+    setTab(nextTab)
+    // Focus follows selection, per the tabs pattern.
+    requestAnimationFrame(() => document.getElementById(`tab-${nextTab}`)?.focus())
+  }
+
   if (!hydrated) {
     return (
       <div className="min-h-screen bg-[var(--fd-primary)] flex items-center justify-center">
@@ -785,23 +805,28 @@ export default function Home() {
           onNavigate() calls expect, only the visual order changes. */}
       <div className="hidden sm:block bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4">
-          <nav className="flex overflow-x-auto">
+          <nav className="flex overflow-x-auto" role="tablist" aria-label="Sections">
             {NAV_GROUPS.map((group, gi) => {
               const visible = group.indices.filter(i => isTabVisible(i, isViewer))
               if (visible.length === 0) return null
               return (
-                <div key={group.label} className="flex items-stretch">
+                <div key={group.label} className="flex items-stretch" role="presentation">
                   {gi > 0 && <span className="w-px my-2.5 bg-gray-200" />}
-                  <div className="flex flex-col">
-                    <span className="px-5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500 select-none whitespace-nowrap">
+                  <div className="flex flex-col" role="presentation">
+                    <span aria-hidden="true" className="px-5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500 select-none whitespace-nowrap">
                       {group.label}
                     </span>
-                    <div className="flex items-stretch">
+                    <div className="flex items-stretch" role="presentation">
                       {visible.map(i => (
                         <button
                           key={TABS[i]}
+                          id={`tab-${i}`}
+                          role="tab"
+                          aria-selected={tab === i}
+                          aria-controls="tab-panel"
+                          tabIndex={tab === i ? 0 : -1}
                           onClick={() => setTab(i)}
-                          aria-current={tab === i ? 'page' : undefined}
+                          onKeyDown={onTabKeyDown}
                           // The default focus ring draws a full rounded box that beats the
                           // border-b-2 active underline. focus-visible keeps the ring for
                           // keyboard users without painting it on every mouse click.
@@ -822,7 +847,7 @@ export default function Home() {
       </div>
 
       {/* pb-28: the fixed bottom bar is ~56px plus the home-indicator inset. */}
-      <main className="max-w-7xl mx-auto px-4 py-6 pb-28 sm:pb-6">
+      <main id="tab-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="max-w-7xl mx-auto px-4 py-6 pb-28 sm:pb-6">
         {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
         {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} />}
         {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
