@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { teamOptions, upcomingFor, upcomingLeagueWide, nextGameFor, isTeamEvent, type CoachEvent } from '@/lib/coachView'
 import type { ScheduledItem, ScheduledSpecialEvent } from '@/lib/types'
@@ -33,6 +33,40 @@ function nowKey() {
 export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachViewProps) {
   const [panel, setPanel] = useState<Panel>('next')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // Escape closes the picker, matching MobileNav's sheets. Guarded on
+  // pickerOpen (rather than hooked inside the conditional JSX below) so the
+  // hook itself is always called — only its behavior varies.
+  useEffect(() => {
+    if (!pickerOpen) return
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setPickerOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [pickerOpen])
+
+  // Move focus into the picker on open, and restore it to the opener on
+  // close. Same unconditional-hook / guarded-body shape as above.
+  useEffect(() => {
+    if (!pickerOpen) return
+    const opener = document.activeElement as HTMLElement | null
+    pickerRef.current?.focus()
+    return () => {
+      opener?.focus?.()
+    }
+  }, [pickerOpen])
+
+  function onPickerKeyDownTrap(e: React.KeyboardEvent) {
+    if (e.key !== 'Tab') return
+    const focusables = pickerRef.current?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    if (!focusables || focusables.length === 0) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+  }
 
   // Keyed by view token on purpose: a parent with children in two leagues
   // follows two different share links, and a bare key would make one league's
@@ -335,9 +369,12 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
           onClick={() => setPickerOpen(false)}
         >
           <div
+            ref={pickerRef}
             role="dialog"
             aria-modal="true"
             aria-label="Choose your team"
+            tabIndex={-1}
+            onKeyDown={onPickerKeyDownTrap}
             className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto animate-sheet-up sm:animate-none pb-[env(safe-area-inset-bottom)] sm:pb-0"
             onClick={e => e.stopPropagation()}
           >

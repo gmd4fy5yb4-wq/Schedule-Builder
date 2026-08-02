@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Icon, { type IconName } from './Icon'
 import { BOTTOM_TABS, moreTabs } from '@/lib/mobileNav'
 
@@ -30,6 +30,8 @@ interface MobileNavProps {
  * an abstraction that has not earned itself yet.
  */
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
   // Escape closes, and the body under the sheet must not scroll behind it.
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -41,6 +43,28 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
       document.body.style.overflow = prev
     }
   }, [onClose])
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    // Move focus into the sheet so the next Tab stays inside it.
+    panelRef.current?.focus()
+    return () => {
+      // Return focus to whatever opened the sheet.
+      opener?.focus?.()
+    }
+  }, [])
+
+  function onKeyDownTrap(e: React.KeyboardEvent) {
+    if (e.key !== 'Tab') return
+    const focusables = panelRef.current?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    if (!focusables || focusables.length === 0) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+  }
 
   // The sheet is `sm:hidden` — visually gone at >=640px but still mounted,
   // so the scroll-lock effect above never cleans up. Close it on the
@@ -59,9 +83,12 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
+        onKeyDown={onKeyDownTrap}
         className="w-full bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto animate-sheet-up pb-[env(safe-area-inset-bottom)]"
         onClick={e => e.stopPropagation()}
       >
