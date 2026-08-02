@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
-import { getDivisionColor } from '@/lib/divisionColors'
+import { getDivisionColor, divisionInitials } from '@/lib/divisionColors'
 import EventModal, { emptyForm, formFromEvent, type EventForm, toMins, minsToTime, fmtTime } from './EventModal'
 
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; readOnly?: boolean }
@@ -252,7 +252,11 @@ export default function FieldCalendarTab({ state, setState, readOnly = false }: 
                                   }`}
                                   title={`${fmtTime(ev.time)}–${fmtTime(minsToTime(endMins))} — ${label}`}
                                 >
-                                  <span className="font-medium">{fmtTime(ev.time)}</span> {label}
+                                  <span className="font-medium">{fmtTime(ev.time)}</span>{' '}
+                                  <span className="inline-block align-baseline mr-1 px-1 rounded bg-black/10 text-[9px] font-bold tracking-wide">
+                                    {divisionInitials(state.divisions.find(d => d.id === ev.divisionId)?.name ?? '')}
+                                  </span>
+                                  {label}
                                 </button>
                               )
                             })}

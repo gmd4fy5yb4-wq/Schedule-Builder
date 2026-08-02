@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice, ScheduledSpecialEvent } from '@/lib/types'
 import { exportToExcel, exportToCSV } from '@/lib/export'
-import { getDivisionColor } from '@/lib/divisionColors'
+import { getDivisionColor, divisionInitials } from '@/lib/divisionColors'
 import EventModal, { type EventForm, emptyForm, formFromEvent, toMins, minsToTime, fmtTime } from './EventModal'
 import { getSportConfig } from '@/lib/sports'
 import Icon from './Icon'
@@ -461,7 +461,13 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
                                 : `${c!.bg} ${c!.text} ${c!.border}`
                               }`}
                             >
-                              <span className="font-medium">{fmtTime(ev.time)}</span> {label}
+                              <span className="font-medium">{fmtTime(ev.time)}</span>{' '}
+                              {!isSpecial && (
+                                <span className="inline-block align-baseline mr-1 px-1 rounded bg-black/10 text-[9px] font-bold tracking-wide">
+                                  {divisionInitials(divMap.get((ev as ScheduledGame | ScheduledPractice).divisionId)?.name ?? '')}
+                                </span>
+                              )}
+                              {label}
                             </button>
                           )
                         })}
