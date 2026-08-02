@@ -62,7 +62,9 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     if (!focusables || focusables.length === 0) return
     const first = focusables[0]
     const last = focusables[focusables.length - 1]
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+    const onContainer = document.activeElement === panelRef.current
+    if (e.shiftKey && (onContainer || document.activeElement === first)) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && onContainer) { e.preventDefault(); first.focus() }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
   }
 
