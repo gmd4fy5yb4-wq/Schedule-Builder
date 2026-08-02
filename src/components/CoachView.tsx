@@ -81,7 +81,12 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
       .then(map => { if (!cancelled) setWx(map.get(next.date)) })
       .catch(() => { if (!cancelled) setWx(undefined) })
     return () => { cancelled = true }
-  }, [next, coords])
+    // `next` and `coords` are fresh object references on every poll-driven
+    // `setState` (page.tsx polls every 30s and replaces `state` wholesale),
+    // even when nothing about the next event actually changed. Depending on
+    // the primitives the effect actually reads avoids refetching weather on
+    // unrelated league edits.
+  }, [next?.id, next?.date, coords?.lat, coords?.lon])
 
   function eventTitle(e: CoachEvent): string {
     if (e.type === 'game') {
