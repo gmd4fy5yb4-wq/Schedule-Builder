@@ -63,13 +63,28 @@ type PlannedConflict = {
   conflict:  ScheduleConflict      // unchanged, straight from state
   severity:  'conflict' | 'warning'
   candidate: ScheduledGame | null  // result of rescheduleMatchupRelaxed
-  overrides: string[]              // e.g. ["Eagles' blackout on May 9"]
+  overrides: { teamName: string; date: string }[]   // formatted by the UI
 }
-
-autoFixAll(plans, preview, ctx) → { preview: ScheduledGame[]; resolvedIds: string[] }
 ```
 
 Severity is `candidate ? 'warning' : 'conflict'`.
+
+**`conflictPlan` reserves each candidate as it walks the list.** A candidate found for one conflict is
+pushed onto the running preview before the next conflict is searched, so no two cards can ever display the
+same slot. This makes the displayed warnings **simultaneously satisfiable**: accepting all of them is always
+valid.
+
+That property removes a whole function. An earlier draft had `autoFixAll(plans, preview, ctx)` folding
+sequentially in the lib — apply one, recompute, apply the next — to avoid double-booking. With reservation,
+"auto-fix all" is just "apply every warning's candidate", five lines in the component, and its correctness
+is an invariant of `conflictPlan` rather than a separate algorithm needing its own tests.
+
+The cost: a conflict can read as unfixable because an earlier conflict in the list reserved its only slot.
+Accepted — the list stays internally consistent, and skipping the earlier one re-derives the later one as
+fixable on the next render.
+
+`overrides` is returned structured (`teamName` + ISO `date`) rather than as a prepared sentence, so the
+tests do not depend on date formatting and the UI can use its existing `fmtDateShort`.
 
 **`overrides` is an honesty fix.** `rescheduleMatchupRelaxed` ignores team blackout dates
 (`autoScheduler.ts:393`). Today's button is vaguely labelled "Try relaxed constraints", which conceals that.
@@ -77,8 +92,8 @@ A button reading "Place Sat May 9 · Diamond 1" would conceal it worse. `conflic
 candidate's date against each team's blackout set and reports what accepting it would violate, shown on the
 card beneath the fix button.
 
-**`autoFixAll` lives in the lib, not the component**, because it is the risky logic and therefore must be
-the testable logic. The component calls it once and sets state once.
+The risky logic — never offering the same slot twice — lives in `conflictPlan` and is therefore the tested
+logic. The component only maps over warnings and sets state once.
 
 ### Why derive at render rather than persist
 
@@ -207,15 +222,12 @@ not unrelated refactoring.
 Resolved cards collapse to one green line (`✓ Placed Fri May 22, 5:30 PM · Diamond 2` / `✓ Skipped`) with an
 **Undo** link, and sort below open flags.
 
-### Auto-fix-all folds sequentially
+### Auto-fix-all
 
-This is the one behaviour that must not be got wrong. It cannot map over current candidates and apply them
-together: candidate A and candidate B may name the same slot, and applying both double-books a field. It
-applies one candidate, recomputes against the grown preview, applies the next, and stops when no warnings
-remain.
-
-A warning whose slot gets consumed **re-derives as a CONFLICT mid-fold**. That is correct and must be
-allowed to happen visibly.
+Applies every warning's candidate in one `setState`. Safe without any sequencing because `conflictPlan`
+already reserved as it walked the list, so the candidates on screen never collide. The naive implementation
+— map over candidates, apply together — would double-book a field if candidates were computed
+independently; reservation is what makes the naive implementation correct.
 
 ### States
 
@@ -263,7 +275,7 @@ before the commit, and say so on the success screen. Append is unchanged — the
 | 5 | Non-pending conflicts get no candidate computed |
 | 6 | No fields, or no season dates → every conflict is `conflict`, no candidates |
 | 7 | Empty conflict list → `[]` |
-| 8 | **The fold:** two conflicts whose only viable slot is the same one — after `autoFixAll`, exactly one is placed and the other has re-derived to `conflict`. This is the double-booking guard. |
+| 8 | **The reservation invariant:** two conflicts whose only viable slot is the same one — exactly one is a `warning` and the other re-derives to `conflict`. This is the double-booking guard. |
 | 9 | `slots(1)` → `1 slot`, `slots(2)` → `2 slots` — the one branch in the reworded detail strings |
 
 ### Browser verification
