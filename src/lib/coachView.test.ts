@@ -32,6 +32,7 @@ const state = {
   fields: [], umpires: [], fieldStaff: [],
   schedule: {
     games: [
+      game('g0', '2026-05-05', '00:00', 'tA', 'tB'),   // exactly AT now
       game('g1', '2026-05-01', '10:00', 'tA', 'tB'),   // past
       game('g2', '2026-05-10', '18:00', 'tB', 'tA'),   // tA is AWAY here
       game('g3', '2026-05-12', '09:00', 'tB', 'tC'),   // not tA's
@@ -53,25 +54,25 @@ assert(opts.length === 3, 'teamOptions returns every team across divisions')
 assert(opts[0].divisionName === 'Majors' && opts[2].divisionName === 'Minors', 'teamOptions carries the division name')
 
 // 2. isTeamEvent: home, away, practice — and never a special event.
-assert(isTeamEvent(state.schedule.games[1], 'tA'), 'team counts when it is the AWAY side')
-assert(isTeamEvent(state.schedule.games[3], 'tA'), 'team counts when it is the HOME side')
+assert(isTeamEvent(state.schedule.games[2], 'tA'), 'team counts when it is the AWAY side')
+assert(isTeamEvent(state.schedule.games[4], 'tA'), 'team counts when it is the HOME side')
 assert(isTeamEvent(state.schedule.practices[0], 'tA'), 'practice matches on teamId')
-assert(!isTeamEvent(state.schedule.games[2], 'tA'), 'another teams game is not yours')
+assert(!isTeamEvent(state.schedule.games[3], 'tA'), 'another teams game is not yours')
 assert(!isTeamEvent(state.schedule.specialEvents[0], 'tA'), 'special events belong to no team')
 
 // 3. nextGameFor picks the soonest event at or after now — never a past one.
 const next = nextGameFor(state, 'tA', NOW)
-assert(next?.id === 'p1', 'next event is the 2026-05-08 practice, not the 2026-05-01 game')
+assert(next?.id === 'g0', 'an event exactly at now is included, not skipped')
 assert(nextGameFor(state, 'tA', '2026-05-21T00:00') === null, 'null once the team has no future events')
 assert(nextGameFor(state, 'tC', NOW)?.id === 'g3', 'works for a team in another division')
 
 // 4. upcomingFor is chronological, inclusive of the next one, and respects limit.
 const up = upcomingFor(state, 'tA', NOW, 10)
-assert(up.map(e => e.id).join(',') === 'p1,g2,g4', 'upcomingFor is chronological and only this teams events')
+assert(up.map(e => e.id).join(',') === 'g0,p1,g2,g4', 'upcomingFor is chronological and only this teams events')
 assert(upcomingFor(state, 'tA', NOW, 2).length === 2, 'upcomingFor respects limit')
 
 // 5. No team selected means the whole league, minus special events.
 const all = upcomingFor(state, null, NOW, 10)
-assert(all.map(e => e.id).join(',') === 'p1,g2,g3,g4', 'null teamId returns every future game and practice')
+assert(all.map(e => e.id).join(',') === 'g0,p1,g2,g3,g4', 'null teamId returns every future game and practice')
 
 console.log(`coachView: ${passed}/${passed} assertions passed`)
