@@ -1,6 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
-import type { AppState, ScheduleConflict, ScheduledGame } from '@/lib/types'
+import type { AppState, ScheduledGame } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import { generateSchedule } from '@/lib/autoScheduler'
 import { conflictPlan, type PlannedConflict } from '@/lib/conflictPlan'
