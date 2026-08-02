@@ -178,7 +178,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
     open: false, initialForm: emptyForm()
   })
 
-  const [confirmTip, setConfirmTip] = useState<{ x: number; y: number } | null>(null)
+  // Which game's Confirm explanation is open. A real disclosure, not a hover
+  // tooltip: the old mouseenter version was invisible to touch and keyboard.
+  const [confirmHelpFor, setConfirmHelpFor] = useState<string | null>(null)
 
   const teamMap   = useMemo(() => new Map(state.divisions.flatMap(d => d.teams).map(t => [t.id, t])), [state.divisions])
   const fieldMap  = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
@@ -464,21 +466,15 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {/* Confirm checkbox with tooltip */}
+                            {/* Confirm checkbox with disclosure */}
                             {!readOnly && (
-                              <div
-                                className="flex items-center gap-1.5"
-                                onMouseEnter={e => {
-                                  const r = e.currentTarget.getBoundingClientRect()
-                                  setConfirmTip({ x: r.left + r.width / 2, y: r.top })
-                                }}
-                                onMouseLeave={() => setConfirmTip(null)}
-                              >
+                              <div className="flex items-center gap-1.5">
                                 <input
                                   type="checkbox"
                                   id={`confirm-${g.id}`}
                                   checked={!!g.confirmed}
                                   onChange={() => toggleConfirm(g.id)}
+                                  aria-describedby={confirmHelpFor === g.id ? `confirm-help-${g.id}` : undefined}
                                   className="w-4 h-4 rounded-lg cursor-pointer accent-green-600"
                                 />
                                 <label
@@ -489,6 +485,21 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                                 >
                                   Confirm
                                 </label>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmHelpFor(confirmHelpFor === g.id ? null : g.id)}
+                                  aria-expanded={confirmHelpFor === g.id}
+                                  aria-controls={`confirm-help-${g.id}`}
+                                  aria-label="What does confirming do?"
+                                  className="w-11 h-11 shrink-0 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-[var(--fd-accent)]"
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-300 text-xs font-bold text-gray-500"
+                                  >
+                                    ?
+                                  </span>
+                                </button>
                               </div>
                             )}
 
@@ -504,6 +515,22 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                             )}
                           </div>
                         </div>
+
+                        {confirmHelpFor === g.id && (
+                          <div
+                            id={`confirm-help-${g.id}`}
+                            className="mx-5 mb-3 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 leading-relaxed"
+                          >
+                            Check this box once you&apos;ve confirmed the game with all coaches, the {sc.officialSingular.toLowerCase()}, and field staff. A green ring will appear around the card.
+                            <button
+                              type="button"
+                              onClick={() => setConfirmHelpFor(null)}
+                              className="mt-2 block min-h-[44px] text-[11px] font-semibold underline underline-offset-2"
+                            >
+                              Got it
+                            </button>
+                          </div>
+                        )}
 
                         {/* Card body */}
                         <div className="px-5 py-4 space-y-3.5">
@@ -748,19 +775,6 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
           </div>
         </section>
       ))}
-
-      {/* Confirm tooltip — rendered fixed so it escapes card stacking contexts */}
-      {confirmTip && (
-        <div
-          className="fixed pointer-events-none"
-          style={{ left: confirmTip.x, top: confirmTip.y - 10, transform: 'translate(-50%, -100%)', zIndex: 9999 }}
-        >
-          <div className="w-72 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 leading-relaxed shadow-xl">
-            Check this box once you&apos;ve confirmed the game with all coaches, the {sc.officialSingular.toLowerCase()}, and field staff. A green ring will appear around the card.
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-900" />
-          </div>
-        </div>
-      )}
 
       {modal.open && (
         <EventModal
