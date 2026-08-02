@@ -26,6 +26,7 @@ import TrialBar from '@/components/TrialBar'
 import Icon from '@/components/Icon'
 import MobileNav from '@/components/MobileNav'
 import { isTabVisible } from '@/lib/mobileNav'
+import CoachView from '@/components/CoachView'
 
 interface SubscriptionRow extends PlanPanelSubscription {
   plan_tier: string
@@ -529,6 +530,24 @@ export default function Home() {
         {trial && <TrialBar banner={trial} />}
         <LeagueGate defaultState={DEFAULT} onJoin={handleJoin} />
       </>
+    )
+  }
+
+  // A share-link viewer gets a purpose-built read surface instead of the admin
+  // shell. Placed after the gates above so a bad token still shows "Link not
+  // found" and an unhydrated page still shows the loader.
+  //
+  // An expired OWNER is not a viewer (isViewer = readOnly && !expired), so they
+  // keep the admin shell and its amber renew banner — that split is deliberate.
+  //
+  // Consequence, accepted: the isViewer guards further down are now unreachable.
+  // They remain correct and cost nothing; sweeping ~900 lines to delete them
+  // would risk regressions for no user-visible benefit.
+  if (isViewer) {
+    return (
+      <div style={themeStyle}>
+        <CoachView state={state} viewToken={roTokenRef.current} lastUpdatedAt={lastUpdatedAt} />
+      </div>
     )
   }
 

@@ -6,6 +6,8 @@ import { getDivisionColor } from '@/lib/divisionColors'
 interface Props {
   state: AppState
   readOnly: boolean
+  /** Coach view: visually mark this team's row. Admin shell omits it. */
+  highlightTeamId?: string
 }
 
 function TrophyIcon({ className = 'w-4 h-4' }: { className?: string }) {
@@ -64,7 +66,7 @@ function sortTeams(records: TeamRecord[]): TeamRecord[] {
   })
 }
 
-export default function StandingsTab({ state }: Props) {
+export default function StandingsTab({ state, highlightTeamId }: Props) {
   const totalScheduled = state.schedule.games.length
   const totalWithResults = state.schedule.games.filter(g => g.result).length
 
@@ -176,7 +178,11 @@ export default function StandingsTab({ state }: Props) {
                       return (
                         <tr
                           key={r.teamId}
-                          className={`border-b last:border-0 ${isLeader && r.GP > 0 ? 'bg-[#f9f9fd]' : 'hover:bg-gray-50'}`}
+                          className={`border-b last:border-0 ${
+                            r.teamId === highlightTeamId
+                              ? 'bg-[#eeeef6] ring-1 ring-inset ring-[var(--fd-primary)]'
+                              : isLeader && r.GP > 0 ? 'bg-[#f9f9fd]' : 'hover:bg-gray-50'
+                          }`}
                         >
                           <td className="px-4 py-2.5">
                             <span className={`font-medium ${isLeader && r.GP > 0 ? 'text-[var(--fd-primary)]' : 'text-gray-800'}`}>
