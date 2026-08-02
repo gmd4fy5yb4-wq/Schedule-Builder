@@ -544,7 +544,11 @@ export default function Home() {
   // They remain correct and cost nothing; sweeping ~900 lines to delete them
   // would risk regressions for no user-visible benefit.
   if (isViewer) {
-    return <CoachView state={state} viewToken={roTokenRef.current} lastUpdatedAt={lastUpdatedAt} />
+    return (
+      <div style={themeStyle}>
+        <CoachView state={state} viewToken={roTokenRef.current} lastUpdatedAt={lastUpdatedAt} />
+      </div>
+    )
   }
 
   const timeSince = lastUpdatedAt

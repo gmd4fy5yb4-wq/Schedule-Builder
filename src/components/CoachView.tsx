@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import type { AppState, ScheduledGame, ScheduledPractice } from '@/lib/types'
-import { teamOptions, upcomingFor, nextGameFor, isTeamEvent, type CoachEvent } from '@/lib/coachView'
+import { teamOptions, upcomingFor, upcomingLeagueWide, nextGameFor, isTeamEvent, type CoachEvent } from '@/lib/coachView'
+import type { ScheduledItem, ScheduledSpecialEvent } from '@/lib/types'
 import { fetchDailyWeather, weatherEmoji, weatherDesc, type DayWeather } from '@/lib/weather'
 import { getDivisionColor } from '@/lib/divisionColors'
 import StandingsTab from './StandingsTab'
@@ -64,7 +65,7 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
   const now = nowKey()
   const next = useMemo(() => nextGameFor(state, myTeamId, now), [state, myTeamId, now])
   const upcoming = useMemo(() => upcomingFor(state, myTeamId, now, 6).slice(1), [state, myTeamId, now])
-  const wholeLeague = useMemo(() => upcomingFor(state, null, now, 200), [state, now])
+  const wholeLeague = useMemo(() => upcomingLeagueWide(state, now, 200), [state, now])
 
   const fieldMap = useMemo(() => new Map(state.fields.map(f => [f.id, f])), [state.fields])
   const teamMap = useMemo(() => new Map(teams.map(t => [t.id, t])), [teams])
@@ -94,6 +95,10 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
       return `${teamMap.get(g.homeTeamId)?.name ?? 'TBD'} vs ${teamMap.get(g.awayTeamId)?.name ?? 'TBD'}`
     }
     return `${teamMap.get((e as ScheduledPractice).teamId)?.name ?? 'TBD'} practice`
+  }
+  function scheduleItemTitle(e: ScheduledItem): string {
+    if (e.type === 'special') return (e as ScheduledSpecialEvent).name
+    return eventTitle(e as CoachEvent)
   }
   function directionsUrl(fieldId: string): string | null {
     const f = fieldMap.get(fieldId)
@@ -179,7 +184,7 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
               </div>
             )}
 
-            {next && (
+            {myTeamId && next && (
               <section className="bg-[var(--fd-primary)] text-white rounded-xl p-5 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--fd-primary-light)]">
@@ -213,7 +218,7 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
               </section>
             )}
 
-            {upcoming.length > 0 && (
+            {myTeamId && upcoming.length > 0 && (
               <section className="bg-white rounded-xl border divide-y">
                 <h3 className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-500">Then</h3>
                 {upcoming.map(e => (
@@ -236,7 +241,7 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
               <p className="px-4 py-10 text-center text-sm text-gray-500 italic">No upcoming events.</p>
             )}
             {(() => {
-              const groups: { date: string; items: CoachEvent[] }[] = []
+              const groups: { date: string; items: ScheduledItem[] }[] = []
               for (const e of wholeLeague) {
                 const last = groups[groups.length - 1]
                 if (last && last.date === e.date) last.items.push(e)
@@ -248,23 +253,32 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
                     {fmtDay(g.date)}
                   </h3>
                   {g.items.map(e => {
-                    const mine = myTeamId ? isTeamEvent(e, myTeamId) : false
-                    const c = getDivisionColor(e.divisionId, state.divisions)
+                    const isSpecial = e.type === 'special'
+                    const mine = !isSpecial && myTeamId ? isTeamEvent(e, myTeamId) : false
+                    const c = !isSpecial ? getDivisionColor(e.divisionId, state.divisions) : null
+                    const subLine = isSpecial
+                      ? ((e as ScheduledSpecialEvent).location ?? '')
+                      : (fieldMap.get((e as CoachEvent).fieldId)?.name ?? '')
                     return (
                       <div key={e.id} className={`px-4 py-3 flex items-start gap-3 border-b last:border-0 ${mine ? 'bg-[#f9f9fd]' : ''}`}>
                         <span className="w-16 shrink-0 text-sm font-semibold text-gray-800 pt-0.5">{fmtTime(e.time)}</span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium text-gray-900 truncate">{eventTitle(e)}</span>
-                          <span className="block text-xs text-gray-500 truncate">{fieldMap.get(e.fieldId)?.name ?? ''}</span>
+                          <span className="block text-sm font-medium text-gray-900 truncate">{scheduleItemTitle(e)}</span>
+                          <span className="block text-xs text-gray-500 truncate">{subLine}</span>
                         </span>
                         {mine && (
                           <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide bg-[var(--fd-accent)] text-white rounded px-1.5 py-0.5">
                             Yours
                           </span>
                         )}
-                        {!mine && (
-                          <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${c.pill}`}>
-                            {state.divisions.find(d => d.id === e.divisionId)?.name ?? ''}
+                        {isSpecial && (
+                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium bg-gray-100 text-gray-600">
+                            League
+                          </span>
+                        )}
+                        {!isSpecial && !mine && (
+                          <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${c!.pill}`}>
+                            {state.divisions.find(d => d.id === (e as CoachEvent).divisionId)?.name ?? ''}
                           </span>
                         )}
                       </div>

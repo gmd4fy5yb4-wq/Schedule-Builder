@@ -4,7 +4,7 @@
  * one is next. Time is injected, never read from the clock.
  */
 import type { AppState } from './types'
-import { teamOptions, isTeamEvent, upcomingFor, nextGameFor } from './coachView'
+import { teamOptions, isTeamEvent, upcomingFor, upcomingLeagueWide, nextGameFor } from './coachView'
 
 let passed = 0
 function assert(cond: boolean, msg: string) {
@@ -69,10 +69,16 @@ assert(nextGameFor(state, 'tC', NOW)?.id === 'g3', 'works for a team in another 
 // 4. upcomingFor is chronological, inclusive of the next one, and respects limit.
 const up = upcomingFor(state, 'tA', NOW, 10)
 assert(up.map(e => e.id).join(',') === 'g0,p1,g2,g4', 'upcomingFor is chronological and only this teams events')
-assert(upcomingFor(state, 'tA', NOW, 2).length === 2, 'upcomingFor respects limit')
+assert(upcomingFor(state, 'tA', NOW, 2).map(e => e.id).join(',') === 'g0,p1', 'upcomingFor respects limit, keeping the earliest ids in order')
 
 // 5. No team selected means the whole league, minus special events.
 const all = upcomingFor(state, null, NOW, 10)
 assert(all.map(e => e.id).join(',') === 'g0,p1,g2,g3,g4', 'null teamId returns every future game and practice')
+assert(!all.some(e => e.id === 's1'), 'upcomingFor still excludes special events even with teamId = null')
+
+// 6. upcomingLeagueWide includes special events, interleaved chronologically.
+const leagueWide = upcomingLeagueWide(state, NOW, 10)
+assert(leagueWide.some(e => e.id === 's1'), 'upcomingLeagueWide includes the special event fixture (Opening Day)')
+assert(leagueWide.map(e => e.id).join(',') === 'g0,p1,s1,g2,g3,g4', 'upcomingLeagueWide interleaves specials chronologically with games and practices')
 
 console.log(`coachView: ${passed}/${passed} assertions passed`)

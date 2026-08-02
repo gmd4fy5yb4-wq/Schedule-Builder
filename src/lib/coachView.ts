@@ -70,3 +70,24 @@ export function nextGameFor(
 ): CoachEvent | null {
   return upcomingFor(state, teamId, now, 1)[0] ?? null
 }
+
+/**
+ * Everything on the league's calendar at or after `now`, including special
+ * events. The Schedule panel uses this; the Next panel deliberately does not,
+ * because a special event belongs to the league rather than to any team.
+ */
+export function upcomingLeagueWide(
+  state: AppState,
+  now: string,
+  limit: number,
+): ScheduledItem[] {
+  const all: ScheduledItem[] = [
+    ...state.schedule.games,
+    ...state.schedule.practices,
+    ...(state.schedule.specialEvents ?? []),
+  ]
+  return all
+    .filter(e => `${e.date}T${e.time}` >= now)
+    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+    .slice(0, limit)
+}
