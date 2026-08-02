@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, ScheduledGame } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import { teamForm } from '@/lib/standings'
@@ -94,6 +94,29 @@ export default function StandingsTab({ state, highlightTeamId }: Props) {
   // Mobile only: which team's detail is open. Null shows the list.
   // Desktop ignores this entirely — it renders the full table.
   const [detailTeamId, setDetailTeamId] = useState<string | null>(null)
+
+  // Focus management for the list <-> detail swap. Only one detail can be
+  // open at a time (detailTeamId is page-wide, not per-division), so a
+  // single ref for "the currently mounted back button" is enough. This
+  // effect must live above the early return below — StandingsTab bails out
+  // before rendering anything when there are no divisions, and hooks can't
+  // follow a conditional return or live inside the division .map().
+  const backButtonRef = useRef<HTMLButtonElement>(null)
+  const prevDetailIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const wasOpen = prevDetailIdRef.current
+    if (detailTeamId !== null && wasOpen === null) {
+      // Detail just opened: the row button that had focus is about to
+      // unmount. Move focus into the detail so a screen-reader user isn't
+      // dropped at <body>.
+      backButtonRef.current?.focus()
+    } else if (detailTeamId === null && wasOpen !== null) {
+      // Detail just closed: return focus to the list row for the team that
+      // was open, so focus doesn't fall back to <body> a second time.
+      document.getElementById(`standings-row-${wasOpen}`)?.focus()
+    }
+    prevDetailIdRef.current = detailTeamId
+  }, [detailTeamId])
 
   const standingsByDiv = useMemo(() => {
     const byDiv = new Map<string, Map<string, TeamRecord>>()
@@ -253,6 +276,7 @@ export default function StandingsTab({ state, highlightTeamId }: Props) {
                   {records.map((r, i) => (
                     <button
                       key={r.teamId}
+                      id={`standings-row-${r.teamId}`}
                       onClick={() => setDetailTeamId(r.teamId)}
                       className={`w-full min-h-[52px] px-4 flex items-center gap-3 text-left active:bg-gray-50 ${
                         r.teamId === highlightTeamId ? 'bg-[#eeeef6]' : ''
@@ -286,6 +310,7 @@ export default function StandingsTab({ state, highlightTeamId }: Props) {
                   <div className="sm:hidden">
                     <div className="px-4 py-3 border-b flex items-center gap-3">
                       <button
+                        ref={backButtonRef}
                         onClick={() => setDetailTeamId(null)}
                         className="min-h-[44px] min-w-[44px] -ml-2 flex items-center text-sm font-medium text-[var(--fd-primary)]"
                       >

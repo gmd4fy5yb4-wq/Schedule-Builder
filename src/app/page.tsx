@@ -847,18 +847,20 @@ export default function Home() {
       </div>
 
       {/* pb-28: the fixed bottom bar is ~56px plus the home-indicator inset. */}
-      <main id="tab-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="max-w-7xl mx-auto px-4 py-6 pb-28 sm:pb-6">
-        {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
-        {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} />}
-        {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
-        {tab === 3  && <FieldsTab state={state} setState={setState} />}
-        {tab === 4  && <UmpiresTab state={state} setState={setState} />}
-        {tab === 5  && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
-        {tab === 6  && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
-        {tab === 7  && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
-        {tab === 8  && <AutoScheduleTab state={state} setState={setState} />}
-        {tab === 9  && <StandingsTab state={state} readOnly={readOnly} />}
-        {tab === 10 && <CoachesTab state={state} readOnly={readOnly} />}
+      <main className="max-w-7xl mx-auto px-4 py-6 pb-28 sm:pb-6">
+        <div id="tab-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
+          {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
+          {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} />}
+          {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
+          {tab === 3  && <FieldsTab state={state} setState={setState} />}
+          {tab === 4  && <UmpiresTab state={state} setState={setState} />}
+          {tab === 5  && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
+          {tab === 6  && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
+          {tab === 7  && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
+          {tab === 8  && <AutoScheduleTab state={state} setState={setState} />}
+          {tab === 9  && <StandingsTab state={state} readOnly={readOnly} />}
+          {tab === 10 && <CoachesTab state={state} readOnly={readOnly} />}
+        </div>
       </main>
 
       {showSnapshots && leagueCode && (

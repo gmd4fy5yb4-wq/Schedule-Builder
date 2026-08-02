@@ -491,9 +491,14 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                                   aria-expanded={confirmHelpFor === g.id}
                                   aria-controls={`confirm-help-${g.id}`}
                                   aria-label="What does confirming do?"
-                                  className="w-6 h-6 shrink-0 flex items-center justify-center rounded-full border border-gray-300 text-xs font-bold text-gray-500 hover:text-gray-800 hover:border-gray-500 outline-none focus-visible:ring-2 focus-visible:ring-[var(--fd-accent)]"
+                                  className="w-11 h-11 shrink-0 flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-[var(--fd-accent)]"
                                 >
-                                  ?
+                                  <span
+                                    aria-hidden="true"
+                                    className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-300 text-xs font-bold text-gray-500"
+                                  >
+                                    ?
+                                  </span>
                                 </button>
                               </div>
                             )}
@@ -518,8 +523,9 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                           >
                             Check this box once you&apos;ve confirmed the game with all coaches, the {sc.officialSingular.toLowerCase()}, and field staff. A green ring will appear around the card.
                             <button
+                              type="button"
                               onClick={() => setConfirmHelpFor(null)}
-                              className="mt-2 block min-h-[32px] text-[11px] font-semibold underline underline-offset-2"
+                              className="mt-2 block min-h-[44px] text-[11px] font-semibold underline underline-offset-2"
                             >
                               Got it
                             </button>
