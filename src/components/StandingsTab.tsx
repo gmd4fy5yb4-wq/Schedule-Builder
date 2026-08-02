@@ -1,7 +1,9 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { AppState, ScheduledGame } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
+import { teamForm } from '@/lib/standings'
+import { nextGameFor } from '@/lib/coachView'
 
 interface Props {
   state: AppState
@@ -66,9 +68,32 @@ function sortTeams(records: TeamRecord[]): TeamRecord[] {
   })
 }
 
+function nowKey() {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** One record tile in the mobile detail. Tone is reinforcement only — the
+ *  value always carries its own letter, so greyscale loses nothing. */
+function Tile({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: 'good' | 'bad' | 'neutral' }) {
+  return (
+    <div className="bg-white px-2 py-3 text-center">
+      <p className={`text-base font-bold ${
+        tone === 'good' ? 'text-green-700' : tone === 'bad' ? 'text-red-700' : 'text-gray-900'
+      }`}>{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-0.5">{label}</p>
+    </div>
+  )
+}
+
 export default function StandingsTab({ state, highlightTeamId }: Props) {
   const totalScheduled = state.schedule.games.length
   const totalWithResults = state.schedule.games.filter(g => g.result).length
+
+  // Mobile only: which team's detail is open. Null shows the list.
+  // Desktop ignores this entirely — it renders the full table.
+  const [detailTeamId, setDetailTeamId] = useState<string | null>(null)
 
   const standingsByDiv = useMemo(() => {
     const byDiv = new Map<string, Map<string, TeamRecord>>()
@@ -135,6 +160,11 @@ export default function StandingsTab({ state, highlightTeamId }: Props) {
         const hasResults = records.some(r => r.GP > 0)
         const hasTies = records.some(r => r.T > 0)
 
+        // detailTeamId is page-wide, so each card must ask whether the open
+        // team is one of ITS teams — otherwise opening a detail in one
+        // division blanks every other division's card.
+        const detailHere = detailTeamId !== null && records.some(x => x.teamId === detailTeamId)
+
         // Count games scheduled in this division
         const divScheduled = state.schedule.games.filter(g => g.divisionId === div.id).length
         const divPlayed    = state.schedule.games.filter(g => g.divisionId === div.id && g.result).length
@@ -155,7 +185,8 @@ export default function StandingsTab({ state, highlightTeamId }: Props) {
             ) : !hasResults ? (
               <p className="px-5 py-6 text-sm text-gray-400 italic text-center">No results recorded yet for this division.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b text-gray-500">
@@ -214,6 +245,172 @@ export default function StandingsTab({ state, highlightTeamId }: Props) {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile: only the columns that fit. The full table above keeps
+                  every column for desktop; here the rest lives in the detail. */}
+              {!detailHere && (
+                <div className="sm:hidden divide-y">
+                  {records.map((r, i) => (
+                    <button
+                      key={r.teamId}
+                      onClick={() => setDetailTeamId(r.teamId)}
+                      className={`w-full min-h-[52px] px-4 flex items-center gap-3 text-left active:bg-gray-50 ${
+                        r.teamId === highlightTeamId ? 'bg-[#eeeef6]' : ''
+                      }`}
+                    >
+                      <span className="w-5 shrink-0 text-xs font-semibold text-gray-500">{i + 1}</span>
+                      <span className="min-w-0 flex-1 font-medium text-gray-900 truncate">{r.teamName}</span>
+                      <span className="shrink-0 text-sm font-semibold text-gray-800">{r.W}-{r.L}{r.T > 0 ? `-${r.T}` : ''}</span>
+                      <span className="shrink-0 w-12 text-right text-sm text-gray-600">{fmtPct(r)}</span>
+                      <span aria-hidden="true" className="shrink-0 text-gray-300">›</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Mobile detail. Every state here is readable without colour:
+                  the streak carries its letter, the dots carry W/L/T, and the
+                  result badges carry their outcome. */}
+              {detailHere && (() => {
+                const r = records.find(x => x.teamId === detailTeamId)
+                if (!r) return null
+                const rank = records.findIndex(x => x.teamId === detailTeamId) + 1
+                const form = teamForm(state.schedule.games, r.teamId, 5)
+                const next = nextGameFor(state, r.teamId, nowKey())
+                const teamName = (id: string) =>
+                  state.divisions.flatMap(d => d.teams).find(t => t.id === id)?.name ?? 'TBD'
+                const team = state.divisions.flatMap(d => d.teams).find(t => t.id === r.teamId)
+                const totalRuns = r.RF + r.RA
+                const forPct = totalRuns > 0 ? Math.round((r.RF / totalRuns) * 100) : 50
+                return (
+                  <div className="sm:hidden">
+                    <div className="px-4 py-3 border-b flex items-center gap-3">
+                      <button
+                        onClick={() => setDetailTeamId(null)}
+                        className="min-h-[44px] min-w-[44px] -ml-2 flex items-center text-sm font-medium text-[var(--fd-primary)]"
+                      >
+                        ‹ Standings
+                      </button>
+                      <span className="min-w-0">
+                        <span className="block font-bold text-gray-900 truncate">{r.teamName}</span>
+                        <span className="block text-xs text-gray-500">#{rank} in {div.name}</span>
+                      </span>
+                    </div>
+
+                    {/* Record tiles */}
+                    <div className="grid grid-cols-4 gap-px bg-gray-200">
+                      <Tile label="Record" value={`${r.W}-${r.L}${r.T > 0 ? `-${r.T}` : ''}`} />
+                      <Tile label="PCT" value={fmtPct(r)} />
+                      <Tile label="Games back" value={leader ? calcGB(leader, r) : '—'} />
+                      <Tile
+                        label="Streak"
+                        value={form.streak ? `${form.streak.kind}${form.streak.count}` : '—'}
+                        tone={form.streak?.kind === 'W' ? 'good' : form.streak?.kind === 'L' ? 'bad' : 'neutral'}
+                      />
+                    </div>
+
+                    {/* Last 5 */}
+                    <div className="px-4 py-3 border-b">
+                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Last 5</p>
+                      {form.last5.length === 0 ? (
+                        <p className="text-sm text-gray-500">No games played yet.</p>
+                      ) : (
+                        <div className="flex gap-1.5">
+                          {form.last5.map((o, idx) => (
+                            <span
+                              key={idx}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                                o === 'W' ? 'bg-green-100 text-green-800'
+                                : o === 'L' ? 'bg-red-100 text-red-800'
+                                : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {o}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Runs split */}
+                    <div className="px-4 py-3 border-b">
+                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Runs</p>
+                      <div className="h-2 rounded-full overflow-hidden bg-red-200 flex" role="presentation">
+                        <div className="bg-green-500 h-full" style={{ width: `${forPct}%` }} />
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1.5">{r.RF} for · {r.RA} against</p>
+                    </div>
+
+                    {/* Recent results */}
+                    {form.recentResults.length > 0 && (
+                      <div className="border-b">
+                        <p className="px-4 pt-3 pb-1.5 text-xs font-bold uppercase tracking-wider text-gray-500">Recent results</p>
+                        {form.recentResults.slice(0, 5).map(res => (
+                          <div key={res.gameId} className="px-4 py-2.5 flex items-center gap-3 border-t">
+                            <span className={`w-6 h-6 shrink-0 rounded flex items-center justify-center text-xs font-bold ${
+                              res.outcome === 'W' ? 'bg-green-100 text-green-800'
+                              : res.outcome === 'L' ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-700'
+                            }`}>{res.outcome}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm text-gray-900 truncate">vs {teamName(res.opponentTeamId)}</span>
+                              <span className="block text-xs text-gray-500">{res.date}</span>
+                            </span>
+                            <span className="shrink-0 text-sm font-semibold text-gray-800">{res.scoreFor}–{res.scoreAgainst}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Next game */}
+                    {next && (
+                      <div className="px-4 py-3 border-b">
+                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Next game</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {next.type === 'game'
+                            ? `${teamName(next.homeTeamId)} vs ${teamName(next.awayTeamId)}`
+                            : `${r.teamName} practice`}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">{next.date} · {state.fields.find(f => f.id === next.fieldId)?.name ?? ''}</p>
+                        {(() => {
+                          const f = state.fields.find(x => x.id === next.fieldId)
+                          const url = f?.geocoords
+                            ? `https://www.google.com/maps/search/?api=1&query=${f.geocoords.lat},${f.geocoords.lon}`
+                            : f?.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(f.address)}` : null
+                          return url ? (
+                            <a href={url} target="_blank" rel="noopener noreferrer"
+                               className="mt-2 min-h-[44px] w-full flex items-center justify-center rounded-lg border border-gray-300 text-sm font-semibold text-gray-700">
+                              Directions
+                            </a>
+                          ) : null
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Coaches */}
+                    {(team?.coaches?.length ?? 0) > 0 && (
+                      <div className="px-4 py-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Coaches</p>
+                        {team!.coaches!.map(co => (
+                          <div key={co.id} className="flex items-center gap-2 py-1.5">
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm text-gray-900 truncate">{co.name}</span>
+                              {co.role && <span className="block text-xs text-gray-500">{co.role === 'head' ? 'Head Coach' : 'Assistant'}</span>}
+                            </span>
+                            {co.phone && (
+                              <a href={`tel:${co.phone}`} className="min-h-[44px] px-3 flex items-center rounded-lg border border-gray-300 text-sm font-medium text-gray-700">Call</a>
+                            )}
+                            {co.email && (
+                              <a href={`mailto:${co.email}`} className="min-h-[44px] px-3 flex items-center rounded-lg border border-gray-300 text-sm font-medium text-gray-700">Email</a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+              </>
             )}
           </div>
         )
