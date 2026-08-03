@@ -241,7 +241,7 @@ The backfill is a **single SQL migration with the evidence rules written as `CAS
 
 0. **Owner attestation.** The account owner's direct statement about an account they control. Outranks everything below — all inference here is a substitute for testimony, not better than it. → `source='manual'`, `confidence='certain'`
 1. **Temporal impossibility.** App launch dates observed from earliest data: FieldDay 2026-03-24, Prospect Card 2026-05-02, AthleteCard 2026-06-23. First-ever signup was 2026-04-29. A signup comfortably before an app's first data could not have come through it. → `confidence='inferred'`
-2. **Earliest activity after signup.** The app whose first content appears soonest after the signup timestamp. → `confidence='high'` only when the account is active in exactly one app; `inferred` when it reached several apps the same day.
+2. **Earliest activity after signup.** The app whose first content appears soonest after the signup timestamp. → `confidence='high'`, but **only for accounts with content in exactly one app**. For multi-app accounts this rule is not evidence at all and must not be used — see below.
 3. **Native user-agent / OAuth provider.** `auth.sessions.user_agent like 'AthleteCard/%'` — the native client identifies itself and cannot appear by accident. Corroborates; never overrides rule 1.
 4. **No evidence.** → `app='unknown'`, `source='manual'`, escalate to the owner.
 
@@ -253,25 +253,35 @@ The backfill is a **single SQL migration with the evidence rules written as `CAS
 
 | App | Count | Accounts | Confidence |
 |---|---|---|---|
-| fieldday | 5 | `greg@lev-itsb.com`, `jonathan@lev-itsb.com`, `jherrera.online@yahoo.com` (rule 1) · `greg@alfred-digital.com`, `gamundson@mac.com` (owner-attested) | `inferred` for the first three; `certain` for the two attested |
-| prospect-card | 7 | `greg.amundson@gmail.com` and the 6 outside users | `high` — rule 2, same-day activity |
+| fieldday | 5 | `gamundson@mac.com`, `greg@alfred-digital.com`, `jherrera.online@yahoo.com` (owner-attested) · `greg@lev-itsb.com`, `jonathan@lev-itsb.com` (rule 1) | `certain` for the three attested; `inferred` for the two |
+| prospect-card | 7 | `greg.amundson@gmail.com` and the 6 outside users | `high` — rule 2, single-app accounts |
 | athletecard | 1 | `n264vgksyc@privaterelay.appleid.com` | `high` — rule 2, corroborated by native UA |
 | unknown | 0 | — | every surviving account placed |
 
-`greg@alfred-digital.com` and `gamundson@mac.com` are written as `source='manual'`, `confidence='certain'`, `basis='owner-attested: FieldDay signup first, Prospect Card later'`.
+The three attested rows are written `source='manual'`, `confidence='certain'`, `basis='owner-attested: FieldDay signup first, Prospect Card later'`.
 
-### Rule 2 produced a confident wrong answer — and rule 1 was circular
+The two remaining `inferred` rows are the `lev-itsb.com` pair. Both are strongly corroborated — `greg@lev-itsb.com` owns `YWWM8G`, the only league in the database with recorded results (132 games), and `jonathan@lev-itsb.com` shares its domain and signed up the same day. Both are also on the owner's list of real FieldDay users. They stay `inferred` only because the owner has not stated their signup order explicitly; a one-line confirmation upgrades them.
 
-The first draft of this backfill assigned `gamundson@mac.com` to `prospect-card` on rule 2: it signed up 2026-05-02 11:33 and created a Prospect Card profile at 14:07 the same day. The owner corrected it — that account signed up through FieldDay first and reached Prospect Card afterwards, on the same day.
+### Rule 2 is not evidence of origin for multi-app accounts — it was wrong every time
 
-The failure has a specific cause worth keeping. **Prospect Card's launch date (2026-05-02) was itself derived from the earliest Prospect Card profile — which is `gamundson@mac.com`'s own profile.** The temporal threshold was defined by the very account it was then used to classify, so rule 1 could never have caught rule 2's error for that account. A boundary inferred from data cannot adjudicate the datum that defines it.
+Three accounts hold content in more than one app. **Rule 2 gives the wrong answer for all three:**
 
-Two consequences the implementation must respect:
+| Account | Rule 2 says | Truth (owner-attested) |
+|---|---|---|
+| `gamundson@mac.com` | prospect-card | **fieldday** |
+| `greg@alfred-digital.com` | prospect-card | **fieldday** |
+| `jherrera.online@yahoo.com` | prospect-card | **fieldday** |
 
-- **Rule 2 (earliest activity) is weaker than it appears.** Same-day activity in app B proves the user reached app B quickly, not that they arrived through it. Where an account is active in more than one app within the same day, rule 2 should yield `confidence='inferred'`, never `high`.
-- **The 2026-05-02 Prospect Card boundary is soft.** It is a lower bound observed from one account's behaviour, not a deployment date. Treat rule 1 as evidence of *impossibility* only when the margin is comfortable — a signup weeks before an app's first data, not hours.
+Nought for three. Earliest-activity reflects **which app a user engaged with most readily**, not which door they came through — and the two are systematically different for anyone who signs up, looks around, and later tries a sibling product. That is the normal path for a multi-product portfolio sharing one login.
 
-**The three remaining `inferred` FieldDay rows still deserve scepticism.** `jherrera.online@yahoo.com` in particular is attributed to FieldDay only because Prospect Card had no data on 2026-04-29, yet it has since used Prospect Card almost exclusively. The value is defensible as signup origin; the `confidence` column is what stops it being read later as observed fact.
+**Implementation rule:** for any account with content in more than one app, rule 2 is not evidence. Escalate to the owner rather than deriving. Rule 2 applies only to single-app accounts, where it is sound — all seven Prospect Card rows and the AthleteCard row are single-app, which is why they keep `confidence='high'`.
+
+Rule 1 could not have caught this. **Prospect Card's launch date (2026-05-02) was itself derived from the earliest Prospect Card profile — which is `gamundson@mac.com`'s own row.** The temporal threshold was defined by the very account it was then used to classify. A boundary inferred from the data cannot adjudicate the datum that defines it.
+
+Two further consequences:
+
+- **The 2026-05-02 Prospect Card boundary is soft.** It is a lower bound observed from one account's behaviour, not a deployment date. Rule 1 establishes *impossibility* only with a comfortable margin — weeks before an app's first data, not hours. The `lev-itsb.com` pair sit 3 days before it, which is why they remain `inferred` rather than `certain` despite strong corroboration.
+- **Attestation is not a fallback for missing data.** It outranks every derived signal, including signals that look strong. All three corrections here overturned an inference that had looked clean and self-consistent.
 
 ---
 
