@@ -53,3 +53,26 @@ Phase 2 item 2 shipped. A share-link viewer now gets a purpose-built read surfac
 - Desktop tab buttons are ~40px tall, under the 44px guideline. Mobile is 56px.
 
 **Caught in review, worth remembering:** the first version showed a stranger's game as the hero to every first-time visitor (because "no team picked" means "whole league" to the selection logic), dropped the league's theme, and hid special events like Opening Day that the old share view displayed. All three were regressions invisible to the type checker and the unit tests — only a browser pass against real data found them.
+
+---
+
+## Phase 2 complete (2026-08-02, `main` @ `1eb9053`)
+
+Item 3 — standings detail + a11y pass — shipped, closing Phase 2. On a phone the standings now show rank / team / W-L / PCT with a tap-row detail (games back, streak, last five, runs split, recent results, next game, coaches) instead of hiding six columns off the right edge. The desktop nav is a real WAI-ARIA tablist with arrow-key navigation, the Confirm explanation is a keyboard-operable disclosure, month-grid chips carry division initials, and all three dialogs trap and restore focus.
+
+**Verified live at 390px against the production league** (the only one with recorded results; read-only view): 23-row list, detail reading "3-2 Record / .600 PCT / 0.5 Games back / L1 Streak", and the multi-division gate holding — opening one division's detail leaves the others' lists intact. Keyboard verified at 1280px: arrows follow visual order, both wraps work, focus follows selection.
+
+### Still open, ranked
+
+1. **Field Calendar is add-only on phones** (from the mobile-gaps batch). It shows how many events a day holds but not what they are, because unlike Schedule it has no agenda view to reach. The roadmap's original wording was "agenda-first calendar**s**", plural — this is the one that never got it. Top remaining mobile item.
+2. **`aria-describedby` on the Confirm checkbox is set only while the disclosure is open**, so a screen-reader user reaching the checkbox hears no hint that an explanation exists until they have already found the `?` button. `aria-controls` also dangles when collapsed.
+3. **The tablist's presentational wrappers are a tolerated shape, not a conforming one.** `role="presentation"` on a plain `<div>` strips nothing (generics carry no semantics), so the tabs remain three levels deep inside the tablist. Assistive tech copes; `aria-owns` on the `<nav>` listing the eleven tab ids would make it correct.
+4. **Two divisions whose names share initials get identical chip badges** (e.g. "Majors" and "Men's Alumni" → "MA"), so for that pair the greyscale fix does nothing. Degrades to today's colour-only behaviour rather than being worse.
+5. **Focus-trap selector** doesn't exclude `display:none` or disabled descendants. Latent — no current sheet has any.
+6. **Recent results render raw ISO dates** (`2026-05-05`) where the rest of the app formats them.
+7. **Practice chips carry a division badge** whose text colour is the hardcoded gray rather than the division palette, so the contrast rationale written for division chips doesn't literally cover them. Still legible.
+8. **The Schedule filter block** still consumes ~200px before the first event on a phone.
+
+### Correction worth keeping
+
+An earlier note in this session claimed a division cannot have a blank name. That is wrong: `DivisionsTab`'s rename neither trims nor rejects, so clearing the field stores `''`. The consequence is harmless — such a division has a blank header anyway — but the reasoning shouldn't be reused.

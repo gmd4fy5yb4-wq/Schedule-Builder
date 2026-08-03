@@ -36,6 +36,11 @@ function parseBlackoutSet(entries: string[]): Set<string> {
   return new Set(entries.map(e => e.split('::')[0]))
 }
 
+/** "1 slot" / "2 slots" — used in conflict detail lines. */
+export function slots(n: number): string {
+  return `${n} slot${n === 1 ? '' : 's'}`
+}
+
 /** Generate round-robin matchup pairs for a list of team IDs */
 function generateRoundRobin(teamIds: string[]): Array<[string, string]> {
   const pairs: Array<[string, string]> = []
@@ -255,63 +260,63 @@ export function generateSchedule(params: {
         teamBusyDates.add(`${home}::${bestSlot.date}`)
         teamBusyDates.add(`${away}::${bestSlot.date}`)
       } else {
-        // Build conflict details
+        // Team names are needed by nearly every line below; resolve once
+        // rather than re-scanning every team in the league six times.
+        const homeTeamName = divisions.flatMap(d => d.teams).find(t => t.id === home)?.name ?? home
+        const awayTeamName = divisions.flatMap(d => d.teams).find(t => t.id === away)?.name ?? away
+
         const details: string[] = []
         const suggestions: string[] = []
 
         if (failReasons.fieldBooked > 0) {
-          details.push(`${failReasons.fieldBooked} slot(s) blocked because the field was already booked`)
+          // Not "Diamond 2" — the counter is summed across every field and
+          // does not record which. Per-field counters would be more state
+          // than a line of explanatory text is worth.
+          details.push(`${slots(failReasons.fieldBooked)} — field already booked`)
         }
         if (failReasons.homeTeamBusy > 0) {
-          const teamName = divisions.flatMap(d => d.teams).find(t => t.id === home)?.name ?? home
-          details.push(`${failReasons.homeTeamBusy} slot(s) blocked because ${teamName} already has a game that day`)
+          details.push(`${slots(failReasons.homeTeamBusy)} — ${homeTeamName} already play that day`)
         }
         if (failReasons.awayTeamBusy > 0) {
-          const teamName = divisions.flatMap(d => d.teams).find(t => t.id === away)?.name ?? away
-          details.push(`${failReasons.awayTeamBusy} slot(s) blocked because ${teamName} already has a game that day`)
+          details.push(`${slots(failReasons.awayTeamBusy)} — ${awayTeamName} already play that day`)
         }
         if (failReasons.homeTeamBlackout > 0) {
-          const teamName = divisions.flatMap(d => d.teams).find(t => t.id === home)?.name ?? home
-          details.push(`${failReasons.homeTeamBlackout} slot(s) blocked by ${teamName}'s blackout dates`)
+          details.push(`${slots(failReasons.homeTeamBlackout)} — ${homeTeamName}'s blackout dates`)
           if (homeBlackouts.size > 0) {
             const dates = Array.from(homeBlackouts).sort().slice(0, 3).join(', ')
-            suggestions.push(`Review blackout dates for ${teamName}: ${dates}${homeBlackouts.size > 3 ? ', …' : ''}`)
+            suggestions.push(`Review ${homeTeamName}'s blackout dates: ${dates}${homeBlackouts.size > 3 ? ', …' : ''}`)
           }
         }
         if (failReasons.awayTeamBlackout > 0) {
-          const teamName = divisions.flatMap(d => d.teams).find(t => t.id === away)?.name ?? away
-          details.push(`${failReasons.awayTeamBlackout} slot(s) blocked by ${teamName}'s blackout dates`)
+          details.push(`${slots(failReasons.awayTeamBlackout)} — ${awayTeamName}'s blackout dates`)
           if (awayBlackouts.size > 0) {
             const dates = Array.from(awayBlackouts).sort().slice(0, 3).join(', ')
-            suggestions.push(`Review blackout dates for ${teamName}: ${dates}${awayBlackouts.size > 3 ? ', …' : ''}`)
+            suggestions.push(`Review ${awayTeamName}'s blackout dates: ${dates}${awayBlackouts.size > 3 ? ', …' : ''}`)
           }
         }
 
         if (details.length === 0) {
           if (validSlots.length === 0) {
-            details.push('No valid slots were generated for this division')
+            details.push('No slots exist for this division')
             if (fields.length === 0) suggestions.push('Add at least one field')
             else if (!season.startDate || !season.endDate) suggestions.push('Set a season start and end date')
             else if (division.gameDays && division.gameDays.length > 0) {
               const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-              suggestions.push(`Only ${division.gameDays.map(d => dayNames[d]).join(', ')} are allowed for this division — consider expanding game days`)
+              suggestions.push(`${division.name} only plays ${division.gameDays.map(d => dayNames[d]).join(', ')} — consider adding game days`)
             }
           } else {
-            details.push('No available slot found after checking all constraints')
-            suggestions.push('Try extending the season end date')
+            details.push('No slot survives every constraint')
+            suggestions.push('Extend the season end date')
             suggestions.push('Add more fields or reduce team blackout dates')
           }
         }
 
         if (fields.length > 0 && validSlots.length > 0) {
-          suggestions.push('Add more fields or field time slots to increase availability')
+          suggestions.push('Add more fields or time slots')
           if (leagueBlackouts.length > 0) {
-            suggestions.push(`Consider removing some league blackout dates (currently ${leagueBlackouts.length})`)
+            suggestions.push(`Remove some of the ${leagueBlackouts.length} league blackout dates`)
           }
         }
-
-        const homeTeamName = divisions.flatMap(d => d.teams).find(t => t.id === home)?.name ?? home
-        const awayTeamName = divisions.flatMap(d => d.teams).find(t => t.id === away)?.name ?? away
 
         conflicts.push({
           id: uid(),
@@ -320,7 +325,7 @@ export function generateSchedule(params: {
           awayTeamId: away,
           reason: `Could not find an available slot for ${homeTeamName} vs ${awayTeamName}`,
           details,
-          suggestions: suggestions.length > 0 ? suggestions : ['Manually schedule this game in the Schedule tab'],
+          suggestions: suggestions.length > 0 ? suggestions : ['Schedule this game manually in the Schedule tab'],
           resolution: 'pending',
         })
       }
