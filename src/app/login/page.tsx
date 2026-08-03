@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { getSupabase } from '@/lib/supabase'
 import Icon from '@/components/Icon'
+import { siteUrl } from '@/lib/siteUrl'
 
 // Translates raw Supabase Auth error strings into copy a user can act on,
 // instead of surfacing SDK internals (rate-limit wording, etc.) directly.
@@ -59,7 +60,7 @@ export default function LoginPage() {
     // Always use the production site URL if set, so magic links point to the
     // deployed app instead of localhost. The callback URL must be a plain path
     // with no query params — Supabase validates it against the exact allowlist entry.
-    const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || window.location.origin
+    const siteOrigin = siteUrl(window.location.origin)
     const callbackUrl = `${siteOrigin}/auth/callback`
 
     const { error: authError } = await getSupabase().auth.signInWithOtp({

@@ -4,8 +4,9 @@ import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { sendCoachNotifications } from '@/lib/email'
 import type { AppState } from '@/lib/types'
+import { siteUrl } from '@/lib/siteUrl'
 
-const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fielddayplanner.app').replace(/\/$/, '')
+const SITE_ORIGIN = siteUrl('https://fielddayplanner.app')
 
 const schema = z.object({
   leagueCode: z.string().length(6),
