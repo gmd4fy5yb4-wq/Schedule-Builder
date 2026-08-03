@@ -2,6 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { getSupabaseServer } from '@/lib/supabase-server'
+import { siteUrl } from '@/lib/siteUrl'
 
 export async function POST(_req: NextRequest) {
   if (!stripe) {
@@ -26,7 +27,7 @@ export async function POST(_req: NextRequest) {
     return NextResponse.json({ error: 'No billing account found.' }, { status: 404 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const baseUrl = siteUrl()
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: sub.stripe_customer_id,

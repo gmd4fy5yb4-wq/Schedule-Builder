@@ -5,6 +5,7 @@ import { stripe } from '@/lib/stripe'
 import { PLANS } from '@/lib/plans'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { isProspectCardBundleEligible } from '@/lib/bundle'
+import { siteUrl } from '@/lib/siteUrl'
 
 const schema = z.object({
   tier: z.enum(['starter', 'pro', 'org']),
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Plan not configured.' }, { status: 404 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const baseUrl = siteUrl()
 
   // Alfred Sports Bundle: 20% off if this user has a paying Prospect Card
   // subscription. Best-effort — any failure here must never block checkout.
