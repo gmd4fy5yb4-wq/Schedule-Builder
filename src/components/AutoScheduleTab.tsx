@@ -312,6 +312,8 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
       autoScheduleConflicts: (s.autoScheduleConflicts ?? []).filter(c => c.resolution === 'pending'),
     }))
     setCommitMode(null)
+    // placedBy is scoped to the current draft — a committed (or discarded)
+    // draft must not leave stale conflictId -> game entries behind.
     setPlacedBy({})
   }
 
@@ -923,7 +925,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
                       onClick={() => setCommitMode('append')}
                       disabled={openCount > 0}
                       aria-describedby={openCount > 0 ? 'apply-gate-reason' : undefined}
-                      className="min-h-[44px] bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto min-h-[44px] bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
                       {openCount > 0 ? `Append to Existing Schedule (${openCount} open)` : 'Append to Existing Schedule'}
                     </button>
@@ -931,13 +933,13 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
                       onClick={() => setCommitMode('replace')}
                       disabled={openCount > 0}
                       aria-describedby={openCount > 0 ? 'apply-gate-reason' : undefined}
-                      className="min-h-[44px] bg-white border-2 border-red-400 text-red-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition disabled:border-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto min-h-[44px] bg-white border-2 border-red-400 text-red-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition disabled:border-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
                       {openCount > 0 ? `Replace Existing Schedule (${openCount} open)` : 'Replace Existing Schedule'}
                     </button>
                     <button
                       onClick={discardPreview}
-                      className="min-h-[44px] border border-gray-300 text-gray-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
+                      className="w-full sm:w-auto min-h-[44px] border border-gray-300 text-gray-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
                     >
                       Discard Draft
                     </button>
@@ -966,7 +968,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
       )}
 
       {/* Empty state */}
-      {preview === null && conflicts.length === 0 && (
+      {preview === null && conflicts.length === 0 && !applied && (
         <div className="text-center py-12 text-gray-400">
           <p className="font-medium text-gray-600">Ready to auto-schedule</p>
           <p className="text-sm mt-1">Configure parameters above, then click &ldquo;Generate Schedule&rdquo;.</p>
