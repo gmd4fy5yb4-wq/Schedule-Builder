@@ -857,7 +857,7 @@ export default function Home() {
           {tab === 5  && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
           {tab === 6  && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
           {tab === 7  && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
-          {tab === 8  && <AutoScheduleTab state={state} setState={setState} />}
+          {tab === 8  && <AutoScheduleTab state={state} setState={setState} leagueCode={leagueCode} userName={userName} />}
           {tab === 9  && <StandingsTab state={state} readOnly={readOnly} />}
           {tab === 10 && <CoachesTab state={state} readOnly={readOnly} />}
         </div>

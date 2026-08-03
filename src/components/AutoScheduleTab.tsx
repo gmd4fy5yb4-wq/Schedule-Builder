@@ -5,10 +5,13 @@ import { getDivisionColor } from '@/lib/divisionColors'
 import { generateSchedule } from '@/lib/autoScheduler'
 import { conflictPlan, type PlannedConflict } from '@/lib/conflictPlan'
 import { getSportConfig } from '@/lib/sports'
+import { saveSnapshot } from '@/lib/sync'
 
 interface Props {
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
+  leagueCode: string | null
+  userName: string
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -44,10 +47,11 @@ function fmtDateShort(s: string): string {
   })
 }
 
-export default function AutoScheduleTab({ state, setState }: Props) {
+export default function AutoScheduleTab({ state, setState, leagueCode, userName }: Props) {
   const [configOpen, setConfigOpen] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [commitMode, setCommitMode] = useState<null | 'append' | 'replace'>(null)
+  const [applied, setApplied] = useState<null | { games: number; fixes: number; skips: number; snapshot: boolean }>(null)
 
   // conflictId -> the game placed for it, so Undo can take it back out
   const [placedBy, setPlacedBy] = useState<Record<string, ScheduledGame>>({})
@@ -200,6 +204,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           autoSchedulePreview: result.games,
           autoScheduleConflicts: result.conflicts,
         }))
+        setApplied(null)
       } finally {
         setGenerating(false)
       }
@@ -279,6 +284,22 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
   function commitPreview(mode: 'append' | 'replace') {
     if (!preview || preview.length === 0) return
+
+    // Replace is the only destructive path — it wipes games AND practices.
+    // Fire-and-forget matches maybeAutoSnapshot() in page.tsx; a failed
+    // snapshot must not block the apply the user asked for.
+    const snapshot = mode === 'replace' && !!leagueCode
+    if (snapshot && leagueCode) {
+      void saveSnapshot(leagueCode, '[Auto] Before auto-schedule', state, userName)
+    }
+
+    setApplied({
+      games: preview.length,
+      fixes: conflicts.filter(c => c.resolution === 'resolved').length,
+      skips: conflicts.filter(c => c.resolution === 'skipped').length,
+      snapshot,
+    })
+
     setState(s => ({
       ...s,
       schedule: {
@@ -291,6 +312,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
       autoScheduleConflicts: (s.autoScheduleConflicts ?? []).filter(c => c.resolution === 'pending'),
     }))
     setCommitMode(null)
+    setPlacedBy({})
   }
 
   function discardPreview() {
@@ -883,7 +905,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                 ) : commitMode === 'replace' ? (
                   <>
                     <span className="text-sm font-medium text-red-700">
-                      Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? Save a snapshot first if you want a backup!
+                      Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? A snapshot will be saved first.
                     </span>
                     <button onClick={() => commitPreview('replace')} className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
                       Yes, Replace Everything
@@ -892,28 +914,53 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                   </>
                 ) : (
                   <>
+                    {openCount > 0 && (
+                      <p id="apply-gate-reason" className="w-full text-sm text-gray-700">
+                        Resolve all {openCount} open flag{openCount !== 1 ? 's' : ''} above before applying.
+                      </p>
+                    )}
                     <button
                       onClick={() => setCommitMode('append')}
-                      className="bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition"
+                      disabled={openCount > 0}
+                      aria-describedby={openCount > 0 ? 'apply-gate-reason' : undefined}
+                      className="min-h-[44px] bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
-                      Append to Existing Schedule
+                      {openCount > 0 ? `Append to Existing Schedule (${openCount} open)` : 'Append to Existing Schedule'}
                     </button>
                     <button
                       onClick={() => setCommitMode('replace')}
-                      className="bg-white border-2 border-red-400 text-red-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
+                      disabled={openCount > 0}
+                      aria-describedby={openCount > 0 ? 'apply-gate-reason' : undefined}
+                      className="min-h-[44px] bg-white border-2 border-red-400 text-red-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition disabled:border-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
-                      Replace Existing Schedule
+                      {openCount > 0 ? `Replace Existing Schedule (${openCount} open)` : 'Replace Existing Schedule'}
                     </button>
                     <button
                       onClick={discardPreview}
-                      className="border border-gray-300 text-gray-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
+                      className="min-h-[44px] border border-gray-300 text-gray-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
                     >
-                      Discard Preview
+                      Discard Draft
                     </button>
                   </>
                 )}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {applied && preview === null && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-5 py-4">
+          <p className="font-semibold text-emerald-700">
+            Schedule applied — {applied.games} game{applied.games !== 1 ? 's' : ''}
+          </p>
+          <p className="text-sm text-gray-700 mt-1">
+            {applied.fixes} fix{applied.fixes !== 1 ? 'es' : ''} applied · {applied.skips} flag{applied.skips !== 1 ? 's' : ''} skipped
+          </p>
+          {applied.snapshot && (
+            <p className="text-sm text-gray-700 mt-1">
+              A &ldquo;Before auto-schedule&rdquo; snapshot was saved — restore it from Snapshots.
+            </p>
           )}
         </div>
       )}
