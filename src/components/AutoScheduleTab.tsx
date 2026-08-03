@@ -1,13 +1,17 @@
 'use client'
-import { useState, useMemo } from 'react'
-import type { AppState, ScheduleConflict, ScheduledGame } from '@/lib/types'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import type { AppState, ScheduledGame } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
-import { generateSchedule, rescheduleMatchupRelaxed } from '@/lib/autoScheduler'
+import { generateSchedule } from '@/lib/autoScheduler'
+import { conflictPlan, type PlannedConflict } from '@/lib/conflictPlan'
 import { getSportConfig } from '@/lib/sports'
+import { saveSnapshot } from '@/lib/sync'
 
 interface Props {
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
+  leagueCode: string | null
+  userName: string
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -37,18 +41,30 @@ function fmtDate(s: string): string {
   })
 }
 
+/**
+ * The id a one-click fix gives the game it places. Deterministic on purpose:
+ * "which game did this flag place?" is then a lookup in the draft preview
+ * rather than component state, so it survives a tab switch (this component is
+ * conditionally rendered, so switching tabs unmounts it) and a reload.
+ */
+function fixId(conflictId: string): string {
+  return `fix-${conflictId}`
+}
+
 function fmtDateShort(s: string): string {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric',
   })
 }
 
-export default function AutoScheduleTab({ state, setState }: Props) {
+export default function AutoScheduleTab({ state, setState, leagueCode, userName }: Props) {
   const [configOpen, setConfigOpen] = useState(true)
-  const [conflictIndex, setConflictIndex] = useState(0)
-  const [showAllConflicts, setShowAllConflicts] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [commitMode, setCommitMode] = useState<null | 'append' | 'replace'>(null)
+  const [applied, setApplied] = useState<null | { games: number; fixes: number; skips: number; snapshot: boolean }>(null)
+  const [commitError, setCommitError] = useState<string | null>(null)
+  const [committing, setCommitting] = useState(false)
+  const committingRef = useRef(false)
 
   // Field blackout local state for UI (add form)
   const [fieldBlackoutDate, setFieldBlackoutDate] = useState<Record<string, string>>({})
@@ -58,7 +74,28 @@ export default function AutoScheduleTab({ state, setState }: Props) {
   const preview = state.autoSchedulePreview ?? null
 
   const pendingConflicts = conflicts.filter(c => c.resolution === 'pending')
-  const currentConflict = pendingConflicts[conflictIndex] ?? pendingConflicts[0] ?? null
+
+  // Re-derived on every preview change. That is deliberate: a candidate slot
+  // computed once and cached could be taken by the time the user clicks it.
+  const plans = useMemo(
+    () => conflictPlan(conflicts, preview ?? [], {
+      divisions: state.divisions,
+      fields: state.fields,
+      season: state.season,
+      blackoutDates: state.blackoutDates ?? [],
+      existingGames: state.schedule.games,
+    }),
+    [conflicts, preview, state.divisions, state.fields, state.season, state.blackoutDates, state.schedule.games],
+  )
+
+  const openCount = pendingConflicts.length
+  const fixable = plans.filter(p => p.conflict.resolution === 'pending' && p.candidate !== null)
+
+  // Undo on a resolved card while the confirm row is showing would otherwise
+  // leave a "Yes, Replace Everything" button sitting above a reopened flag.
+  useEffect(() => {
+    if (openCount > 0) setCommitMode(null)
+  }, [openCount])
 
   const divisionMap = useMemo(
     () => new Map(state.divisions.map(d => [d.id, d])),
@@ -183,7 +220,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           autoSchedulePreview: result.games,
           autoScheduleConflicts: result.conflicts,
         }))
-        setConflictIndex(0)
+        setApplied(null)
       } finally {
         setGenerating(false)
       }
@@ -192,59 +229,102 @@ export default function AutoScheduleTab({ state, setState }: Props) {
 
   // ── Conflict resolution ──────────────────────────────────────────
 
-  function resolveConflict(conflictId: string, resolution: 'skipped' | 'deferred') {
+  function resolveConflict(conflictId: string, resolution: 'skipped' | 'resolved') {
     setState(s => ({
       ...s,
       autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
         c.id === conflictId ? { ...c, resolution } : c
       ),
     }))
-    setConflictIndex(i => Math.min(i, pendingConflicts.length - 2))
   }
 
-  function tryRelaxedConstraints(conflict: ScheduleConflict) {
-    const result = rescheduleMatchupRelaxed({
-      homeTeamId: conflict.homeTeamId,
-      awayTeamId: conflict.awayTeamId,
-      divisionId: conflict.divisionId,
-      divisions: state.divisions,
-      fields: state.fields,
-      season: state.season,
-      leagueBlackouts: state.blackoutDates ?? [],
-      existingGames: state.schedule.games,
-      previewGames: state.autoSchedulePreview ?? [],
-    })
+  function reopenConflict(conflictId: string) {
+    setState(s => ({
+      ...s,
+      autoSchedulePreview: (s.autoSchedulePreview ?? []).filter(g => g.id !== fixId(conflictId)),
+      autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
+        c.id === conflictId ? { ...c, resolution: 'pending' } : c
+      ),
+    }))
+  }
 
-    if (result) {
-      setState(s => ({
-        ...s,
-        autoSchedulePreview: [...(s.autoSchedulePreview ?? []), result],
-        autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
-          c.id === conflict.id ? { ...c, resolution: 'resolved' } : c
-        ),
-      }))
-      setConflictIndex(i => Math.min(i, pendingConflicts.length - 2))
-    } else {
-      // Still can't schedule — mark details with relaxed attempt note
-      setState(s => ({
-        ...s,
-        autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
-          c.id === conflict.id
-            ? {
-                ...c,
-                details: [...c.details, 'Tried relaxed constraints (ignored preferred days/fields) — still no slot available'],
-                suggestions: [...c.suggestions.filter(sg => !sg.includes('relaxed')), 'Manually schedule this game in the Schedule tab'],
-              }
-            : c
-        ),
-      }))
-    }
+  function applyFix(plan: PlannedConflict) {
+    if (!plan.candidate) return
+    const game: ScheduledGame = { ...plan.candidate, id: fixId(plan.conflict.id) }
+    setState(s => ({
+      ...s,
+      autoSchedulePreview: [...(s.autoSchedulePreview ?? []), game],
+      autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
+        c.id === plan.conflict.id ? { ...c, resolution: 'resolved' } : c
+      ),
+    }))
+  }
+
+  // Safe as a single pass: conflictPlan reserved each candidate as it walked
+  // the list, so no two of these name the same slot.
+  function autoFixAll() {
+    const games: ScheduledGame[] = fixable.map(p => ({ ...p.candidate!, id: fixId(p.conflict.id) }))
+    const ids = new Set(fixable.map(p => p.conflict.id))
+    setState(s => ({
+      ...s,
+      autoSchedulePreview: [...(s.autoSchedulePreview ?? []), ...games],
+      autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
+        ids.has(c.id) ? { ...c, resolution: 'resolved' } : c
+      ),
+    }))
+  }
+
+  function skipAllRemaining() {
+    setState(s => ({
+      ...s,
+      autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
+        c.resolution === 'pending' ? { ...c, resolution: 'skipped' } : c
+      ),
+    }))
   }
 
   // ── Preview commit / discard ─────────────────────────────────────
 
-  function commitPreview(mode: 'append' | 'replace') {
+  async function commitPreview(mode: 'append' | 'replace') {
     if (!preview || preview.length === 0) return
+    if (openCount > 0) return
+    if (committingRef.current) return
+    committingRef.current = true
+    try {
+      await runCommit(mode)
+    } finally {
+      committingRef.current = false
+    }
+  }
+
+  async function runCommit(mode: 'append' | 'replace') {
+    if (!preview || preview.length === 0) return
+
+    // Replace is the only irreversible path — it wipes games AND practices,
+    // and the debounced autosave in page.tsx overwrites the league row right
+    // after. So the snapshot has to land BEFORE the write, not alongside it:
+    // if it fails we leave the draft alone and say so.
+    const snapshot = mode === 'replace' && !!leagueCode
+    if (snapshot && leagueCode) {
+      setCommitting(true)
+      // `state` is the pre-replace schedule — capture that, not the value the
+      // updater below is handed.
+      const ok = await saveSnapshot(leagueCode, '[Auto] Before auto-schedule', state, userName)
+      setCommitting(false)
+      if (!ok) {
+        setCommitError('Snapshot failed — your schedule was NOT replaced. Nothing has changed. Check your connection and try again, or save a snapshot manually from the Snapshots button first.')
+        return
+      }
+    }
+    setCommitError(null)
+
+    setApplied({
+      games: preview.length,
+      fixes: conflicts.filter(c => c.resolution === 'resolved').length,
+      skips: conflicts.filter(c => c.resolution === 'skipped').length,
+      snapshot,
+    })
+
     setState(s => ({
       ...s,
       schedule: {
@@ -259,9 +339,14 @@ export default function AutoScheduleTab({ state, setState }: Props) {
     setCommitMode(null)
   }
 
+  // A discarded draft must not leave its flag list behind: those cards still
+  // offer "Place …" buttons, and clicking one would rebuild a one-game preview
+  // that Replace would then apply over the whole league.
   function discardPreview() {
-    setState(s => ({ ...s, autoSchedulePreview: null }))
+    setState(s => ({ ...s, autoSchedulePreview: null, autoScheduleConflicts: [] }))
     setCommitMode(null)
+    setCommitError(null)
+    setApplied(null)
   }
 
   // ── Computed stats ───────────────────────────────────────────────
@@ -323,7 +408,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
             <ol className="mt-1.5 text-sm text-blue-700 space-y-1 list-decimal list-inside">
               <li><strong>Configure</strong> game days, preferred start times, home fields, and team preferences below.</li>
               <li><strong>Generate</strong> — the scheduler builds a round-robin matchup list and finds the best available slot for each game based on your constraints.</li>
-              <li><strong>Resolve conflicts</strong> — any game that couldn&apos;t be placed automatically appears here for you to skip, defer, or retry with relaxed constraints.</li>
+              <li><strong>Resolve flags</strong> — any game that couldn&apos;t be placed automatically is flagged here, most severe first, with a one-click slot to place it in or the option to skip it. You must clear every flag before applying.</li>
               <li><strong>Preview &amp; commit</strong> — review the proposed schedule, then choose to <em>append</em> it to your existing games or <em>replace</em> the entire schedule.</li>
             </ol>
           </div>
@@ -333,7 +418,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
           <div className="flex items-start gap-2">
             <p className="text-sm text-yellow-800">
               <strong>Replace mode is permanent</strong> — it wipes all existing games and practices and cannot be undone from this screen.
-              Use the <strong>Snapshots</strong> button in the header to save your current schedule before generating if you want a safety net.
+              A &ldquo;Before auto-schedule&rdquo; snapshot is saved automatically first, and the replace is cancelled if that snapshot fails. Restore it from <strong>Snapshots</strong> in the header.
             </p>
           </div>
           <div className="flex items-start gap-2">
@@ -609,166 +694,142 @@ export default function AutoScheduleTab({ state, setState }: Props) {
             Last generated: <strong>{preview.length} game{preview.length !== 1 ? 's' : ''}</strong> in preview
             {conflicts.length > 0 && (
               <span className="ml-2 text-orange-600">
-                · <strong>{conflicts.filter(c => c.resolution === 'pending').length}</strong> conflict{conflicts.filter(c => c.resolution === 'pending').length !== 1 ? 's' : ''} to resolve
+                · <strong>{openCount}</strong> flag{openCount !== 1 ? 's' : ''} to resolve
               </span>
             )}
           </p>
         )}
       </div>
 
-      {/* ── STEP 3: CONFLICT RESOLUTION ──────────────────────────── */}
+      {/* ── STEP 3: FLAG REVIEW ──────────────────────────────────── */}
       {conflicts.length > 0 && (
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b bg-[#f5f5fb] flex items-center gap-3">
+          <div className="px-5 py-4 border-b bg-[#f5f5fb] flex items-center gap-3 flex-wrap">
             <span className="w-7 h-7 rounded-full bg-[var(--fd-primary)] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">3</span>
             <span className="font-semibold text-gray-800" style={{ fontFamily: 'Oswald, sans-serif' }}>
-              Conflict Resolution
+              Flags · most severe first
             </span>
-            {pendingConflicts.length > 0 && (
+            {openCount > 0 ? (
               <span className="ml-auto bg-[var(--fd-accent)] text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                {pendingConflicts.length} to resolve
+                {openCount} to review
               </span>
-            )}
-            {pendingConflicts.length === 0 && (
-              <span className="ml-auto bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full">
+            ) : (
+              <span className="ml-auto bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full">
                 All resolved
               </span>
             )}
           </div>
 
-          {/* Current conflict card */}
-          {currentConflict && (
-            <div className="px-5 py-5">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs text-gray-500">
-                  Conflict {conflictIndex + 1} of {pendingConflicts.length}
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setConflictIndex(i => Math.max(0, i - 1))}
-                    disabled={conflictIndex === 0}
-                    className="px-2 py-1 rounded-lg border text-xs disabled:opacity-30 hover:bg-gray-50 transition"
-                  >
-                    ‹ Prev
-                  </button>
-                  <button
-                    onClick={() => setConflictIndex(i => Math.min(pendingConflicts.length - 1, i + 1))}
-                    disabled={conflictIndex >= pendingConflicts.length - 1}
-                    className="px-2 py-1 rounded-lg border text-xs disabled:opacity-30 hover:bg-gray-50 transition"
-                  >
-                    Next ›
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start gap-3">
-                  <div>
-                    <p className="font-semibold text-red-800 text-sm">
-                      {getTeamName(currentConflict.homeTeamId)} vs {getTeamName(currentConflict.awayTeamId)}
-                    </p>
-                    <p className="text-xs text-red-600 mt-0.5">
-                      {divisionMap.get(currentConflict.divisionId)?.name ?? currentConflict.divisionId}
-                    </p>
-                    <p className="text-sm text-red-700 mt-2">{currentConflict.reason}</p>
-                  </div>
-                </div>
-
-                {currentConflict.details.length > 0 && (
-                  <div className="mt-3 ml-8">
-                    <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1">Details</p>
-                    <ul className="text-xs text-red-700 space-y-1 list-disc list-inside">
-                      {currentConflict.details.map((d, i) => <li key={i}>{d}</li>)}
-                    </ul>
-                  </div>
-                )}
-
-                {currentConflict.suggestions.length > 0 && (
-                  <div className="mt-3 ml-8">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Suggestions</p>
-                    <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
-                      {currentConflict.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-3">
+          {openCount > 0 && (
+            <div className="px-5 py-3 border-b bg-gray-50 flex flex-col sm:flex-row gap-2">
+              {fixable.length > 0 && (
                 <button
-                  onClick={() => resolveConflict(currentConflict.id, 'skipped')}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition"
+                  onClick={autoFixAll}
+                  className="min-h-[44px] px-4 py-2 rounded-lg bg-[var(--fd-primary)] text-white text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition"
                 >
-                  Skip this game
+                  Auto-fix all fixable ({fixable.length})
                 </button>
-                <button
-                  onClick={() => resolveConflict(currentConflict.id, 'deferred')}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-300 text-sm text-blue-700 bg-blue-50 hover:bg-blue-100 transition"
-                >
-                  Schedule manually
-                </button>
-                <button
-                  onClick={() => tryRelaxedConstraints(currentConflict)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[var(--fd-primary)] text-sm text-[var(--fd-primary)] bg-[#f5f5fb] hover:bg-[#eeeef6] transition"
-                >
-                  Try relaxed constraints
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-2">
-                &ldquo;Schedule manually&rdquo; will appear in the conflict log below — you can schedule it yourself in the Schedule tab.
-              </p>
+              )}
+              <button
+                onClick={skipAllRemaining}
+                className="min-h-[44px] px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition"
+              >
+                Skip all remaining ({openCount})
+              </button>
             </div>
           )}
 
-          {/* View all conflicts toggle */}
-          <div className="border-t px-5 py-3">
-            <button
-              onClick={() => setShowAllConflicts(v => !v)}
-              className="text-xs text-[var(--fd-primary)] hover:underline"
-            >
-              {showAllConflicts ? '▲ Hide all conflicts' : `▼ View all conflicts (${conflicts.length})`}
-            </button>
-          </div>
+          <ul className="divide-y">
+            {plans.map(plan => {
+              const c = plan.conflict
+              const divName = divisionMap.get(c.divisionId)?.name ?? c.divisionId
+              const isOpen = c.resolution === 'pending'
+              const placed = preview?.find(g => g.id === fixId(c.id)) ?? null
 
-          {/* Conflict repository table */}
-          {showAllConflicts && (
-            <div className="border-t overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b text-left">
-                    <th className="px-4 py-2 font-medium text-gray-600">Teams</th>
-                    <th className="px-4 py-2 font-medium text-gray-600">Division</th>
-                    <th className="px-4 py-2 font-medium text-gray-600">Reason</th>
-                    <th className="px-4 py-2 font-medium text-gray-600">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {conflicts.map(c => {
-                    const divName = divisionMap.get(c.divisionId)?.name ?? c.divisionId
-                    const statusLabel = {
-                      pending: { label: 'Pending', cls: 'bg-orange-100 text-orange-700' },
-                      skipped: { label: 'Skipped', cls: 'bg-gray-100 text-gray-600' },
-                      deferred: { label: 'Deferred', cls: 'bg-blue-100 text-blue-700' },
-                      resolved: { label: 'Resolved', cls: 'bg-green-100 text-green-700' },
-                    }[c.resolution]
-                    return (
-                      <tr key={c.id} className="border-b last:border-0 hover:bg-gray-50">
-                        <td className="px-4 py-2 font-medium">
-                          {getTeamName(c.homeTeamId)} vs {getTeamName(c.awayTeamId)}
-                        </td>
-                        <td className="px-4 py-2 text-gray-600">{divName}</td>
-                        <td className="px-4 py-2 text-gray-500 text-xs max-w-[240px] truncate" title={c.reason}>{c.reason}</td>
-                        <td className="px-4 py-2">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusLabel.cls}`}>
-                            {statusLabel.label}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+              if (!isOpen) {
+                return (
+                  <li key={c.id} className="px-5 py-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="text-sm font-semibold text-emerald-700">
+                      {placed
+                        ? `✓ Placed ${fmtDateShort(placed.date)}, ${fmtTime(placed.time)} · ${fieldMap.get(placed.fieldId)?.name ?? 'field'}`
+                        : '✓ Skipped'}
+                    </span>
+                    <span className="text-sm text-gray-700">
+                      {getTeamName(c.homeTeamId)} vs {getTeamName(c.awayTeamId)}
+                    </span>
+                    <button
+                      onClick={() => reopenConflict(c.id)}
+                      className="ml-auto w-full sm:w-auto min-h-[44px] px-3 text-sm text-[var(--fd-primary)] hover:underline"
+                    >
+                      Undo
+                    </button>
+                  </li>
+                )
+              }
+
+              const isBlocker = plan.severity === 'conflict'
+              return (
+                <li
+                  key={c.id}
+                  className={`px-5 py-4 border-l-4 ${isBlocker ? 'border-l-red-600 bg-red-50' : 'border-l-amber-500 bg-amber-50'}`}
+                >
+                  <span
+                    className={`inline-block text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full border ${
+                      isBlocker
+                        ? 'bg-white text-red-700 border-red-200'
+                        : 'bg-white text-amber-800 border-amber-200'
+                    }`}
+                  >
+                    {isBlocker ? 'CONFLICT' : 'WARNING'}
+                  </span>
+
+                  <p className="font-semibold text-gray-800 text-sm mt-2">
+                    {getTeamName(c.homeTeamId)} vs {getTeamName(c.awayTeamId)} couldn&rsquo;t be placed
+                    <span className="font-normal text-gray-500"> · {divName}</span>
+                  </p>
+
+                  {c.details.length > 0 && (
+                    <ul className="mt-2 space-y-0.5">
+                      {c.details.map((d, i) => (
+                        <li key={i} className="text-xs text-gray-700">{d}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {isBlocker && c.suggestions.length > 0 && (
+                    <ul className="mt-2 space-y-0.5">
+                      {c.suggestions.map((s, i) => (
+                        <li key={i} className="text-xs text-gray-500">{s}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                    {plan.candidate && (
+                      <button
+                        onClick={() => applyFix(plan)}
+                        className="min-h-[44px] px-4 py-2 rounded-lg bg-[var(--fd-primary)] text-white text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition"
+                      >
+                        Place {fmtDateShort(plan.candidate.date)}, {fmtTime(plan.candidate.time)} · {fieldMap.get(plan.candidate.fieldId)?.name ?? 'field'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => resolveConflict(c.id, 'skipped')}
+                      className="min-h-[44px] px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
+                    >
+                      Skip this game
+                    </button>
+                  </div>
+
+                  {plan.overrides.length > 0 && (
+                    <p className="mt-2 text-xs text-amber-800">
+                      ⚠ overrides {plan.overrides.map(o => `${o.teamName}'s blackout on ${fmtDateShort(o.date)}`).join(' and ')}
+                    </p>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
 
@@ -858,6 +919,13 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                 </table>
               </div>
 
+              {commitError && (
+                <div className="px-5 py-3 border-t border-red-200 bg-red-50">
+                  <p className="text-sm font-semibold text-red-700">Snapshot failed — nothing was replaced</p>
+                  <p className="text-sm text-red-700 mt-1">{commitError}</p>
+                </div>
+              )}
+
               {/* Commit / Discard */}
               <div className="px-5 py-4 border-t bg-gray-50 flex flex-wrap items-center gap-3">
                 {commitMode === 'append' ? (
@@ -865,7 +933,11 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                     <span className="text-sm font-medium text-gray-700">
                       Add {preview.length} game{preview.length !== 1 ? 's' : ''} to your existing schedule?
                     </span>
-                    <button onClick={() => commitPreview('append')} className="bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition">
+                    <button
+                      onClick={() => { void commitPreview('append') }}
+                      disabled={openCount > 0 || committing}
+                      className="w-full sm:w-auto min-h-[44px] bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
                       Yes, Append
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
@@ -873,32 +945,45 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                 ) : commitMode === 'replace' ? (
                   <>
                     <span className="text-sm font-medium text-red-700">
-                      Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? Save a snapshot first if you want a backup!
+                      Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? A snapshot will be saved first.
                     </span>
-                    <button onClick={() => commitPreview('replace')} className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
-                      Yes, Replace Everything
+                    <button
+                      onClick={() => { void commitPreview('replace') }}
+                      disabled={openCount > 0 || committing}
+                      className="w-full sm:w-auto min-h-[44px] bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
+                      {committing ? 'Saving snapshot…' : 'Yes, Replace Everything'}
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
                   </>
                 ) : (
                   <>
+                    {openCount > 0 && (
+                      <p id="apply-gate-reason" className="w-full text-sm text-gray-700">
+                        Resolve all {openCount} open flag{openCount !== 1 ? 's' : ''} above before applying.
+                      </p>
+                    )}
                     <button
                       onClick={() => setCommitMode('append')}
-                      className="bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition"
+                      disabled={openCount > 0}
+                      aria-describedby={openCount > 0 ? 'apply-gate-reason' : undefined}
+                      className="w-full sm:w-auto min-h-[44px] bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
-                      Append to Existing Schedule
+                      {openCount > 0 ? `Append to Existing Schedule (${openCount} open)` : 'Append to Existing Schedule'}
                     </button>
                     <button
                       onClick={() => setCommitMode('replace')}
-                      className="bg-white border-2 border-red-400 text-red-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
+                      disabled={openCount > 0}
+                      aria-describedby={openCount > 0 ? 'apply-gate-reason' : undefined}
+                      className="w-full sm:w-auto min-h-[44px] bg-white border-2 border-red-400 text-red-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-50 transition disabled:border-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
-                      Replace Existing Schedule
+                      {openCount > 0 ? `Replace Existing Schedule (${openCount} open)` : 'Replace Existing Schedule'}
                     </button>
                     <button
                       onClick={discardPreview}
-                      className="border border-gray-300 text-gray-600 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
+                      className="w-full sm:w-auto min-h-[44px] border border-gray-300 text-gray-700 px-5 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition"
                     >
-                      Discard Preview
+                      Discard Draft
                     </button>
                   </>
                 )}
@@ -908,8 +993,24 @@ export default function AutoScheduleTab({ state, setState }: Props) {
         </div>
       )}
 
+      {applied && preview === null && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-5 py-4">
+          <p className="font-semibold text-emerald-700">
+            Schedule applied — {applied.games} game{applied.games !== 1 ? 's' : ''}
+          </p>
+          <p className="text-sm text-gray-700 mt-1">
+            {applied.fixes} fix{applied.fixes !== 1 ? 'es' : ''} applied · {applied.skips} flag{applied.skips !== 1 ? 's' : ''} skipped
+          </p>
+          {applied.snapshot && (
+            <p className="text-sm text-gray-700 mt-1">
+              A &ldquo;Before auto-schedule&rdquo; snapshot was saved — restore it from Snapshots.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Empty state */}
-      {preview === null && conflicts.length === 0 && (
+      {preview === null && conflicts.length === 0 && !applied && (
         <div className="text-center py-12 text-gray-400">
           <p className="font-medium text-gray-600">Ready to auto-schedule</p>
           <p className="text-sm mt-1">Configure parameters above, then click &ldquo;Generate Schedule&rdquo;.</p>
