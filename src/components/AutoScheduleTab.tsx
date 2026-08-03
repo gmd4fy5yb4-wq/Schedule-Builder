@@ -708,7 +708,7 @@ export default function AutoScheduleTab({ state, setState }: Props) {
                     </span>
                     <button
                       onClick={() => reopenConflict(c.id, placed?.id ?? null)}
-                      className="ml-auto min-h-[44px] px-3 text-sm text-[var(--fd-primary)] hover:underline"
+                      className="ml-auto w-full sm:w-auto min-h-[44px] px-3 text-sm text-[var(--fd-primary)] hover:underline"
                     >
                       Undo
                     </button>
