@@ -69,6 +69,7 @@ exception when others then
   return new;
 end $$;
 
+drop trigger if exists on_auth_user_created_record_app on auth.users;
 create trigger on_auth_user_created_record_app
   after insert on auth.users
   for each row execute function public.record_app_signup();
