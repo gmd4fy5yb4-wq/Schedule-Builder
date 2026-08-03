@@ -66,6 +66,10 @@ export default function LoginPage() {
       email: email.trim().toLowerCase(),
       options: {
         emailRedirectTo: callbackUrl,
+        // Records signup origin in raw_user_meta_data. The Sports Supabase project is
+        // shared by three apps, so without this a signup cannot be attributed. Applies
+        // at user creation only — a returning user's attribution is never rewritten.
+        data: { app: 'fieldday' },
       },
     })
 
