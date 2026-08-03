@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import type { AppState, ScheduledGame } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import { generateSchedule } from '@/lib/autoScheduler'
@@ -41,6 +41,16 @@ function fmtDate(s: string): string {
   })
 }
 
+/**
+ * The id a one-click fix gives the game it places. Deterministic on purpose:
+ * "which game did this flag place?" is then a lookup in the draft preview
+ * rather than component state, so it survives a tab switch (this component is
+ * conditionally rendered, so switching tabs unmounts it) and a reload.
+ */
+function fixId(conflictId: string): string {
+  return `fix-${conflictId}`
+}
+
 function fmtDateShort(s: string): string {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric',
@@ -52,9 +62,9 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
   const [generating, setGenerating] = useState(false)
   const [commitMode, setCommitMode] = useState<null | 'append' | 'replace'>(null)
   const [applied, setApplied] = useState<null | { games: number; fixes: number; skips: number; snapshot: boolean }>(null)
-
-  // conflictId -> the game placed for it, so Undo can take it back out
-  const [placedBy, setPlacedBy] = useState<Record<string, ScheduledGame>>({})
+  const [commitError, setCommitError] = useState<string | null>(null)
+  const [committing, setCommitting] = useState(false)
+  const committingRef = useRef(false)
 
   // Field blackout local state for UI (add form)
   const [fieldBlackoutDate, setFieldBlackoutDate] = useState<Record<string, string>>({})
@@ -80,6 +90,12 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
 
   const openCount = pendingConflicts.length
   const fixable = plans.filter(p => p.conflict.resolution === 'pending' && p.candidate !== null)
+
+  // Undo on a resolved card while the confirm row is showing would otherwise
+  // leave a "Yes, Replace Everything" button sitting above a reopened flag.
+  useEffect(() => {
+    if (openCount > 0) setCommitMode(null)
+  }, [openCount])
 
   const divisionMap = useMemo(
     () => new Map(state.divisions.map(d => [d.id, d])),
@@ -222,26 +238,19 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
     }))
   }
 
-  function reopenConflict(conflictId: string, candidateId: string | null) {
+  function reopenConflict(conflictId: string) {
     setState(s => ({
       ...s,
-      autoSchedulePreview: candidateId
-        ? (s.autoSchedulePreview ?? []).filter(g => g.id !== candidateId)
-        : s.autoSchedulePreview,
+      autoSchedulePreview: (s.autoSchedulePreview ?? []).filter(g => g.id !== fixId(conflictId)),
       autoScheduleConflicts: (s.autoScheduleConflicts ?? []).map(c =>
         c.id === conflictId ? { ...c, resolution: 'pending' } : c
       ),
     }))
-    setPlacedBy(m => {
-      const next = { ...m }
-      delete next[conflictId]
-      return next
-    })
   }
 
   function applyFix(plan: PlannedConflict) {
     if (!plan.candidate) return
-    const game = plan.candidate
+    const game: ScheduledGame = { ...plan.candidate, id: fixId(plan.conflict.id) }
     setState(s => ({
       ...s,
       autoSchedulePreview: [...(s.autoSchedulePreview ?? []), game],
@@ -249,13 +258,12 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
         c.id === plan.conflict.id ? { ...c, resolution: 'resolved' } : c
       ),
     }))
-    setPlacedBy(m => ({ ...m, [plan.conflict.id]: game }))
   }
 
   // Safe as a single pass: conflictPlan reserved each candidate as it walked
   // the list, so no two of these name the same slot.
   function autoFixAll() {
-    const games = fixable.map(p => p.candidate!)
+    const games: ScheduledGame[] = fixable.map(p => ({ ...p.candidate!, id: fixId(p.conflict.id) }))
     const ids = new Set(fixable.map(p => p.conflict.id))
     setState(s => ({
       ...s,
@@ -264,11 +272,6 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
         ids.has(c.id) ? { ...c, resolution: 'resolved' } : c
       ),
     }))
-    setPlacedBy(m => {
-      const next = { ...m }
-      for (const p of fixable) next[p.conflict.id] = p.candidate!
-      return next
-    })
   }
 
   function skipAllRemaining() {
@@ -282,16 +285,38 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
 
   // ── Preview commit / discard ─────────────────────────────────────
 
-  function commitPreview(mode: 'append' | 'replace') {
+  async function commitPreview(mode: 'append' | 'replace') {
+    if (!preview || preview.length === 0) return
+    if (openCount > 0) return
+    if (committingRef.current) return
+    committingRef.current = true
+    try {
+      await runCommit(mode)
+    } finally {
+      committingRef.current = false
+    }
+  }
+
+  async function runCommit(mode: 'append' | 'replace') {
     if (!preview || preview.length === 0) return
 
-    // Replace is the only destructive path — it wipes games AND practices.
-    // Fire-and-forget matches maybeAutoSnapshot() in page.tsx; a failed
-    // snapshot must not block the apply the user asked for.
+    // Replace is the only irreversible path — it wipes games AND practices,
+    // and the debounced autosave in page.tsx overwrites the league row right
+    // after. So the snapshot has to land BEFORE the write, not alongside it:
+    // if it fails we leave the draft alone and say so.
     const snapshot = mode === 'replace' && !!leagueCode
     if (snapshot && leagueCode) {
-      void saveSnapshot(leagueCode, '[Auto] Before auto-schedule', state, userName)
+      setCommitting(true)
+      // `state` is the pre-replace schedule — capture that, not the value the
+      // updater below is handed.
+      const ok = await saveSnapshot(leagueCode, '[Auto] Before auto-schedule', state, userName)
+      setCommitting(false)
+      if (!ok) {
+        setCommitError('Snapshot failed — your schedule was NOT replaced. Nothing has changed. Check your connection and try again, or save a snapshot manually from the Snapshots button first.')
+        return
+      }
     }
+    setCommitError(null)
 
     setApplied({
       games: preview.length,
@@ -312,14 +337,16 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
       autoScheduleConflicts: (s.autoScheduleConflicts ?? []).filter(c => c.resolution === 'pending'),
     }))
     setCommitMode(null)
-    // placedBy is scoped to the current draft — a committed (or discarded)
-    // draft must not leave stale conflictId -> game entries behind.
-    setPlacedBy({})
   }
 
+  // A discarded draft must not leave its flag list behind: those cards still
+  // offer "Place …" buttons, and clicking one would rebuild a one-game preview
+  // that Replace would then apply over the whole league.
   function discardPreview() {
-    setState(s => ({ ...s, autoSchedulePreview: null }))
+    setState(s => ({ ...s, autoSchedulePreview: null, autoScheduleConflicts: [] }))
     setCommitMode(null)
+    setCommitError(null)
+    setApplied(null)
   }
 
   // ── Computed stats ───────────────────────────────────────────────
@@ -381,7 +408,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
             <ol className="mt-1.5 text-sm text-blue-700 space-y-1 list-decimal list-inside">
               <li><strong>Configure</strong> game days, preferred start times, home fields, and team preferences below.</li>
               <li><strong>Generate</strong> — the scheduler builds a round-robin matchup list and finds the best available slot for each game based on your constraints.</li>
-              <li><strong>Resolve conflicts</strong> — any game that couldn&apos;t be placed automatically appears here for you to skip, defer, or retry with relaxed constraints.</li>
+              <li><strong>Resolve flags</strong> — any game that couldn&apos;t be placed automatically is flagged here, most severe first, with a one-click slot to place it in or the option to skip it. You must clear every flag before applying.</li>
               <li><strong>Preview &amp; commit</strong> — review the proposed schedule, then choose to <em>append</em> it to your existing games or <em>replace</em> the entire schedule.</li>
             </ol>
           </div>
@@ -391,7 +418,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
           <div className="flex items-start gap-2">
             <p className="text-sm text-yellow-800">
               <strong>Replace mode is permanent</strong> — it wipes all existing games and practices and cannot be undone from this screen.
-              Use the <strong>Snapshots</strong> button in the header to save your current schedule before generating if you want a safety net.
+              A &ldquo;Before auto-schedule&rdquo; snapshot is saved automatically first, and the replace is cancelled if that snapshot fails. Restore it from <strong>Snapshots</strong> in the header.
             </p>
           </div>
           <div className="flex items-start gap-2">
@@ -667,7 +694,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
             Last generated: <strong>{preview.length} game{preview.length !== 1 ? 's' : ''}</strong> in preview
             {conflicts.length > 0 && (
               <span className="ml-2 text-orange-600">
-                · <strong>{conflicts.filter(c => c.resolution === 'pending').length}</strong> conflict{conflicts.filter(c => c.resolution === 'pending').length !== 1 ? 's' : ''} to resolve
+                · <strong>{openCount}</strong> flag{openCount !== 1 ? 's' : ''} to resolve
               </span>
             )}
           </p>
@@ -717,7 +744,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
               const c = plan.conflict
               const divName = divisionMap.get(c.divisionId)?.name ?? c.divisionId
               const isOpen = c.resolution === 'pending'
-              const placed = placedBy[c.id] ?? null
+              const placed = preview?.find(g => g.id === fixId(c.id)) ?? null
 
               if (!isOpen) {
                 return (
@@ -731,7 +758,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
                       {getTeamName(c.homeTeamId)} vs {getTeamName(c.awayTeamId)}
                     </span>
                     <button
-                      onClick={() => reopenConflict(c.id, placed?.id ?? null)}
+                      onClick={() => reopenConflict(c.id)}
                       className="ml-auto w-full sm:w-auto min-h-[44px] px-3 text-sm text-[var(--fd-primary)] hover:underline"
                     >
                       Undo
@@ -892,6 +919,13 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
                 </table>
               </div>
 
+              {commitError && (
+                <div className="px-5 py-3 border-t border-red-200 bg-red-50">
+                  <p className="text-sm font-semibold text-red-700">Snapshot failed — nothing was replaced</p>
+                  <p className="text-sm text-red-700 mt-1">{commitError}</p>
+                </div>
+              )}
+
               {/* Commit / Discard */}
               <div className="px-5 py-4 border-t bg-gray-50 flex flex-wrap items-center gap-3">
                 {commitMode === 'append' ? (
@@ -899,7 +933,11 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
                     <span className="text-sm font-medium text-gray-700">
                       Add {preview.length} game{preview.length !== 1 ? 's' : ''} to your existing schedule?
                     </span>
-                    <button onClick={() => commitPreview('append')} className="bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition">
+                    <button
+                      onClick={() => { void commitPreview('append') }}
+                      disabled={openCount > 0 || committing}
+                      className="w-full sm:w-auto min-h-[44px] bg-[var(--fd-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--fd-primary-dark)] transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
                       Yes, Append
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
@@ -909,8 +947,12 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
                     <span className="text-sm font-medium text-red-700">
                       Replace ALL existing games &amp; practices with these {preview.length} game{preview.length !== 1 ? 's' : ''}? A snapshot will be saved first.
                     </span>
-                    <button onClick={() => commitPreview('replace')} className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
-                      Yes, Replace Everything
+                    <button
+                      onClick={() => { void commitPreview('replace') }}
+                      disabled={openCount > 0 || committing}
+                      className="w-full sm:w-auto min-h-[44px] bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
+                      {committing ? 'Saving snapshot…' : 'Yes, Replace Everything'}
                     </button>
                     <button onClick={() => setCommitMode(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
                   </>

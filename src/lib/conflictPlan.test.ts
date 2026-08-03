@@ -118,6 +118,28 @@ const p2 = conflictPlan(
 assert(p2.map(p => p.conflict.id).join(',') === 'c2,c1,c3',
   'unfixable conflicts sort first, then warnings, then already-resolved')
 
+// 8b. THE RE-DERIVATION INVARIANT — what the whole UI rests on.
+// Applying one candidate pushes it into the draft preview and re-runs
+// conflictPlan. The next candidate offered must never collide with the game
+// already placed, or clicking two fix buttons in sequence double-books a field.
+const twoOpen = [conflict('c1', 'tA', 'tB'), conflict('c2', 'tC', 'tD')]
+const firstPass = conflictPlan(twoOpen, [], baseCtx)
+const takenPlan = firstPass.find(p => p.candidate !== null)!
+const taken: ScheduledGame = { ...takenPlan.candidate!, id: `fix-${takenPlan.conflict.id}` }
+const afterApply = conflictPlan(
+  twoOpen.map(c => (c.id === takenPlan.conflict.id ? { ...c, resolution: 'resolved' as const } : c)),
+  [taken],
+  baseCtx,
+)
+const collides = afterApply.some(p =>
+  p.candidate !== null &&
+  p.candidate.date === taken.date &&
+  p.candidate.time === taken.time &&
+  p.candidate.fieldId === taken.fieldId,
+)
+assert(!collides,
+  're-running conflictPlan with an applied candidate in the preview never offers that same slot again')
+
 // 9. Plural helper used by the reworded detail strings.
 assert(slots(1) === '1 slot', 'slots() is singular at one')
 assert(slots(2) === '2 slots', 'slots() is plural above one')
