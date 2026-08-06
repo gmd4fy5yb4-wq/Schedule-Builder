@@ -127,4 +127,5 @@ export interface AppState {
   }
   autoScheduleConflicts?: ScheduleConflict[]
   autoSchedulePreview?: ScheduledGame[] | null
+  linkedCalendars?: { name: string; token: string }[]   // read-only view tokens of other leagues, shown in the Other Leagues tab
 }
