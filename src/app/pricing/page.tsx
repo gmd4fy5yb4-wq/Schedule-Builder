@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { PLANS, minPaidTierForSports } from '@/lib/plans'
 
 const INK = '#00013a'
@@ -79,9 +80,9 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-5xl mx-auto">
-        <a href="/" className="inline-flex items-center gap-2 text-gray-500 text-sm mb-8 hover:text-gray-700">
+        <Link href="/" className="inline-flex items-center gap-2 text-gray-500 text-sm mb-8 hover:text-gray-700">
           ← Back to app
-        </a>
+        </Link>
 
         {/* ── Trial hero. The trial is the product you're selling here; the plans
             are what happens after it works. Routes to league creation, not to a
@@ -93,13 +94,13 @@ export default function PricingPage() {
           <p className="text-gray-600 text-lg max-w-2xl mx-auto">
             Full Pro access — 3 sports, 10 divisions, 100 teams, auto-scheduling. No credit card.
           </p>
-          <a
+          <Link
             href="/"
             className="inline-block mt-6 px-7 py-3.5 rounded-xl text-white font-semibold shadow-sm hover:opacity-90 transition"
             style={{ backgroundColor: CRIMSON }}
           >
             Start free — create your league
-          </a>
+          </Link>
           <p className="text-xs text-gray-500 mt-3">
             Takes 2 minutes · Your 14-day clock starts when you generate your first schedule
           </p>

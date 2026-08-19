@@ -21,7 +21,7 @@ export default function FirstRunChecklist({
   const doneCount = steps.filter(s => s.done).length
 
   return (
-    <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 mb-6">
+    <section data-tour="checklist" className="bg-white rounded-lg border border-gray-200 shadow-sm p-5 mb-6">
       <div className="flex items-baseline justify-between gap-3 flex-wrap mb-1">
         <h2 className="text-lg font-semibold text-gray-900">Let&rsquo;s get your season on the field</h2>
         <span className="text-xs font-medium text-gray-500">{doneCount} of {steps.length} done</span>

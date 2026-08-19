@@ -27,6 +27,10 @@ import Icon from '@/components/Icon'
 import MobileNav from '@/components/MobileNav'
 import { isTabVisible } from '@/lib/mobileNav'
 import CoachView from '@/components/CoachView'
+import TourOverlay from '@/components/TourOverlay'
+import TourWelcomeModal from '@/components/TourWelcomeModal'
+import { getActiveStep, advanceTour, TOUR_STEPS, TOTAL_STEPS, type TourState } from '@/lib/tour'
+import HelpButton from '@/components/HelpButton'
 
 interface SubscriptionRow extends PlanPanelSubscription {
   plan_tier: string
@@ -125,6 +129,13 @@ export default function Home() {
   // The user_subscriptions row, kept whole. The plan limits, the trial bar and the
   // plan panel are all views of it — deriving beats storing the same fetch 3 times.
   const [sub, setSub] = useState<SubscriptionRow | null>(null)
+
+  // ponytail: the tour lives inline because page.tsx already owns `tab`, `setTab`
+  // and `user`. A useTour() hook would need all three passed in and would return
+  // four values — more indirection than the ~30 lines cost. Revisit if page.tsx
+  // is ever split.
+  const [tourState, setTourState] = useState<TourState | null>(null)
+  const [showWelcome, setShowWelcome] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSyncedRef = useRef('')
@@ -394,7 +405,7 @@ export default function Home() {
     return () => clearInterval(poll)
   }, [leagueCode, hydrated, readOnly])
 
-  function handleJoin(code: string, data: AppState, name: string) {
+  function handleJoin(code: string, data: AppState, name: string, created: boolean) {
     localStorage.setItem('sb-league-code', code)
     localStorage.setItem('sb-user-name', name)
     localUserRef.current = name
@@ -404,6 +415,61 @@ export default function Home() {
     setLeagueCode(code)
     setUserName(name)
     setHydrated(true)
+
+    // Offer the tour only to someone who just CREATED a league. A coach who joined
+    // with a code cannot perform most of the setup steps the tour walks through.
+    // This lookup lives here rather than in the auth effect because the effect runs
+    // on mount, before any league exists — it would always read "not created".
+    if (created) {
+      const sb = getSupabase()
+      sb.auth.getSession().then(async ({ data: { session } }) => {
+        if (!session?.user) return
+        const { data: row } = await sb
+          .from('fd_user_tour')
+          .select('user_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+        if (!row) setShowWelcome(true)
+      })
+    }
+  }
+
+  /** Fire-and-forget: a failed write only means the modal may appear once more. */
+  function markTourSeen() {
+    const sb = getSupabase()
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) return
+      sb.from('fd_user_tour').insert({ user_id: session.user.id }).then(() => {})
+    })
+  }
+
+  function startTour() {
+    setTourState({ step: 1, dismissed: false })
+    setTab(TOUR_STEPS[0].tab)
+  }
+
+  function acceptTour() {
+    setShowWelcome(false)
+    markTourSeen()
+    startTour()
+  }
+
+  function declineTour() {
+    setShowWelcome(false)
+    markTourSeen()          // declining still counts as "offered"
+  }
+
+  function advanceTourStep() {
+    if (!tourState) return
+    const next = advanceTour(tourState)
+    setTourState(next)
+    // Drive the app to the next step's tab so the user never has to find it.
+    const nextDef = TOUR_STEPS.find(s => s.step === next.step)
+    if (nextDef) setTab(nextDef.tab)
+  }
+
+  function dismissTour() {
+    setTourState(current => (current ? { ...current, dismissed: true } : current))
   }
 
   function handleLeave() {
@@ -492,6 +558,7 @@ export default function Home() {
     { label: 'Setup', indices: [1, 2, 3, 4] },
   ]
   const trial = trialBanner(sub)
+  const tourStep = getActiveStep(tourState, tab)
   const planLimits = sub
     ? { sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier }
     : undefined
@@ -535,6 +602,11 @@ export default function Home() {
           <Icon name="link" className="w-8 h-8 mx-auto text-gray-400" />
           <h2 className="text-lg font-semibold text-gray-800">Link not found</h2>
           <p className="text-sm text-gray-500">This view-only link is no longer valid. Ask the league admin to share a new link.</p>
+          {/* Hard reload on purpose, NOT a missed <Link>: this screen renders at
+              "/" with an invalid ?view=readonly&token=... still in the URL. A full
+              navigation is what drops those params and reboots the app cleanly; a
+              soft route change to the same path would not reliably clear them. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-primary)] underline hover:text-[var(--fd-primary-dark)]">Go to FieldDay Planner</a>
         </div>
       </div>
@@ -638,6 +710,7 @@ export default function Home() {
             {/* Share read-only link (admins only) */}
             {!isViewer && (
               <button
+                data-tour="share-link"
                 onClick={copyReadOnlyLink}
                 className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
                 title="Copy a view-only link for coaches/parents"
@@ -715,6 +788,7 @@ export default function Home() {
             )}
             {!isViewer && (
               <button
+                data-tour="share-link"
                 onClick={copyReadOnlyLink}
                 aria-label="Copy view-only link"
                 className="w-11 h-11 flex items-center justify-center rounded-lg text-[var(--fd-primary-light)] hover:text-white transition"
@@ -872,6 +946,20 @@ export default function Home() {
           onClose={() => setShowSnapshots(false)}
         />
       )}
+
+      {showWelcome && (
+        <TourWelcomeModal onAccept={acceptTour} onDecline={declineTour} />
+      )}
+      {tourStep && (
+        <TourOverlay
+          step={tourStep}
+          stepNumber={tourStep.step}
+          totalSteps={TOTAL_STEPS}
+          onNext={advanceTourStep}
+          onDismiss={dismissTour}
+        />
+      )}
+      {!isViewer && <HelpButton onStartTour={startTour} hidden={tourStep !== null || showSnapshots} />}
 
       <MobileNav
         tab={tab}

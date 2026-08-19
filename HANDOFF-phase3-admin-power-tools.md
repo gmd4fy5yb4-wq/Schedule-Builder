@@ -4,7 +4,7 @@
 **Revised:** 2026-08-03, after Phase 3 item 1 (conflict review) shipped to production.
 **For:** a fresh session continuing Phase 3. Everything needed to begin is here; you should not need to read the Phase 0, 1 or 2 handoffs.
 
-**Supersedes** `HANDOFF-phase1-trial-conversion.md` and `HANDOFF-phase2-coach-mobile.md`. Both now describe finished work — delete them, or keep them as the record of why things were built the way they were.
+**Supersedes** `docs/archive/HANDOFF-phase1-trial-conversion.md` and `docs/archive/HANDOFF-phase2-coach-mobile.md`. Both describe finished work and were archived there on 2026-08-06 — kept as the record of why things were built the way they were, not as pending work.
 
 ---
 

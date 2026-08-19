@@ -80,6 +80,7 @@ export default function FieldsTab({ state, setState }: Props) {
           />
         </div>
         <button
+          data-tour="add-field"
           onClick={addField}
           className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded-lg text-sm hover:bg-[var(--fd-primary-dark)] transition"
         >Add {sc.venueSingular}</button>
