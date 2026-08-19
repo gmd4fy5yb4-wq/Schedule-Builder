@@ -13,6 +13,14 @@ function findVisibleElement(selector: string): Element | null {
   return null
 }
 
+// An element scrolled below the fold still reports non-zero width/height from
+// getBoundingClientRect(). This helper detects off-viewport elements that exist
+// in the DOM but are not currently visible — step 5's [data-tour="generate-schedule"]
+// target can live 1380px down a scrollable panel while the viewport is at the top.
+function isInViewport(r: DOMRect): boolean {
+  return r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth
+}
+
 interface TourOverlayProps {
   step: TourStepDef
   stepNumber: number
@@ -45,17 +53,32 @@ export default function TourOverlay({
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
     }
 
+    const el = findVisibleElement(step.selector)
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'auto' })
+    }
+
     measure()
 
     // The target may not be painted yet on the frame a tab switch happens, so give
     // it one frame before declaring it missing. Without this the fallback would
-    // fire on every step transition.
+    // fire on every step transition. Also check that the element is in the viewport
+    // after scrolling — if it's still off-screen (e.g. in a non-scrollable container),
+    // treat it as missing and show the fallback centered modal.
     raf = requestAnimationFrame(() => {
-      if (!findVisibleElement(step.selector)) setRect('missing')
-      else measure()
+      const el = findVisibleElement(step.selector)
+      if (!el) {
+        setRect('missing')
+      } else {
+        const r = el.getBoundingClientRect()
+        if (!isInViewport(r)) {
+          setRect('missing')
+        } else {
+          measure()
+        }
+      }
     })
 
-    const el = findVisibleElement(step.selector)
     const ro = new ResizeObserver(measure)
     if (el) ro.observe(el)
     window.addEventListener('resize', measure)
