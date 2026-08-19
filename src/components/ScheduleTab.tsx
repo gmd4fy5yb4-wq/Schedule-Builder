@@ -232,9 +232,9 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   }
 
   return (
-    <div data-tour="schedule-grid" className="space-y-4">
+    <div className="space-y-4">
       {/* Top bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div data-tour="schedule-grid" className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-gray-800">Schedule</h2>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-gray-500">{totalGames} game{totalGames !== 1 ? 's' : ''} · {totalPractices} practice{totalPractices !== 1 ? 's' : ''}{totalSpecial > 0 ? ` · ${totalSpecial} special` : ''}</span>

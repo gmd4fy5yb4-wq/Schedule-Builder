@@ -71,7 +71,12 @@ export default function TourOverlay({
         setRect('missing')
       } else {
         const r = el.getBoundingClientRect()
-        if (!isInViewport(r)) {
+        // A target taller than the viewport (e.g. a tab's root div wrapping a long
+        // populated list) can never be usefully spotlit: scrollIntoView({block:'center'})
+        // centers it with rect.top far negative, isInViewport still passes (it only
+        // checks for any overlap), and the box-shadow spotlight would cover the whole
+        // screen with nothing dimmed. Treat it the same as off-screen.
+        if (!isInViewport(r) || r.height > window.innerHeight) {
           setRect('missing')
         } else {
           measure()
@@ -127,7 +132,11 @@ export default function TourOverlay({
     tipLeft = Math.max(TOOLTIP_MARGIN, Math.min(hl.left, window.innerWidth - TOOLTIP_W - TOOLTIP_MARGIN))
     const below = hl.top + hl.height + TOOLTIP_MARGIN
     const above = hl.top - TOOLTIP_H_ESTIMATE - TOOLTIP_MARGIN
-    tipTop = below + TOOLTIP_H_ESTIMATE > window.innerHeight ? above : below
+    const placed = below + TOOLTIP_H_ESTIMATE > window.innerHeight ? above : below
+    // Clamp the same way tipLeft is clamped — a target near the top or bottom
+    // edge (or, before the oversized-target check above, one whose rect.top is
+    // far off-screen) must never push the tooltip itself off-screen.
+    tipTop = Math.max(TOOLTIP_MARGIN, Math.min(placed, window.innerHeight - TOOLTIP_H_ESTIMATE - TOOLTIP_MARGIN))
   } else {
     tipLeft = Math.max(TOOLTIP_MARGIN, (window.innerWidth - TOOLTIP_W) / 2)
     tipTop = Math.max(TOOLTIP_MARGIN, (window.innerHeight - TOOLTIP_H_ESTIMATE) / 2)
