@@ -268,7 +268,7 @@ export default function Home() {
       if (session?.user) {
         const { data: sub } = await sb
           .from('user_subscriptions')
-          .select('sports_limit, divisions_limit, teams_limit, plan_tier, subscription_status, subscription_end, stripe_subscription_id')
+          .select('sports_limit, divisions_limit, teams_limit, plan_tier, subscription_status, subscription_end, stripe_subscription_id, stripe_customer_id, billing_period')
           .eq('user_id', session.user.id)
           .single()
         setSub(sub as SubscriptionRow | null)

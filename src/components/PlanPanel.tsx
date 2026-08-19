@@ -2,7 +2,7 @@
 import type { AppState } from '@/lib/types'
 import { getSports } from '@/lib/sports'
 import { minPaidTierForSports } from '@/lib/plans'
-import { planUsage, type PlanPanelSubscription } from '@/lib/planUsage'
+import { billingLine, planCta, planUsage, type PlanPanelSubscription } from '@/lib/planUsage'
 
 /**
  * "What am I on, how much of it am I using, and what would keeping this cost?"
@@ -43,6 +43,9 @@ export default function PlanPanel({
 
   const usage = planUsage(state, sub)
   const fit = minPaidTierForSports(getSports(state.season).length)
+  // Only sell to someone nothing currently covers. A paid, unexpired account gets
+  // the state of its billing instead of a pitch for the plan it already holds.
+  const cta = planCta(sub)
 
   return (
     <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
@@ -76,21 +79,36 @@ export default function PlanPanel({
       </dl>
 
       <div className="mt-5 pt-4 border-t border-gray-100">
-        <p className="text-sm text-gray-700">
-          Your setup fits <span className="font-semibold">{fit.name}</span> — ${fit.annualPriceUsd}/yr, or $
-          {fit.seasonPassPriceUsd} for a one-time 3-month season pass.
-        </p>
-        <div className="flex gap-4 mt-3">
-          <a
-            href="/pricing"
-            className="text-sm font-semibold bg-[var(--fd-accent)] hover:bg-[var(--fd-accent-hover)] text-white rounded-lg px-3 py-2 transition"
-          >
-            Keep this setup — ${fit.annualPriceUsd}/yr
-          </a>
-          <a href="/account" className="text-sm text-gray-600 underline self-center">
-            Manage billing
-          </a>
-        </div>
+        {cta === 'buy' ? (
+          <>
+            <p className="text-sm text-gray-700">
+              Your setup fits <span className="font-semibold">{fit.name}</span> — ${fit.annualPriceUsd}/yr, or $
+              {fit.seasonPassPriceUsd} for a one-time 3-month season pass.
+            </p>
+            <div className="flex gap-4 mt-3">
+              <a
+                href="/pricing"
+                className="text-sm font-semibold bg-[var(--fd-accent)] hover:bg-[var(--fd-accent-hover)] text-white rounded-lg px-3 py-2 transition"
+              >
+                Keep this setup — ${fit.annualPriceUsd}/yr
+              </a>
+              {sub.stripe_customer_id && (
+                <a href="/account" className="text-sm text-gray-600 underline self-center">
+                  Manage billing
+                </a>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-gray-700">{billingLine(sub)}</p>
+            {cta === 'manage' && (
+              <a href="/account" className="inline-block mt-3 text-sm text-gray-600 underline">
+                Manage billing
+              </a>
+            )}
+          </>
+        )}
       </div>
     </section>
   )

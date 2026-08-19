@@ -1,13 +1,34 @@
 import type { AppState } from './types'
 import { getSports } from './sports'
-import { planDisplayName } from './plans'
+import { isWritable, planDisplayName } from './plans'
 
 export interface PlanPanelSubscription {
   plan_tier?: string | null
+  subscription_status?: string | null
   subscription_end?: string | null
+  billing_period?: string | null
+  stripe_customer_id?: string | null
   sports_limit?: number | null
   divisions_limit?: number | null
   teams_limit?: number | null
+}
+
+/**
+ * Which billing call-to-action an account should see.
+ *
+ * The plan panel used to render "Your setup fits Starter — $99/yr" and a purchase
+ * button for every league owner, so someone three days into a season pass was
+ * being sold the plan they had just bought, and a non-expiring account was told
+ * to upgrade. Whether to sell depends on whether anything currently covers them.
+ *
+ *   'buy'    — nothing covers them: a trial, or any lapsed plan (renew).
+ *   'manage' — covered, and a Stripe customer exists to open a portal for.
+ *   'none'   — covered, but nothing to manage: a tester, or a season pass whose
+ *              one-time payment left no reusable customer record.
+ */
+export function planCta(sub: PlanPanelSubscription): 'buy' | 'manage' | 'none' {
+  if (sub.plan_tier === 'trial' || !isWritable(sub)) return 'buy'
+  return sub.stripe_customer_id ? 'manage' : 'none'
 }
 
 export interface UsageMeter {
