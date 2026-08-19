@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import { getPlan } from '@/lib/plans'
 import { billingLine } from '@/lib/planUsage'
@@ -116,7 +117,7 @@ export default function AccountPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <a href="/" className="text-sm text-gray-500 hover:text-gray-700">← Back to app</a>
+            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">← Back to app</Link>
             <h1 className="text-2xl font-bold text-gray-900 mt-1">My Account</h1>
           </div>
           <button

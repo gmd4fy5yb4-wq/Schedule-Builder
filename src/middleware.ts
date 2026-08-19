@@ -62,7 +62,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Build response first so we can write refreshed session cookies onto it
-  let response = NextResponse.next()
+  const response = NextResponse.next()
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -107,10 +107,12 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (existing) {
+        // Stripe's basil types moved current_period_end onto the item; the cast is
+        // unavoidable. Kept on ONE line so the single disable below covers BOTH
+        // casts — a disable comment only applies to the line right after it, so a
+        // wrapped expression would leave the second cast unsuppressed.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const periodEnd: number = (sub.items.data[0] as any)?.current_period_end
-          ?? (sub as any).current_period_end
-          ?? sub.billing_cycle_anchor
+        const periodEnd: number = (sub.items.data[0] as any)?.current_period_end ?? (sub as any).current_period_end ?? sub.billing_cycle_anchor
 
         if (event.type === 'customer.subscription.deleted') {
           // Subscription fully ended — revert to trial tier and reset limits

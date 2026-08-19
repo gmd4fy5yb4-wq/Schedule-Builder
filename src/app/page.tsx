@@ -602,6 +602,11 @@ export default function Home() {
           <Icon name="link" className="w-8 h-8 mx-auto text-gray-400" />
           <h2 className="text-lg font-semibold text-gray-800">Link not found</h2>
           <p className="text-sm text-gray-500">This view-only link is no longer valid. Ask the league admin to share a new link.</p>
+          {/* Hard reload on purpose, NOT a missed <Link>: this screen renders at
+              "/" with an invalid ?view=readonly&token=... still in the URL. A full
+              navigation is what drops those params and reboots the app cleanly; a
+              soft route change to the same path would not reliably clear them. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" className="inline-block mt-2 text-sm text-[var(--fd-primary)] underline hover:text-[var(--fd-primary-dark)]">Go to FieldDay Planner</a>
         </div>
       </div>

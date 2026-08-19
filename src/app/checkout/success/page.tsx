@@ -55,6 +55,12 @@ export default function CheckoutSuccessPage() {
             <p className="text-gray-500 text-sm mb-5">
               We&apos;re finalizing your subscription — this can take a few seconds.
             </p>
+            {/* Hard reload on purpose, NOT a missed <Link>: the Stripe webhook may
+                still be committing the user_subscriptions row when the user taps
+                this. A full boot guarantees page.tsx re-reads the row instead of
+                carrying stale client state into the app. See CLAUDE.md on the
+                post-pay race this page exists to fix. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
               className="inline-block w-full py-2.5 px-4 rounded-lg bg-[#00013a] text-white text-sm font-semibold hover:bg-[#000128] transition-colors"
