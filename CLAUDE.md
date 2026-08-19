@@ -116,9 +116,9 @@ access — that exact sentence shipped on the account page and was corrected
 
 - **Never route `plan_tier` through `getPlan()` to display a name.** `getPlan`
   falls back to `PLANS[0]` (trial) for anything it doesn't sell, and the DB carries
-  tiers it doesn't sell: `unlimited` on the 3 tester rows and legacy `small` on a
-  real Stripe customer. All four display sites did this, so a 999-limit account
-  and a lapsed paying customer both read **"Free Trial"**. Use
+  tiers it doesn't sell: `unlimited` on the 3 tester rows and legacy `small` on
+  `greg.amundson@gmail.com`. All four display sites did this, so a 999-limit
+  account and a lapsed paid row both read **"Free Trial"**. Use
   `planDisplayName(tier)` in `src/lib/plans.ts`. A guard of the shape
   `getPlan(tier).name ?? tier` does **not** work — the fallback plan's name is a
   truthy string, so `??` never fires.
@@ -182,6 +182,7 @@ and the invalid-view-token screen in `page.tsx` (the reload is what clears
 
 ## Known Issues / Do-Not-Touch
 - ✅ **Trial trigger RESTORED (migration 013, June 17 2026).** The `handle_new_user` / `on_auth_user_created` trigger was missing in the Sports DB (so new signups got no `user_subscriptions` row and were gated straight to `/pricing`). 013 recreates it with sports-model trial values (3/10/100, `subscription_end=now()+14d`) and backfilled the 6 rowless users. Verified: trigger enabled on `auth.users`; testers + legacy `small` row untouched.
+- ℹ️ **`greg.amundson@gmail.com` is one of the owner's own accounts, not a customer.** `plan_tier='small'` (1/4/16) is a legacy tier absent from `PLANS`, with a real `stripe_customer_id`, lapsed 2026-07-11. Confirmed 2026-08-19 to be left exactly as it is — do not migrate it to `starter`, and do not treat it as a customer needing outreach. It displays as "Small" since `planDisplayName` landed, which is correct and intended.
 - 🛑 **Tester accounts — do not modify.** **3** accounts have `plan_tier='unlimited'` (an invalid value vs code's `trial/starter/pro/org`), `active`, no Stripe link, `subscription_end=NULL` (never expires). Migration 012 set their `sports_limit=999`. These are real-world testers depending on the app: **never change their access, and never complete a Stripe checkout while signed in as one** (the webhook would overwrite the protected row).
   **This has already happened once:** `jonathan@lev-itsb.com` was a 4th `unlimited` tester until he bought a season pass on 2026-08-19, which overwrote his row to `starter`. He is a paying customer now, deliberately left that way — the row is an honest customer record. He keeps write access to the shared test league `YWWM8G` because collaborator writes are gated on the league OWNER's plan (see below), not his own.
 - ℹ️ **`user_subscriptions → auth.users` FK is NOT `ON DELETE CASCADE` in prod** (migration 002 source says it is — prod drift). To delete a user, delete their `user_subscriptions` row first.
