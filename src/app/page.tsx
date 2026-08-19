@@ -30,6 +30,7 @@ import CoachView from '@/components/CoachView'
 import TourOverlay from '@/components/TourOverlay'
 import TourWelcomeModal from '@/components/TourWelcomeModal'
 import { getActiveStep, advanceTour, TOUR_STEPS, TOTAL_STEPS, type TourState } from '@/lib/tour'
+import HelpButton from '@/components/HelpButton'
 
 interface SubscriptionRow extends PlanPanelSubscription {
   plan_tier: string
@@ -955,6 +956,7 @@ export default function Home() {
           onDismiss={dismissTour}
         />
       )}
+      {!isViewer && <HelpButton onStartTour={startTour} hidden={tourStep !== null} />}
 
       <MobileNav
         tab={tab}
