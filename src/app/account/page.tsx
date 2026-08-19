@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
-import { getPlan } from '@/lib/plans'
+import { getPlan, planDisplayName } from '@/lib/plans'
 import { billingLine } from '@/lib/planUsage'
 import type { User } from '@supabase/supabase-js'
 
@@ -108,7 +108,16 @@ export default function AccountPage() {
     )
   }
 
-  const plan = getPlan((sub?.plan_tier ?? 'trial') as Parameters<typeof getPlan>[0])
+  // Name and limits both come from the row itself. Routing them through
+  // getPlan(plan_tier) showed every tier PLANS doesn't sell — 'unlimited',
+  // legacy 'small' — as "Free Trial" with trial limits it does not have.
+  const planName = planDisplayName(sub?.plan_tier)
+  const fallback = getPlan('trial')
+  const limits = {
+    sports: sub?.sports_limit ?? fallback.sportsLimit,
+    divisions: sub?.divisions_limit ?? fallback.divisionsLimit,
+    teams: sub?.teams_limit ?? fallback.teamsLimit,
+  }
   const isActive = sub?.subscription_status === 'active' || sub?.subscription_status === 'trialing'
 
   return (
@@ -147,11 +156,11 @@ export default function AccountPage() {
             </span>
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">{plan.name}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">{planName}</h2>
           <p className="text-sm text-gray-500 mb-4">
-            {plan.sportsLimit >= 999 ? 'Unlimited' : plan.sportsLimit} sport{plan.sportsLimit !== 1 ? 's' : ''} ·{' '}
-            {plan.divisionsLimit >= 999 ? 'Unlimited' : plan.divisionsLimit} divisions ·{' '}
-            {plan.teamsLimit >= 999 ? 'Unlimited' : plan.teamsLimit} teams
+            {limits.sports >= 999 ? 'Unlimited' : limits.sports} sport{limits.sports !== 1 ? 's' : ''} ·{' '}
+            {limits.divisions >= 999 ? 'Unlimited' : limits.divisions} divisions ·{' '}
+            {limits.teams >= 999 ? 'Unlimited' : limits.teams} teams
           </p>
 
           {sub && <p className="text-sm text-gray-600 mb-4">{billingLine(sub)}</p>}

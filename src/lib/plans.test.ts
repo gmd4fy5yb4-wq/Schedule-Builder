@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/plans.test.ts
 import assert from 'node:assert'
-import { checkLimits, getPlan, minPaidTierForSports, isWritable, saveGate } from './plans'
+import { checkLimits, getPlan, minPaidTierForSports, isWritable, saveGate, planDisplayName } from './plans'
 
 const div = (teams = 0) => ({ teams: Array(teams).fill(0) })
 const starter = getPlan('starter')   // sports 1, divisions 3, teams 24
@@ -138,3 +138,18 @@ assert.equal(
   true,
   'a missing owner row falls back to the saver, preserving prior behaviour',
 )
+
+// planDisplayName: the DB carries tiers PLANS does not sell. Routing those through
+// getPlan() labelled a 999-limit tester and a lapsed paying customer "Free Trial",
+// because getPlan falls back to PLANS[0] and PLANS[0].name is a truthy string — so
+// the `?? tier` guard that was supposed to catch this could never fire.
+assert.equal(planDisplayName('starter'), 'Starter', 'a sold tier keeps its plan name')
+assert.equal(planDisplayName('trial'), 'Free Trial', 'trial still reads Free Trial')
+assert.equal(planDisplayName('unlimited'), 'Unlimited', 'tester rows are not Free Trial')
+assert.equal(planDisplayName('small'), 'Small', 'legacy paid tier is not Free Trial')
+assert.equal(planDisplayName(null), 'Free Trial', 'no row at all falls back to trial')
+assert.equal(planDisplayName(undefined), 'Free Trial', 'undefined tier falls back to trial')
+assert.notEqual(getPlan('unlimited' as never).name, 'Unlimited',
+  'getPlan still cannot name an unsold tier — which is why planDisplayName exists')
+
+console.log('plans.test.ts OK')
