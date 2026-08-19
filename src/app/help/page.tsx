@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Help — FieldDay Planner' }
 const TOPICS = [
   { href: '/help/setting-up-your-season', title: 'Setting up your season', blurb: 'Name your league, set the dates, pick your sport.' },
   { href: '/help/divisions-and-teams', title: 'Divisions & teams', blurb: 'How divisions work and why each needs at least two teams.' },
-  { href: '/help/fields-and-availability', title: 'Fields & availability', blurb: 'Add fields, set blackout dates, control when play happens.' },
+  { href: '/help/fields-and-availability', title: 'Fields & availability', blurb: 'Add fields, and see how much field time limits your season.' },
   { href: '/help/auto-scheduling', title: 'Auto-scheduling', blurb: 'How the scheduler builds a conflict-free season — and what starts your trial.' },
   { href: '/help/sharing-with-coaches', title: 'Sharing with coaches', blurb: 'View-only links, league codes, and what coaches can see.' },
 ]

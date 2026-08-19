@@ -25,9 +25,11 @@ export default function Page() {
 
       <h2>Coach notifications</h2>
       <p>
-        If your teams have coach email addresses, the Coaches tab can email each coach their own
-        team&rsquo;s schedule directly. Useful at the start of a season, and after any change big
-        enough to be worth a message.
+        If your teams have coach email addresses, the <strong>Schedule</strong> tab can email
+        each coach their own team&rsquo;s schedule directly — look for the &ldquo;Notify
+        Coaches&rdquo; button. Useful at the start of a season, and after any change big enough
+        to be worth a message. The Coaches tab itself is a read-only roster; its only email
+        affordance is a mailto link next to each coach&rsquo;s address, for a one-off message.
       </p>
 
       <h2>What viewers cannot see</h2>

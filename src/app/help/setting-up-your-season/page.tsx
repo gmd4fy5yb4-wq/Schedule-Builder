@@ -22,11 +22,11 @@ export default function Page() {
         the window later and re-generate.
       </p>
 
-      <h2>Playing days and times</h2>
+      <h2>Scheduling preferences</h2>
       <p>
-        Tell FieldDay which days of the week you play and the time slots available on each.
-        The scheduler only ever places games in these windows — this is the main lever for
-        keeping weeknight games off a field your league cannot use on a Tuesday.
+        Setup does not include day or time preferences — there is no such setting here. Each
+        division can set a preferred start time, and each team can mark which days it prefers
+        to play; both live on the Auto-Schedule tab.
       </p>
 
       <h2>Sport and theme</h2>

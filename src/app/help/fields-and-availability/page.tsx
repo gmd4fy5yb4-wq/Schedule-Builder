@@ -18,22 +18,26 @@ export default function Page() {
 
       <h2>Blackout dates</h2>
       <p>
-        A blackout marks a date, or a range, when a field cannot be used: tournaments,
-        maintenance, a school using the site. The scheduler routes around blackouts
-        automatically, so you do not have to fix the schedule afterwards.
+        Blackouts are not set on this tab. League-wide blackouts — a date nothing can be
+        scheduled anywhere — are set on the Setup tab. Per-field blackouts — a single field
+        closed for a tournament, maintenance, or a school using the site — are set on the
+        Auto-Schedule tab&rsquo;s first step. Either way, a blackout is a single date, not a
+        range; add one entry per date. The scheduler routes around them automatically, so you
+        do not have to fix the schedule afterwards.
       </p>
 
       <h2>More fields means a tighter season</h2>
       <p>
         Fields are usually the binding constraint. If the scheduler cannot fit your season into
         the date range, the first thing to check is whether you have enough field time — either
-        add a field, add playing days, or widen the season window.
+        add a field or widen the season window.
       </p>
 
       <h2>The field calendar</h2>
       <p>
-        Once a schedule exists, the Field Calendar tab shows one field at a time across the
-        whole season. It is the fastest way to spot a field that is over- or under-used.
+        Once a schedule exists, the Field Calendar tab shows one field at a time, one month at
+        a time, with buttons to step to the previous or next month. The event count shown next
+        to the field covers the whole season even though the grid itself only shows a month.
       </p>
     </HelpLayout>
   )
