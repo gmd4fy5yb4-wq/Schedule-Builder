@@ -5,7 +5,7 @@ import { stripe } from '@/lib/stripe'
 import { PLANS } from '@/lib/plans'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { isProspectCardBundleEligible } from '@/lib/bundle'
-import { checkoutCustomerFields } from '@/lib/checkout'
+import { checkoutCustomerFields, paymentModeOnlyFields } from '@/lib/checkout'
 import { siteUrl } from '@/lib/siteUrl'
 
 const schema = z.object({
@@ -79,9 +79,9 @@ export async function POST(req: NextRequest) {
       }),
       client_reference_id: user.id,
       line_items: [{ price: priceId, quantity: 1 }],
-      // payment mode has no price→plan link the webhook can read off a subscription,
-      // so pass the tier explicitly for the webhook to grant the right limits.
-      ...(isSeason ? { metadata: { tier: parsed.data.tier, billingPeriod: 'season_3mo' } } : {}),
+      // metadata.tier and invoice_creation are BOTH payment-mode only; Stripe
+      // rejects either on a subscription session. See src/lib/checkout.ts.
+      ...paymentModeOnlyFields({ isOneTimePayment: isSeason, tier: parsed.data.tier }),
       ...(bundleEligible ? { discounts: [{ coupon: 'bundle20' }] } : {}),
       // Land on a subscription-exempt page that polls until the webhook writes the
       // row, then forwards into the app — avoids the race that bounced paid users to /pricing.

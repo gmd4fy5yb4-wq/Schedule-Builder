@@ -48,3 +48,27 @@ export function checkoutCustomerFields(input: {
   if (input.isOneTimePayment) fields.customer_creation = 'always'
   return fields
 }
+
+/**
+ * Session fields that are valid ONLY for mode:'payment'. Stripe rejects every one
+ * of these on a subscription session, and a rejected session means the checkout
+ * button dies — a worse failure than anything they fix. Keeping them behind one
+ * guard means there is a single place to get that wrong, and one test that says so.
+ *
+ * - `metadata.tier`: payment mode has no price->plan link the webhook can read off
+ *   a subscription object, so the tier is passed explicitly. seasonPassRow() in
+ *   subscriptionRow.ts refuses the write if it is missing or unrecognised.
+ * - `invoice_creation`: without it a one-time pass produces only a receipt email,
+ *   which depends on a dashboard toggle and is not something a customer can
+ *   expense or re-download. Subscriptions invoice every cycle on their own.
+ */
+export function paymentModeOnlyFields(input: {
+  isOneTimePayment: boolean
+  tier: string
+}): Record<string, unknown> {
+  if (!input.isOneTimePayment) return {}
+  return {
+    metadata: { tier: input.tier, billingPeriod: 'season_3mo' },
+    invoice_creation: { enabled: true },
+  }
+}

@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/checkout.test.ts
 import assert from 'node:assert'
-import { checkoutCustomerFields } from './checkout'
+import { checkoutCustomerFields, paymentModeOnlyFields } from './checkout'
 
 // ── The gap this closes ──────────────────────────────────────────────────────
 // A one-time season pass must force Customer creation. Without it Stripe
@@ -52,3 +52,26 @@ assert.deepEqual(
 )
 
 console.log('checkout.test.ts: all assertions passed')
+
+// ── Fields that are valid ONLY in mode:'payment' ─────────────────────────────
+// Stripe rejects these on a subscription session, and a rejected session takes
+// the checkout button down — strictly worse than the receipt/customer gaps they
+// close. This is the assertion that keeps them behind the guard.
+const seasonFields = paymentModeOnlyFields({ isOneTimePayment: true, tier: 'pro' })
+assert.deepEqual(seasonFields, {
+  metadata: { tier: 'pro', billingPeriod: 'season_3mo' },
+  invoice_creation: { enabled: true },
+})
+
+const annualFields = paymentModeOnlyFields({ isOneTimePayment: false, tier: 'pro' })
+assert.deepEqual(annualFields, {}, 'a subscription session gets none of them')
+assert.ok(!('invoice_creation' in annualFields), 'invoice_creation is invalid in subscription mode')
+assert.ok(!('metadata' in annualFields), 'subscription mode reads the tier from the price, not metadata')
+
+// The tier must survive verbatim: subscriptionRow.seasonPassRow() looks it up in
+// PLANS and refuses the write if it does not match, so a mangled value here
+// blocks a paid checkout from provisioning at all.
+for (const tier of ['starter', 'pro', 'org']) {
+  const f = paymentModeOnlyFields({ isOneTimePayment: true, tier }) as { metadata: { tier: string } }
+  assert.equal(f.metadata.tier, tier, `${tier} passes through unchanged`)
+}
