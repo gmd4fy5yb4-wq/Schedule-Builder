@@ -5,6 +5,7 @@ import { stripe } from '@/lib/stripe'
 import { PLANS } from '@/lib/plans'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { isProspectCardBundleEligible } from '@/lib/bundle'
+import { checkoutCustomerFields, paymentModeOnlyFields } from '@/lib/checkout'
 import { siteUrl } from '@/lib/siteUrl'
 
 const schema = z.object({
@@ -42,20 +43,24 @@ export async function POST(req: NextRequest) {
   // Alfred Sports Bundle: 20% off if this user has a paying Prospect Card
   // subscription. Best-effort — any failure here must never block checkout.
   let bundleEligible = false
+  // Reuse this buyer's existing Stripe customer if they have one, so an annual
+  // subscriber who later buys a season pass stays a single customer in Stripe
+  // rather than accumulating a second record.
+  let existingCustomerId: string | null = null
   try {
     const svc = getSupabaseServiceRole()
     // pc_subscriptions' Stripe-cache column is `subscription_status`
     // (see softball-recruiter/src/db/migrations/014_pc_subscriptions.sql).
-    const { data: pcSub } = await svc
-      .from('pc_subscriptions')
-      .select('subscription_status')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    const [{ data: pcSub }, { data: fdSub }] = await Promise.all([
+      svc.from('pc_subscriptions').select('subscription_status').eq('user_id', user.id).maybeSingle(),
+      svc.from('user_subscriptions').select('stripe_customer_id').eq('user_id', user.id).maybeSingle(),
+    ])
     bundleEligible = isProspectCardBundleEligible(
       pcSub ? { status: pcSub.subscription_status } : null
     )
+    existingCustomerId = fdSub?.stripe_customer_id ?? null
   } catch (err) {
-    console.error('[create-session] bundle eligibility check failed (continuing without discount):', err)
+    console.error('[create-session] bundle/customer lookup failed (continuing):', err)
   }
 
   try {
@@ -63,12 +68,20 @@ export async function POST(req: NextRequest) {
       // Season pass = one-time payment (no auto-renew); annual = recurring subscription.
       mode: isSeason ? 'payment' : 'subscription',
       payment_method_types: ['card'],
-      customer_email: user.email,
+      // Stripe takes EITHER an existing customer OR customer_email, and
+      // customer_creation is only valid for mode:'payment' — where it must be
+      // 'always', or a one-time season pass creates no Customer at all and the
+      // webhook writes stripe_customer_id NULL. See src/lib/checkout.ts.
+      ...checkoutCustomerFields({
+        existingCustomerId,
+        email: user.email,
+        isOneTimePayment: isSeason,
+      }),
       client_reference_id: user.id,
       line_items: [{ price: priceId, quantity: 1 }],
-      // payment mode has no price→plan link the webhook can read off a subscription,
-      // so pass the tier explicitly for the webhook to grant the right limits.
-      ...(isSeason ? { metadata: { tier: parsed.data.tier, billingPeriod: 'season_3mo' } } : {}),
+      // metadata.tier and invoice_creation are BOTH payment-mode only; Stripe
+      // rejects either on a subscription session. See src/lib/checkout.ts.
+      ...paymentModeOnlyFields({ isOneTimePayment: isSeason, tier: parsed.data.tier }),
       ...(bundleEligible ? { discounts: [{ coupon: 'bundle20' }] } : {}),
       // Land on a subscription-exempt page that polls until the webhook writes the
       // row, then forwards into the app — avoids the race that bounced paid users to /pricing.
