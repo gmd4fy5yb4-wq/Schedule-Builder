@@ -91,3 +91,53 @@ assert.deepEqual(checklistSteps(ready).map(s => s.done), [true, true, true, true
 assert.deepEqual(checklistSteps(blank).map(s => s.tab), [1, 2, 3, 8], 'tab indices unchanged')
 
 console.log('trial.test.ts — all assertions passed')
+
+// ── Expiry warning for PAID plans that will not auto-renew ───────────────────
+// Written after a real sale (2026-08-19): a customer bought a 90-day season pass
+// and would have hit read-only on day 91 with no warning at all, because the
+// banner only ever spoke to trials.
+
+const EWnow = new Date('2026-08-19T12:00:00Z')
+const inDaysFrom = (n: number) => new Date(EWnow.getTime() + n * 86_400_000).toISOString()
+
+// A season pass has NO Stripe subscription object — nothing will renew it.
+const pass = (endsInDays: number) => ({
+  plan_tier: 'starter',
+  subscription_end: inDaysFrom(endsInDays),
+  stripe_subscription_id: null,
+})
+
+// Silent while the end is comfortably far off...
+assert.equal(trialBanner(pass(30), EWnow), null, 'no nagging 30 days out')
+assert.equal(trialBanner(pass(15), EWnow), null, 'still silent just outside the window')
+
+// ...then counts down inside the window.
+assert.deepEqual(trialBanner(pass(14), EWnow), { kind: 'ending', daysLeft: 14 })
+assert.deepEqual(trialBanner(pass(1), EWnow), { kind: 'ending', daysLeft: 1 })
+
+// THE ONE THAT MUST NOT REGRESS: an annual subscriber has a live Stripe
+// subscription that renews itself. Telling them their plan "ends in 9 days"
+// would be false, and would push a happy customer toward cancelling.
+assert.equal(
+  trialBanner({ plan_tier: 'pro', subscription_end: inDaysFrom(9), stripe_subscription_id: 'sub_live_123' }, EWnow),
+  null,
+  'an auto-renewing annual subscription must never be told it is ending',
+)
+
+// The 4 plan_tier='unlimited' testers never expire — no end date, no banner.
+assert.equal(
+  trialBanner({ plan_tier: 'unlimited', subscription_end: null, stripe_subscription_id: null }, EWnow),
+  null,
+  'a tester row must not be told anything',
+)
+
+// Already lapsed stays silent here: the amber renew banner owns that state, and
+// two bars stacked in the same region is worse than one.
+assert.equal(trialBanner(pass(-3), EWnow), null, 'lapsed paid plan is owned by the renew banner')
+
+// A trial is unaffected by any of this.
+assert.deepEqual(
+  trialBanner({ plan_tier: 'trial', subscription_end: inDaysFrom(5) }, EWnow),
+  { kind: 'running', daysLeft: 5 },
+  'trial behaviour is unchanged',
+)

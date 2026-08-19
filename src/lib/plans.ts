@@ -142,3 +142,82 @@ export function checkLimits(
   }
   return { allowed: true }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Save gate: whose plan governs a write, and does it pass?
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Limit columns as they come off user_subscriptions. */
+export interface SubscriptionLimits extends SubscriptionState {
+  sports_limit?: number | null
+  divisions_limit?: number | null
+  teams_limit?: number | null
+}
+
+export interface SaveGateResult {
+  allowed: boolean
+  reason?: string
+  /** True when the block is an expired plan rather than a size limit. */
+  expired?: boolean
+  limitType?: 'sports' | 'divisions' | 'teams'
+  /** Whose plan caused the block — drives which message the route returns. */
+  blockedBy?: 'self' | 'owner'
+}
+
+/**
+ * A league belongs to its owner, and the owner's plan is what pays for it. So a
+ * collaborator saving someone ELSE's league is gated by the OWNER's plan, not
+ * their own.
+ *
+ * This is what the route always claimed to do — the old comment read "use the
+ * owner's limits if this is someone else's league" — but only the sports gate
+ * was ever carved out. Division and team limits, and the expiry check, still ran
+ * against the collaborator. The practical effect: a tester whose personal plan
+ * lapsed lost write access to a league they neither own nor pay for, and a
+ * collaborator on a small plan could not save a large league the owner is fully
+ * entitled to.
+ *
+ * There is no way to collaborate around a limit: your OWN league is always gated
+ * by your own plan, so the only thing a shared code buys you is edit rights on a
+ * league someone else is paying for.
+ */
+export function saveGate(input: {
+  ownerId: string | null | undefined
+  savingUserId: string
+  savingUserSub: SubscriptionLimits | null | undefined
+  /** Only needed when the saver is not the owner. */
+  ownerSub: SubscriptionLimits | null | undefined
+  sportCount: number
+  divisions: { teams: unknown[] }[]
+}): SaveGateResult {
+  // An unclaimed league (no owner_id — legacy rows predating migration 001) is
+  // treated as the saver's own, which is how it has always behaved.
+  const own = !input.ownerId || input.ownerId === input.savingUserId
+
+  // Falling back to the saver's row when the owner has none is deliberate: a
+  // missing owner row is an anomaly, and denying the write would break
+  // collaboration on legacy leagues. This preserves the previous behaviour for
+  // that case rather than inventing a new failure mode.
+  const governing = own ? input.savingUserSub : (input.ownerSub ?? input.savingUserSub)
+  const blockedBy: 'self' | 'owner' = own ? 'self' : 'owner'
+
+  if (!isWritable(governing)) {
+    return { allowed: false, expired: true, blockedBy }
+  }
+
+  const limits: PlanLimits = {
+    sportsLimit: governing?.sports_limit ?? 1,
+    divisionsLimit: governing?.divisions_limit ?? 1,
+    teamsLimit: governing?.teams_limit ?? 8,
+    adminsLimit: 999,
+  }
+
+  // The sport gate counts the sports IN THIS league and is the headline quota, so
+  // it only applies to a league you own. Divisions and teams are size guards on
+  // the league itself, so they follow the governing plan either way.
+  const check = checkLimits(limits, own ? input.sportCount : 0, input.divisions)
+  if (!check.allowed) {
+    return { allowed: false, reason: check.reason, limitType: check.limitType, blockedBy }
+  }
+  return { allowed: true }
+}
