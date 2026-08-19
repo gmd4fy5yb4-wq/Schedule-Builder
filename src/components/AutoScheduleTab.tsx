@@ -70,8 +70,13 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
   const [fieldBlackoutDate, setFieldBlackoutDate] = useState<Record<string, string>>({})
   const [fieldBlackoutLabel, setFieldBlackoutLabel] = useState<Record<string, string>>({})
 
-  const conflicts = state.autoScheduleConflicts ?? []
-  const preview = state.autoSchedulePreview ?? null
+  // `?? []` allocates a NEW array on every render when the field is undefined,
+  // and this value is a dependency of the conflictPlan useMemo below — so that
+  // memo re-ran on every render and never memoized anything. Every write to
+  // autoScheduleConflicts replaces the array (map/filter), never mutates it,
+  // so keying on its identity is safe.
+  const conflicts = useMemo(() => state.autoScheduleConflicts ?? [], [state.autoScheduleConflicts])
+  const preview = state.autoSchedulePreview ?? null   // null is a primitive — stable
 
   const pendingConflicts = conflicts.filter(c => c.resolution === 'pending')
 

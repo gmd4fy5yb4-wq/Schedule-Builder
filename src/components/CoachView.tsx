@@ -122,7 +122,10 @@ export default function CoachView({ state, viewToken, lastUpdatedAt }: CoachView
     // `setState` (page.tsx polls every 30s and replaces `state` wholesale),
     // even when nothing about the next event actually changed. Depending on
     // the primitives the effect actually reads avoids refetching weather on
-    // unrelated league edits.
+    // unrelated league edits. The rule wants `next` and `coords` themselves;
+    // adding them would refetch the weather every 30s forever, so this is a
+    // deliberate deviation rather than an oversight.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [next?.id, next?.date, coords?.lat, coords?.lon])
 
   function eventTitle(e: CoachEvent): string {
