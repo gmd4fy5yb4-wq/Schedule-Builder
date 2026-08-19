@@ -43,7 +43,7 @@ This regressed once already (auth config changed mid-day 2026-07-28; `test1`/`te
 - **Coach notifications (`notify-coaches`):** app uses the Resend SDK with `RESEND_API_KEY` + `RESEND_FROM_EMAIL` from env. From-domain must be Resend-verified (`alfred-digital.com` only — free tier = 1 domain).
 
 ## Billing & Subscriptions (Stripe)
-Status: **Sports-based pricing BUILT and verified end-to-end in test mode (June 17, 2026). NOT yet live.**
+Status: **LIVE. First real sale 2026-08-19** — a $39 Starter season pass, which provisioned correctly (`starter` / `season_3mo` / 1-3-24 limits / `subscription_end` = +90d). The six live-mode prices and the six `STRIPE_PRICE_*` vars are set on Vercel **Production** (verified 2026-08-19).
 - **Model (`src/lib/plans.ts`):** tiers `trial / starter / pro / org`, gated on **sports** (headline) with **divisions + teams** as silent guards. Trial = full Pro limits for 14 days. Each paid tier has two prices — **annual (recurring)** and a **3-month season pass (one-time payment, no auto-renew)**:
   - Starter $99/yr · $39 season · 1 sport / 3 div / 24 teams
   - Pro $199/yr · $69 season · 3 sports / 10 div / 100 teams
@@ -53,13 +53,71 @@ Status: **Sports-based pricing BUILT and verified end-to-end in test mode (June 
 - **Expiry:** middleware enforces `subscription_end` (null = no expiry for testers; past = lapsed). This is what makes the one-time season pass actually lapse at 90 days.
 - **Migration 012** (`sports_limit`, `trial_started_at`, `billing_period`) applied to prod June 17, 2026; backfilled `sports_limit=999` for all `leagues_limit>=999` rows (protects testers).
 - **Stripe prices are immutable** — create new, repoint env var, archive old. Test price IDs are per-account; live needs separate live-mode prices.
-- **To go live:** recreate the 6 prices in **live mode**, set the 6 `STRIPE_PRICE_*` env vars in Vercel Production, register the prod webhook (`checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` — same events serve one-time + recurring). Runbook: `docs/STRIPE_GO_LIVE.md`.
+- **Go-live is DONE** (live prices created, the 6 `STRIPE_PRICE_*` vars set on Production, prod webhook registered for `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` — the same events serve one-time + recurring). Historical runbook: `docs/STRIPE_GO_LIVE.md`.
+- **An unrecognised price ID or metadata tier is now REFUSED, not defaulted.** Both checkout paths used to fall back to `starter` with 1/3/24 limits, so an Org customer paying $399 against a missing or wrong-mode `STRIPE_PRICE_ORG_ANNUAL` was charged in full and provisioned as Starter, silently. `src/lib/subscriptionRow.ts` now returns a typed refusal, the route logs user + price + subscription id, and **no row is written** — the customer keeps whatever access they had. If you ever see `[webhook] paid checkout with unrecognised price` in the logs, an env var is wrong. Covered by `src/lib/subscriptionRow.test.ts`.
+- **`stripe_customer_id` can be NULL on a season pass.** Stripe does not attach a customer to a one-time payment unless the session sets `customer_creation: 'always'`. The 2026-08-19 sale landed that way, which means `/api/payments/portal` returns 404 "No billing account found" for that user and the row cannot be traced back to Stripe. Not yet fixed.
 - **Stripe MCP connector is LIVE-mode and read-only for prices** — cannot see test-mode objects. Verify test activity via the DB (`user_subscriptions`), not the connector.
-- **Trial expiry IS enforced** (since migration 013): each trial row carries `subscription_end = now()+14d`, so the existing middleware `subscription_end` check lapses the trial automatically — no `trial_started_at`-reading code needed (`trial_started_at` is still recorded for analytics).
+- **Trial expiry IS enforced**, and `fd_014` moved the clock off signup. **Say "the first save of a schedule with anything on it", never "when you generate a schedule"** — `/api/leagues/save` stamps the 14 days when `state.schedule.generatedAt` is non-null, and `EventModal.tsx:327` sets `generatedAt` unconditionally for a game, a **practice**, or a special event. So a coach who never opens Auto-Schedule and hand-adds one practice starts their paid clock. The loose phrasing already shipped a false claim to the help docs once (2026-08-19).
+- **Paying customers get an expiry countdown** (`trialBanner` in `src/lib/trial.ts`), but only when nothing will auto-renew them — a NULL `stripe_subscription_id` means a season pass that genuinely stops. An annual subscriber has a live Stripe subscription and must **never** be told their plan is ending; there is a test asserting that.
+
+## Entitlements: whose plan governs a write
+
+`saveGate()` in `src/lib/plans.ts` is the single answer to "may this save proceed".
+
+**A league belongs to its owner, and the owner's plan is what pays for it** — so a
+collaborator saving someone else's league is gated by the **OWNER's** plan, both for
+expiry and for division/team limits. Your OWN league is always gated by your own
+plan, so a shared league code only ever buys edit rights on a league someone else
+is paying for; there is no collaborating around a limit. An owner whose plan lapses
+takes their league read-only for everyone.
+
+The route claimed this for months and did not do it: only the *sports* gate was
+carved out, while limits and `isWritable` still ran against whoever was saving. The
+practical failure (2026-08-19) was a tester who bought a season pass for his own
+league and was instantly capped on a shared test league he neither owns nor pays
+for. Fixed 2026-08-19; nine assertions in `plans.test.ts` cover it.
+
+`saveGate` reports `blockedBy: 'self' | 'owner'` — a collaborator blocked by the
+owner's expiry must not be told "your plan has expired", which would send them to
+`/pricing` to buy something that cannot fix it.
+
+## Onboarding tour + help docs
+
+- 7-step guided tour, keyed on **tab index** (this app is one page with 11 tabs, not
+  11 routes). `src/lib/tour.ts` is pure and tab-keyed; there is deliberately **no**
+  React context — Prospect Card needs one to survive `router.push()`, FieldDay has
+  no navigation to lose. Do not port it.
+- `TourOverlay` falls back to a centred, dimmed tooltip when a target is missing OR
+  taller than the viewport OR still off-screen after `scrollIntoView`. All three
+  paths exist because each one produced a blank, dead-looking tour in testing — the
+  last only reproduces on a league with a **generated season**, so verify onboarding
+  changes on a populated league, never an empty one.
+- Welcome modal fires only for league **creators** (`LeagueGate`'s `onJoin` carries a
+  `created` flag). A coach joining by code gets the `?` button but no modal.
+- State is one row in `fd_user_tour` (migration `fd_015`), NOT a column on
+  `user_subscriptions` — the Stripe webhook full-row-upserts that table, so any
+  column outside its fixed list is wiped at every checkout and renewal.
+- `/help` is in `PUBLIC_PREFIXES`. It must stay there: the docs exist to be linked
+  from sales emails to prospects who have no account.
+
+## Lint
+
+`npm run lint` (`eslint .`) and `next build` both run ESLint. The config had been in
+the repo since scaffolding importing three packages that were never installed, so
+every build shipped unlinted until 2026-08-19. 0 errors is the gate; ~16 warnings
+are known and tracked.
+
+Ten `eslint-disable` comments exist. Two of them suppress
+`@next/next/no-html-link-for-pages` on `<a href="/">` links that are **deliberate
+hard reloads, not missed `<Link>`s** — `checkout/success` (the Stripe webhook may
+still be committing the subscription row, so a full boot guarantees a fresh read)
+and the invalid-view-token screen in `page.tsx` (the reload is what clears
+`?view=readonly&token=`). Both carry their reason inline. Do not "fix" them.
 
 ## Known Issues / Do-Not-Touch
 - ✅ **Trial trigger RESTORED (migration 013, June 17 2026).** The `handle_new_user` / `on_auth_user_created` trigger was missing in the Sports DB (so new signups got no `user_subscriptions` row and were gated straight to `/pricing`). 013 recreates it with sports-model trial values (3/10/100, `subscription_end=now()+14d`) and backfilled the 6 rowless users. Verified: trigger enabled on `auth.users`; testers + legacy `small` row untouched.
-- 🛑 **Tester accounts — do not modify.** 4 accounts have `plan_tier='unlimited'` (an invalid value vs code's `trial/starter/pro/org`), `active`, no Stripe link, `subscription_end=NULL` (never expires). Migration 012 set their `sports_limit=999`. These are real-world testers depending on the app: **never change their access, and never complete a Stripe checkout while signed in as one** (the webhook would overwrite the protected row).
+- 🛑 **Tester accounts — do not modify.** **3** accounts have `plan_tier='unlimited'` (an invalid value vs code's `trial/starter/pro/org`), `active`, no Stripe link, `subscription_end=NULL` (never expires). Migration 012 set their `sports_limit=999`. These are real-world testers depending on the app: **never change their access, and never complete a Stripe checkout while signed in as one** (the webhook would overwrite the protected row).
+  **This has already happened once:** `jonathan@lev-itsb.com` was a 4th `unlimited` tester until he bought a season pass on 2026-08-19, which overwrote his row to `starter`. He is a paying customer now, deliberately left that way — the row is an honest customer record. He keeps write access to the shared test league `YWWM8G` because collaborator writes are gated on the league OWNER's plan (see below), not his own.
 - ℹ️ **`user_subscriptions → auth.users` FK is NOT `ON DELETE CASCADE` in prod** (migration 002 source says it is — prod drift). To delete a user, delete their `user_subscriptions` row first.
 
 ## Common Gotchas
