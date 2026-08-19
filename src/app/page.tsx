@@ -460,14 +460,12 @@ export default function Home() {
   }
 
   function advanceTourStep() {
-    setTourState(current => {
-      if (!current) return current
-      const next = advanceTour(current)
-      // Drive the app to the next step's tab so the user never has to find it.
-      const nextDef = TOUR_STEPS.find(s => s.step === next.step)
-      if (nextDef) setTab(nextDef.tab)
-      return next
-    })
+    if (!tourState) return
+    const next = advanceTour(tourState)
+    setTourState(next)
+    // Drive the app to the next step's tab so the user never has to find it.
+    const nextDef = TOUR_STEPS.find(s => s.step === next.step)
+    if (nextDef) setTab(nextDef.tab)
   }
 
   function dismissTour() {
@@ -956,7 +954,7 @@ export default function Home() {
           onDismiss={dismissTour}
         />
       )}
-      {!isViewer && <HelpButton onStartTour={startTour} hidden={tourStep !== null} />}
+      {!isViewer && <HelpButton onStartTour={startTour} hidden={tourStep !== null || showSnapshots} />}
 
       <MobileNav
         tab={tab}

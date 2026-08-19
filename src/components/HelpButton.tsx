@@ -35,10 +35,12 @@ export default function HelpButton({
 
   return (
     // bottom-20 clears MobileNav's bottom bar; sm:bottom-6 drops back down once
-    // the bar is gone.
-    <div ref={panelRef} className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[8000]">
+    // the bar is gone. left-4 on mobile (sm:right-6 from sm up) keeps this clear
+    // of the add-event FAB (right-4 bottom-24, ScheduleTab/FieldCalendarTab),
+    // which this button's higher z-index would otherwise steal taps from.
+    <div ref={panelRef} className="fixed bottom-20 left-4 right-auto sm:bottom-6 sm:left-auto sm:right-6 z-[8000]">
       {open && (
-        <div className="absolute bottom-14 right-0 w-60 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute bottom-14 left-0 right-auto sm:left-auto sm:right-0 w-60 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
             Help
           </div>
