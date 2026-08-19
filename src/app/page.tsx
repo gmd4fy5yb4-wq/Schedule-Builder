@@ -638,6 +638,7 @@ export default function Home() {
             {/* Share read-only link (admins only) */}
             {!isViewer && (
               <button
+                data-tour="share-link"
                 onClick={copyReadOnlyLink}
                 className="text-xs bg-[var(--fd-primary)] hover:bg-[var(--fd-primary-dark)] text-[var(--fd-primary-light)] hover:text-white border border-[var(--fd-primary-muted)] rounded-lg px-3 py-1.5 transition"
                 title="Copy a view-only link for coaches/parents"
@@ -715,6 +716,7 @@ export default function Home() {
             )}
             {!isViewer && (
               <button
+                data-tour="share-link"
                 onClick={copyReadOnlyLink}
                 aria-label="Copy view-only link"
                 className="w-11 h-11 flex items-center justify-center rounded-lg text-[var(--fd-primary-light)] hover:text-white transition"

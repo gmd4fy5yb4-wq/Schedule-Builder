@@ -674,6 +674,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
         )}
 
         <button
+          data-tour="generate-schedule"
           onClick={handleGenerate}
           disabled={generating || !state.season.startDate || !state.season.endDate || state.fields.length === 0}
           className="bg-[var(--fd-primary)] text-white px-8 py-3 rounded-lg font-semibold text-base hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"

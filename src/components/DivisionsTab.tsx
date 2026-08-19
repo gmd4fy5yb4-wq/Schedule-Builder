@@ -190,6 +190,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
             />
           </div>
           <button
+            data-tour="add-division"
             onClick={addDivision}
             disabled={!newDivName.trim() || divisionsAtLimit}
             className="bg-[var(--fd-primary)] text-white px-4 py-2 rounded-lg text-sm hover:bg-[var(--fd-primary-dark)] transition disabled:opacity-40 disabled:cursor-not-allowed"

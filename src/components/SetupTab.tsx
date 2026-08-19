@@ -154,6 +154,7 @@ export default function SetupTab({ state, setState, planLimits, sub }: Props) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
           <input
+            data-tour="league-name"
             className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--fd-accent)]"
             value={season.leagueName}
             onChange={e => update('leagueName', e.target.value)}

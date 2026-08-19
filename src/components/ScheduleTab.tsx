@@ -232,7 +232,7 @@ export default function ScheduleTab({ state, setState, readOnly = false }: Props
   }
 
   return (
-    <div className="space-y-4">
+    <div data-tour="schedule-grid" className="space-y-4">
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-gray-800">Schedule</h2>
