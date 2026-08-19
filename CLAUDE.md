@@ -82,6 +82,71 @@ for. Fixed 2026-08-19; nine assertions in `plans.test.ts` cover it.
 owner's expiry must not be told "your plan has expired", which would send them to
 `/pricing` to buy something that cannot fix it.
 
+## League ownership vs. access (they are NOT the same thing)
+
+**The 6-character league code IS the access credential.** Any authenticated user
+who knows it can edit the league — `save/route.ts` checks the code and the
+governing plan, nothing else. There is **no membership or collaborator table**;
+"collaborator" is not a stored relationship, and `leagues.updated_by` is a
+free-text display name, not a user reference. The app therefore *cannot* tell you
+which leagues you collaborate on — only which you own.
+
+`leagues.owner_id` decides **who pays**, not who may edit. Claiming a league sets
+that column and nothing else. Never write UI copy implying a claim restricts
+access — that exact sentence shipped on the account page and was corrected
+2026-08-19.
+
+- `/api/leagues/claim` only succeeds on a league that is **unclaimed or already
+  yours** (`.or(owner_id.is.null,owner_id.eq.<uid>)` in one conditional UPDATE);
+  anything else is a 409. A collaborator cannot take an owned league.
+- **An unclaimed league is silently auto-claimed by whoever saves it first**
+  (`save/route.ts`: `...(!league?.owner_id ? { owner_id: session.user.id } : {})`).
+  No confirmation, no notice. As of 2026-08-19 **zero leagues have a NULL owner**
+  — the three legacy pre-migration-001 rows (`MZB7NY`, `U9TU6U`, `TFRD8G`, all
+  empty default scaffolding) were deleted. Keep it that way; a NULL owner is a
+  first-toucher ownership window.
+- RLS on `leagues` is `SELECT: true` (public read — the app relies on it) and
+  `UPDATE: owner_id IS NULL OR owner_id = auth.uid()`. Writes still go through the
+  service-role save route, which is where `saveGate` runs.
+- Real roles (recorded membership, owner-revocable access) do **not** exist and
+  need their own design pass — it is a membership table plus a decision about
+  whether to keep the frictionless link-sharing model at all.
+
+## Plan display rules (three bugs came from getting these wrong)
+
+- **Never route `plan_tier` through `getPlan()` to display a name.** `getPlan`
+  falls back to `PLANS[0]` (trial) for anything it doesn't sell, and the DB carries
+  tiers it doesn't sell: `unlimited` on the 3 tester rows and legacy `small` on a
+  real Stripe customer. All four display sites did this, so a 999-limit account
+  and a lapsed paying customer both read **"Free Trial"**. Use
+  `planDisplayName(tier)` in `src/lib/plans.ts`. A guard of the shape
+  `getPlan(tier).name ?? tier` does **not** work — the fallback plan's name is a
+  truthy string, so `??` never fires.
+- **Limits come from the row's columns**, never from the plan table — the same
+  `sports_limit / divisions_limit / teams_limit` the save route enforces. The
+  account page printed the fallback plan's limits and told an unlimited account it
+  had 3 sports / 10 divisions / 100 teams.
+- **Only sell to an account nothing currently covers.** `planCta()` in
+  `planUsage.ts` returns `buy` (trial, or any lapsed plan) / `manage` (covered,
+  with a `stripe_customer_id` for the portal) / `none` (covered, nothing to
+  manage — a tester, or a season pass whose one-time payment left no customer
+  record). The panel used to render "Your setup fits Starter — $99/yr" and a
+  purchase button for **every** owner, so the first paying customer was shown a
+  buy button for the pass he had bought three days earlier — and it links to
+  `/pricing`, where buying it twice works.
+- **`PlanPanel` is owner-aware.** On a league you don't own it shows neither meters
+  nor CTA, because writes there are gated by the OWNER's plan: your own limits are
+  not the rule and buying a plan would change nothing. Ownership is derived from
+  `leagueCode` in `page.tsx`, **not** threaded through `loadLeague` — a league
+  arrives three ways (URL code, saved code, join gate) and only the code is common
+  to all three.
+
+**The pattern behind all of these:** the plan panel and account page were written
+for one user — a trial admin setting up a first league — and every assumption
+baked in holds only for that person. Collaboration broke one; a completed purchase
+broke another. When touching either screen, walk all five viewers: trial, paying,
+lapsed, collaborator, tester.
+
 ## Onboarding tour + help docs
 
 - 7-step guided tour, keyed on **tab index** (this app is one page with 11 tabs, not
@@ -130,4 +195,4 @@ and the invalid-view-token screen in `page.tsx` (the reload is what clears
 - Sentry CSP host must use a leftmost-label wildcard (`*.ingest.de.sentry.io`), never `o*.ingest…` (invalid, silently dropped).
 - Stripe price IDs are per-environment (test vs. live) — confirm before committing
 - Resend `from` address must be verified in Resend dashboard (only `alfred-digital.com` is verified)
-- League collaborator saves: see recent commit about shared league permissions
+- League collaborator saves: see **Entitlements** and **League ownership vs. access** above — the code is the access credential, the owner's plan is the rule
