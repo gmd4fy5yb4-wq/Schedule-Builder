@@ -131,6 +131,10 @@ export default function Home() {
   // The user_subscriptions row, kept whole. The plan limits, the trial bar and the
   // plan panel are all views of it — deriving beats storing the same fetch 3 times.
   const [sub, setSub] = useState<SubscriptionRow | null>(null)
+  // Who owns the loaded league. Keyed on leagueCode rather than captured at each
+  // load site: a league arrives here three ways (URL code, saved code, join gate)
+  // and only the code is common to all of them.
+  const [leagueOwnerId, setLeagueOwnerId] = useState<string | null>(null)
 
   // ponytail: the tour lives inline because page.tsx already owns `tab`, `setTab`
   // and `user`. A useTour() hook would need all three passed in and would return
@@ -377,6 +381,14 @@ export default function Home() {
     })
   }, [leagueCode, readOnly])
 
+  useEffect(() => {
+    if (!leagueCode || readOnly) { setLeagueOwnerId(null); return }
+    let cancelled = false
+    getSupabase().from('leagues').select('owner_id').eq('id', leagueCode).single()
+      .then(({ data }) => { if (!cancelled) setLeagueOwnerId((data?.owner_id as string | null) ?? null) })
+    return () => { cancelled = true }
+  }, [leagueCode, readOnly])
+
   // Poll for remote changes
   useEffect(() => {
     if (!leagueCode || !hydrated) return
@@ -560,6 +572,10 @@ export default function Home() {
   ]
   const trial = trialBanner(sub)
   const tourStep = getActiveStep(tourState, tab)
+  // Unclaimed (NULL owner) counts as your own, matching saveGate(). While `user`
+  // is still loading we assume owner, so the real owner never sees a flash of
+  // collaborator copy on their own league.
+  const isLeagueOwner = !leagueOwnerId || !user || leagueOwnerId === user.id
   const planLimits = sub
     ? { sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier }
     : undefined
@@ -925,7 +941,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 py-6 pb-28 sm:pb-6">
         <div id="tab-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
           {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
-          {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} />}
+          {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} isLeagueOwner={isLeagueOwner} />}
           {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
           {tab === 3  && <FieldsTab state={state} setState={setState} />}
           {tab === 4  && <UmpiresTab state={state} setState={setState} />}

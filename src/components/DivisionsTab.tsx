@@ -4,7 +4,7 @@ import type { AppState, Team, Coach } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import UpgradePrompt from './UpgradePrompt'
 import type { PlanLimits } from '@/lib/plans'
-import { getPlan } from '@/lib/plans'
+import { planDisplayName } from '@/lib/plans'
 
 interface Props {
   state: AppState
@@ -157,7 +157,7 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
   const totalTeams = state.divisions.reduce((sum, d) => sum + d.teams.length, 0)
   const divisionsAtLimit = planLimits ? state.divisions.length >= planLimits.divisionsLimit : false
   const teamsAtLimit = planLimits ? totalTeams >= planLimits.teamsLimit : false
-  const planName = getPlan((planLimits?.planTier ?? 'trial') as Parameters<typeof getPlan>[0]).name
+  const planName = planDisplayName(planLimits?.planTier)
 
   return (
     <div className="space-y-6">

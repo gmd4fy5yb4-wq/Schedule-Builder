@@ -72,6 +72,21 @@ export function getPlan(tier: PlanTier): Plan {
   return PLANS.find(p => p.tier === tier) ?? PLANS[0]
 }
 
+/**
+ * What to call whatever plan_tier a subscription row actually carries.
+ *
+ * The DB holds tiers PLANS does not sell — 'unlimited' on the tester rows, legacy
+ * 'small' — and every display site casts that string to PlanTier and calls
+ * getPlan(), which falls back to PLANS[0]. That silently labels a 999-limit tester
+ * and a lapsed paying customer "Free Trial". Name an unknown tier from the row
+ * instead of from the fallback plan; never guess its limits, which live on the row.
+ */
+export function planDisplayName(tier: string | null | undefined): string {
+  if (!tier) return PLANS[0].name
+  const known = PLANS.find(p => p.tier === tier)
+  return known ? known.name : tier.charAt(0).toUpperCase() + tier.slice(1)
+}
+
 // Cheapest *paid* tier whose sports allotment covers a selection — drives the live
 // onboarding badge so a buyer sees which plan their sport count implies. PLANS is
 // authored in ascending price order, so the first match is the cheapest fit.

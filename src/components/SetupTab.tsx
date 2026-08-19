@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { AppState } from '@/lib/types'
 import { SPORTS, getSportConfig, getSports } from '@/lib/sports'
 import { THEMES } from '@/lib/themes'
-import { minPaidTierForSports, getPlan, type PlanLimits, type PlanTier } from '@/lib/plans'
+import { minPaidTierForSports, planDisplayName, type PlanLimits } from '@/lib/plans'
 import type { ImportResult } from '@/lib/importCSV'
 import ImportModal from './ImportModal'
 import UpgradePrompt from './UpgradePrompt'
@@ -15,13 +15,14 @@ interface Props {
   setState: React.Dispatch<React.SetStateAction<AppState>>
   planLimits?: Pick<PlanLimits, 'sportsLimit'> & { planTier?: string }
   sub?: PlanPanelSubscription
+  isLeagueOwner?: boolean
 }
 
 function fmtDate(s: string) {
   return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function SetupTab({ state, setState, planLimits, sub }: Props) {
+export default function SetupTab({ state, setState, planLimits, sub, isLeagueOwner = true }: Props) {
   const { season } = state
   const selectedSports = getSports(season)
   const sportsLimit = planLimits?.sportsLimit ?? 3
@@ -74,7 +75,7 @@ export default function SetupTab({ state, setState, planLimits, sub }: Props) {
   return (
     <div className="max-w-xl space-y-6">
       {/* Usage against the plan, where the limits are actually being spent. */}
-      {sub && <PlanPanel state={state} sub={sub} />}
+      {sub && <PlanPanel state={state} sub={sub} isLeagueOwner={isLeagueOwner} />}
 
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-800">League Setup</h2>
@@ -122,7 +123,7 @@ export default function SetupTab({ state, setState, planLimits, sub }: Props) {
           {atSportsLimit && (
             <UpgradePrompt
               limitType="sports"
-              planName={getPlan((planLimits?.planTier ?? 'trial') as PlanTier).name}
+              planName={planDisplayName(planLimits?.planTier)}
               planTier={planLimits?.planTier ?? 'trial'}
               neededPlanName={neededPlan.name}
             />

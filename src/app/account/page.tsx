@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
-import { getPlan } from '@/lib/plans'
+import { getPlan, planDisplayName } from '@/lib/plans'
 import { billingLine } from '@/lib/planUsage'
 import type { User } from '@supabase/supabase-js'
 
@@ -64,7 +64,7 @@ export default function AccountPage() {
     const data = await res.json()
 
     if (res.ok) {
-      setClaimStatus({ type: 'success', msg: `League ${data.code} is now linked to your account.` })
+      setClaimStatus({ type: 'success', msg: `You now own league ${data.code}.` })
       setClaimCode('')
       // Refresh leagues list
       const sb = getSupabase()
@@ -108,7 +108,16 @@ export default function AccountPage() {
     )
   }
 
-  const plan = getPlan((sub?.plan_tier ?? 'trial') as Parameters<typeof getPlan>[0])
+  // Name and limits both come from the row itself. Routing them through
+  // getPlan(plan_tier) showed every tier PLANS doesn't sell — 'unlimited',
+  // legacy 'small' — as "Free Trial" with trial limits it does not have.
+  const planName = planDisplayName(sub?.plan_tier)
+  const fallback = getPlan('trial')
+  const limits = {
+    sports: sub?.sports_limit ?? fallback.sportsLimit,
+    divisions: sub?.divisions_limit ?? fallback.divisionsLimit,
+    teams: sub?.teams_limit ?? fallback.teamsLimit,
+  }
   const isActive = sub?.subscription_status === 'active' || sub?.subscription_status === 'trialing'
 
   return (
@@ -147,11 +156,11 @@ export default function AccountPage() {
             </span>
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">{plan.name}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">{planName}</h2>
           <p className="text-sm text-gray-500 mb-4">
-            {plan.sportsLimit >= 999 ? 'Unlimited' : plan.sportsLimit} sport{plan.sportsLimit !== 1 ? 's' : ''} ·{' '}
-            {plan.divisionsLimit >= 999 ? 'Unlimited' : plan.divisionsLimit} divisions ·{' '}
-            {plan.teamsLimit >= 999 ? 'Unlimited' : plan.teamsLimit} teams
+            {limits.sports >= 999 ? 'Unlimited' : limits.sports} sport{limits.sports !== 1 ? 's' : ''} ·{' '}
+            {limits.divisions >= 999 ? 'Unlimited' : limits.divisions} divisions ·{' '}
+            {limits.teams >= 999 ? 'Unlimited' : limits.teams} teams
           </p>
 
           {sub && <p className="text-sm text-gray-600 mb-4">{billingLine(sub)}</p>}
@@ -175,9 +184,12 @@ export default function AccountPage() {
 
         {/* Owned leagues */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h2 className="font-semibold text-gray-900 mb-4">Your Leagues</h2>
+          <h2 className="font-semibold text-gray-900 mb-1">Leagues You Own</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Leagues you joined with someone else&rsquo;s code aren&rsquo;t listed here.
+          </p>
           {leagues.length === 0 ? (
-            <p className="text-sm text-gray-400">No leagues linked to your account yet.</p>
+            <p className="text-sm text-gray-400">You don&rsquo;t own any leagues yet.</p>
           ) : (
             <ul className="space-y-2">
               {leagues.map(league => (
@@ -201,7 +213,9 @@ export default function AccountPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-2">Claim an Existing League</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Already have a league code? Enter it here to link it to your account so only you can manage it.
+            Enter a league code to become its owner &mdash; your plan then covers that
+            league&rsquo;s limits. You can&rsquo;t claim a league someone else already owns, and
+            anyone who has the code can still edit the schedule.
           </p>
 
           <form onSubmit={handleClaim} className="flex gap-3">

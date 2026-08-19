@@ -9,7 +9,38 @@ import { planUsage, type PlanPanelSubscription } from '@/lib/planUsage'
  * Reads the user_subscriptions row page.tsx already fetches plus the league blob
  * — no new queries, no new columns.
  */
-export default function PlanPanel({ state, sub }: { state: AppState; sub: PlanPanelSubscription }) {
+export default function PlanPanel({
+  state,
+  sub,
+  isLeagueOwner = true,
+}: {
+  state: AppState
+  sub: PlanPanelSubscription
+  /** False when viewing a league someone else owns. Defaults true so an
+   *  unclaimed league (owner_id NULL) behaves as it always has. */
+  isLeagueOwner?: boolean
+}) {
+  // On someone else's league, this panel would show the viewer's own plan, meters
+  // measured against the wrong limits, and a CTA to buy a plan that would not
+  // affect this league at all — saveGate() checks writes here against the OWNER's
+  // subscription, not the viewer's.
+  if (!isLeagueOwner) {
+    return (
+      <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Your plan</h3>
+        <p className="text-sm text-gray-700">
+          This league belongs to another account, and their plan covers it. Division
+          and team limits here are checked against <span className="font-semibold">their</span> plan,
+          not yours &mdash; so buying or upgrading your own plan won&rsquo;t change what you can do in
+          this league. Ask the owner about limits or billing.
+        </p>
+        <a href="/account" className="inline-block mt-3 text-sm text-gray-600 underline">
+          Your own plan and leagues
+        </a>
+      </section>
+    )
+  }
+
   const usage = planUsage(state, sub)
   const fit = minPaidTierForSports(getSports(state.season).length)
 

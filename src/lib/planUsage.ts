@@ -1,6 +1,6 @@
 import type { AppState } from './types'
 import { getSports } from './sports'
-import { getPlan, type PlanTier } from './plans'
+import { planDisplayName } from './plans'
 
 export interface PlanPanelSubscription {
   plan_tier?: string | null
@@ -67,10 +67,7 @@ function meter(label: string, used: number, limit: number): UsageMeter {
  * disagree with the server about what's allowed.
  */
 export function planUsage(state: AppState, sub: PlanPanelSubscription, now: Date = new Date()): PlanUsage {
-  const tier = (sub.plan_tier ?? 'trial') as PlanTier
-  // plan_tier='unlimited' is a real value on 4 tester rows and is NOT in PLANS;
-  // getPlan falls back to trial for it, so name it from the row instead.
-  const planName = tier === 'trial' ? 'Free Trial' : getPlan(tier).name ?? tier
+  const planName = planDisplayName(sub.plan_tier)
 
   let trialLabel: string | null = null
   if (sub.plan_tier === 'trial') {
