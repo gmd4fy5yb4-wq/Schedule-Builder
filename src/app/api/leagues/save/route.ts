@@ -2,7 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
-import { checkLimits, isWritable } from '@/lib/plans'
+import { saveGate } from '@/lib/plans'
 import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
 
@@ -28,41 +28,58 @@ export async function POST(req: NextRequest) {
   const state = parsed.data.state as unknown as AppState
   const serviceSupabase = getSupabaseServiceRole()
 
-  // Fetch league ownership + subscription limits in parallel (independent queries)
+  const SUB_COLS = 'sports_limit, divisions_limit, teams_limit, plan_tier, trial_started_at, subscription_status, subscription_end'
+
+  // Fetch league ownership + the saver's subscription in parallel (independent).
   // The league code is the shared access credential — any authenticated user who
-  // knows the code can save. owner_id is used only for limit counting (who created it).
+  // knows the code can save.
   const [{ data: league }, { data: sub }] = await Promise.all([
     serviceSupabase.from('leagues').select('owner_id').eq('id', code).single(),
-    serviceSupabase.from('user_subscriptions').select('sports_limit, divisions_limit, teams_limit, plan_tier, trial_started_at, subscription_status, subscription_end').eq('user_id', session.user.id).single(),
+    serviceSupabase.from('user_subscriptions').select(SUB_COLS).eq('user_id', session.user.id).single(),
   ])
 
-  // Expiry is no longer enforced by a middleware redirect (lapsed users now get a
-  // read-only app instead of a /pricing wall), so the write gate lives here. Without
-  // this an expired user could still POST straight to this route.
-  // A NULL subscription_end = no expiry (unlimited testers, unstarted trials).
-  if (!isWritable(sub)) {
-    return NextResponse.json(
-      { error: 'Your plan has expired. Renew to make changes — your league stays exactly as it is.', expired: true },
-      { status: 403 }
-    )
+  // A league belongs to its owner, and the owner's plan is what pays for it — so a
+  // collaborator's write is gated by the OWNER's plan, not their own. One extra
+  // query, and only on the collaborator path.
+  const ownerId = league?.owner_id as string | null | undefined
+  const isOwnLeague = !ownerId || ownerId === session.user.id
+  let ownerSub = null
+  if (!isOwnLeague) {
+    const { data } = await serviceSupabase
+      .from('user_subscriptions').select(SUB_COLS).eq('user_id', ownerId).single()
+    ownerSub = data
   }
 
-  // Enforce limits only against the current user's own leagues (not shared leagues
-  // they are collaborating on). Use the owner's limits if this is someone else's league.
-  const limits = sub ?? { sports_limit: 1, divisions_limit: 1, teams_limit: 8 }
+  // Expiry is no longer enforced by a middleware redirect (lapsed users get a
+  // read-only app instead of a /pricing wall), so the write gate lives here —
+  // without it an expired user could still POST straight to this route.
+  // A NULL subscription_end = no expiry (unlimited testers, unstarted trials).
+  const gate = saveGate({
+    ownerId,
+    savingUserId: session.user.id,
+    savingUserSub: sub,
+    ownerSub,
+    sportCount: getSports(state.season).length,
+    divisions: state.divisions ?? [],
+  })
 
-  // Sport gate counts the sports IN THIS league (one org = one league, shared fields).
-  // Skip the gate for collaborators editing someone else's league — not their quota.
-  const isOwnerOrUnclaimed = !league?.owner_id || league.owner_id === session.user.id
-  const limitCheck = checkLimits(
-    { sportsLimit: limits.sports_limit, divisionsLimit: limits.divisions_limit, teamsLimit: limits.teams_limit, adminsLimit: 999 },
-    isOwnerOrUnclaimed ? getSports(state.season).length : 0,
-    state.divisions ?? []
-  )
-
-  if (!limitCheck.allowed) {
+  if (!gate.allowed) {
+    if (gate.expired) {
+      // Say whose plan lapsed. Telling a collaborator "your plan has expired"
+      // when it is the league owner's would send them to /pricing to fix
+      // something buying a plan cannot fix.
+      return NextResponse.json(
+        {
+          error: gate.blockedBy === 'owner'
+            ? 'The owner of this league has an expired plan, so it is read-only. Ask them to renew — the league stays exactly as it is.'
+            : 'Your plan has expired. Renew to make changes — your league stays exactly as it is.',
+          expired: true,
+        },
+        { status: 403 }
+      )
+    }
     return NextResponse.json(
-      { error: limitCheck.reason, limitType: limitCheck.limitType },
+      { error: gate.reason, limitType: gate.limitType },
       { status: 403 }
     )
   }

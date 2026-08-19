@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/plans.test.ts
 import assert from 'node:assert'
-import { checkLimits, getPlan, minPaidTierForSports, isWritable } from './plans'
+import { checkLimits, getPlan, minPaidTierForSports, isWritable, saveGate } from './plans'
 
 const div = (teams = 0) => ({ teams: Array(teams).fill(0) })
 const starter = getPlan('starter')   // sports 1, divisions 3, teams 24
@@ -50,3 +50,91 @@ assert.equal(isWritable(undefined), false, 'missing row → read-only')
 assert.equal(isWritable({}), false, 'empty row → read-only (no status = not active)')
 
 console.log('✓ plans.ts — all checks passed')
+
+// ── saveGate: whose plan governs a write ─────────────────────────────────────
+// Regression cover for a real incident (2026-08-19). A tester who bought a
+// Starter season pass for his OWN new league was, from that moment, gated by
+// Starter limits on a shared test league he neither owns nor pays for — and
+// would have lost write access to it entirely when his 90 days SUB_LAPSED.
+
+const OWNER = 'owner-uuid'
+const COLLAB = 'collab-uuid'
+const SUB_UNLIMITED = { subscription_status: 'active', subscription_end: null,
+  sports_limit: 999, divisions_limit: 999, teams_limit: 999 }
+const SUB_STARTER = { subscription_status: 'active', subscription_end: '2099-01-01T00:00:00Z',
+  sports_limit: 1, divisions_limit: 3, teams_limit: 24 }
+const SUB_LAPSED = { subscription_status: 'active', subscription_end: '2020-01-01T00:00:00Z',
+  sports_limit: 1, divisions_limit: 3, teams_limit: 24 }
+const mkDivs = (n: number, teamsEach = 2) =>
+  Array.from({ length: n }, () => ({ teams: Array.from({ length: teamsEach }, () => ({})) }))
+
+// A collaborator on an SUB_UNLIMITED owner's league is governed by the OWNER.
+// This is the exact shape of the incident: 4 divisions exceeds the collaborator's
+// Starter limit of 3, but the owner is SUB_UNLIMITED, so the save must be allowed.
+assert.equal(
+  saveGate({ ownerId: OWNER, savingUserId: COLLAB, savingUserSub: SUB_STARTER,
+    ownerSub: SUB_UNLIMITED, sportCount: 1, divisions: mkDivs(4) }).allowed,
+  true,
+  "a collaborator must not be capped by their own plan on someone else's league",
+)
+
+// ...and still allowed once the collaborator's own plan has SUB_LAPSED entirely.
+assert.equal(
+  saveGate({ ownerId: OWNER, savingUserId: COLLAB, savingUserSub: SUB_LAPSED,
+    ownerSub: SUB_UNLIMITED, sportCount: 1, divisions: mkDivs(1) }).allowed,
+  true,
+  "a SUB_LAPSED collaborator keeps write access to a league they do not pay for",
+)
+
+// Your OWN league is always gated by YOUR plan — no collaborating around a limit.
+const ownTooBig = saveGate({ ownerId: COLLAB, savingUserId: COLLAB, savingUserSub: SUB_STARTER,
+  ownerSub: null, sportCount: 1, divisions: mkDivs(4) })
+assert.equal(ownTooBig.allowed, false, 'your own league is capped by your own plan')
+assert.equal(ownTooBig.limitType, 'divisions')
+assert.equal(ownTooBig.blockedBy, 'self')
+
+// An expired OWNER takes their league read-only for everyone — the person paying
+// for it has stopped paying.
+const ownerLapsed = saveGate({ ownerId: OWNER, savingUserId: COLLAB, savingUserSub: SUB_UNLIMITED,
+  ownerSub: SUB_LAPSED, sportCount: 1, divisions: mkDivs(1) })
+assert.equal(ownerLapsed.allowed, false, "an owner's SUB_LAPSED plan blocks collaborators too")
+assert.equal(ownerLapsed.expired, true)
+assert.equal(ownerLapsed.blockedBy, 'owner', 'the message must blame the owner, not the saver')
+
+// Your own expiry still blocks your own league, and is attributed to you.
+const selfLapsed = saveGate({ ownerId: COLLAB, savingUserId: COLLAB, savingUserSub: SUB_LAPSED,
+  ownerSub: null, sportCount: 1, divisions: mkDivs(1) })
+assert.equal(selfLapsed.allowed, false)
+assert.equal(selfLapsed.blockedBy, 'self')
+
+// The sports gate is the headline quota and applies only to a league you own.
+assert.equal(
+  saveGate({ ownerId: COLLAB, savingUserId: COLLAB, savingUserSub: SUB_STARTER,
+    ownerSub: null, sportCount: 3, divisions: mkDivs(1) }).limitType,
+  'sports',
+  'multi-sport on your own league is gated by your sports limit',
+)
+assert.equal(
+  saveGate({ ownerId: OWNER, savingUserId: COLLAB, savingUserSub: SUB_STARTER,
+    ownerSub: SUB_UNLIMITED, sportCount: 3, divisions: mkDivs(1) }).allowed,
+  true,
+  "a collaborator does not spend their sports quota on someone else's league",
+)
+
+// An unclaimed legacy league (no owner_id, predates migration 001) behaves as
+// the saver's own — unchanged from before.
+assert.equal(
+  saveGate({ ownerId: null, savingUserId: COLLAB, savingUserSub: SUB_STARTER,
+    ownerSub: null, sportCount: 1, divisions: mkDivs(4) }).allowed,
+  false,
+  'an unclaimed league is treated as your own',
+)
+
+// A missing owner row falls back to the saver's plan rather than denying — a
+// missing row is an anomaly and must not break collaboration outright.
+assert.equal(
+  saveGate({ ownerId: OWNER, savingUserId: COLLAB, savingUserSub: SUB_UNLIMITED,
+    ownerSub: null, sportCount: 1, divisions: mkDivs(9) }).allowed,
+  true,
+  'a missing owner row falls back to the saver, preserving prior behaviour',
+)
