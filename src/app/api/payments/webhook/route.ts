@@ -2,7 +2,9 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { getSupabaseServiceRole } from '@/lib/supabase-server'
-import { PLANS, type PlanTier } from '@/lib/plans'
+import {
+  seasonPassRow, subscriptionRow, cancellationUpdate, renewalUpdate, resolvePeriodEnd,
+} from '@/lib/subscriptionRow'
 import type Stripe from 'stripe'
 
 // Stripe requires the raw body for signature verification
@@ -44,22 +46,23 @@ export async function POST(req: NextRequest) {
       // One-time season pass (Checkout mode: 'payment') — no subscription object.
       // Grant 90 days, then it simply lapses (no auto-renew, no subscription.* events).
       if (session.mode === 'payment') {
-        const tier = (session.metadata?.tier ?? 'starter') as PlanTier
-        const plan = PLANS.find(p => p.tier === tier)
-        await supabase.from('user_subscriptions').upsert({
-          user_id: userId,
-          stripe_customer_id: customerId,
-          stripe_subscription_id: null,
-          plan_tier: tier,
-          subscription_status: 'active',
-          subscription_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-          billing_period: 'season_3mo',
-          sports_limit: plan?.sportsLimit ?? 1,
-          divisions_limit: plan?.divisionsLimit ?? 3,
-          teams_limit: plan?.teamsLimit ?? 24,
-          leagues_limit: 999,
-          updated_at: new Date().toISOString(),
+        const result = seasonPassRow({
+          userId,
+          customerId,
+          tier: session.metadata?.tier,
+          now: new Date(),
         })
+        if (result.kind !== 'row') {
+          // Refuse rather than write. The old code defaulted an unknown tier to
+          // starter, which silently provisioned a paying customer with the
+          // smallest plan. Leaving the row untouched keeps whatever access they
+          // already had until this is looked at.
+          console.error('[webhook] season pass with unrecognised tier — row NOT written', {
+            userId, tier: session.metadata?.tier, sessionId: session.id,
+          })
+          break
+        }
+        await supabase.from('user_subscriptions').upsert(result.row)
         break
       }
 
@@ -68,29 +71,29 @@ export async function POST(req: NextRequest) {
 
       const sub = await stripe.subscriptions.retrieve(subscriptionId)
       const firstItem = sub.items.data[0]
-      const priceId = firstItem?.price.id
-      const plan = PLANS.find(p => p.stripePriceIdAnnual === priceId || p.stripePriceIdSeason === priceId)
-      const tier = (plan?.tier ?? 'starter') as PlanTier
-      const billingPeriod = plan?.stripePriceIdSeason === priceId ? 'season_3mo' : 'annual'
-
-      // In Stripe basil API, current_period_end is on each item
+      // In Stripe basil API, current_period_end moved onto each item.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const periodEnd: number = (firstItem as any)?.current_period_end ?? sub.billing_cycle_anchor
+      const periodEnd = resolvePeriodEnd((firstItem as any)?.current_period_end, undefined, sub.billing_cycle_anchor)
 
-      await supabase.from('user_subscriptions').upsert({
-        user_id: userId,
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscriptionId,
-        plan_tier: tier,
-        subscription_status: 'active',
-        subscription_end: new Date(periodEnd * 1000).toISOString(),
-        billing_period: billingPeriod,
-        sports_limit: plan?.sportsLimit ?? 1,
-        divisions_limit: plan?.divisionsLimit ?? 3,
-        teams_limit: plan?.teamsLimit ?? 24,
-        leagues_limit: 999,   // deprecated column — no longer gated; kept non-null for legacy rows
-        updated_at: new Date().toISOString(),
+      const result = subscriptionRow({
+        userId,
+        customerId,
+        subscriptionId,
+        priceId: firstItem?.price.id,
+        periodEnd,
+        now: new Date(),
       })
+      if (result.kind !== 'row') {
+        // A price id this deployment does not know — almost always a missing or
+        // wrong-mode STRIPE_PRICE_* env var. The old code fell back to starter
+        // limits, so an Org customer paid in full and was provisioned as Starter
+        // with nothing logged. Refuse and shout instead.
+        console.error('[webhook] paid checkout with unrecognised price — row NOT written', {
+          userId, priceId: firstItem?.price.id, subscriptionId,
+        })
+        break
+      }
+      await supabase.from('user_subscriptions').upsert(result.row)
       break
     }
 
@@ -112,35 +115,26 @@ export async function POST(req: NextRequest) {
         // casts — a disable comment only applies to the line right after it, so a
         // wrapped expression would leave the second cast unsuppressed.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const periodEnd: number = (sub.items.data[0] as any)?.current_period_end ?? (sub as any).current_period_end ?? sub.billing_cycle_anchor
+        const anySub = sub as any
+        const periodEnd = resolvePeriodEnd(
+          anySub.items?.data?.[0]?.current_period_end,
+          anySub.current_period_end,
+          sub.billing_cycle_anchor,
+        )
 
-        if (event.type === 'customer.subscription.deleted') {
-          // Subscription fully ended — revert to trial tier and reset limits
-          // so stale elevated entitlements don't linger.
-          const trial = PLANS.find(p => p.tier === 'trial')
-          await supabase
-            .from('user_subscriptions')
-            .update({
-              plan_tier: 'trial',
-              subscription_status: sub.status,
-              subscription_end: new Date(periodEnd * 1000).toISOString(),
-              sports_limit: trial?.sportsLimit ?? 1,
-              divisions_limit: trial?.divisionsLimit ?? 1,
-              teams_limit: trial?.teamsLimit ?? 8,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', existing.user_id)
-        } else {
-          // subscription.updated — keep tier/limits, sync status + period end.
-          await supabase
-            .from('user_subscriptions')
-            .update({
-              subscription_status: sub.status,
-              subscription_end: new Date(periodEnd * 1000).toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', existing.user_id)
-        }
+        const now = new Date()
+        // deleted -> revert to trial tier and limits so stale elevated
+        // entitlements don't linger. updated -> keep tier/limits untouched and
+        // only sync status + period end; a renewal must never re-derive
+        // entitlements. Both shapes are unit-tested in subscriptionRow.test.ts.
+        const patch = event.type === 'customer.subscription.deleted'
+          ? cancellationUpdate({ status: sub.status, periodEnd, now })
+          : renewalUpdate({ status: sub.status, periodEnd, now })
+
+        await supabase
+          .from('user_subscriptions')
+          .update(patch)
+          .eq('user_id', existing.user_id)
       }
       break
     }
