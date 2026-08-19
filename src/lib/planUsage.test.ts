@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/planUsage.test.ts
 import assert from 'node:assert'
-import { planUsage, billingLine } from './planUsage'
+import { planUsage, billingLine, planCta } from './planUsage'
 import type { AppState } from './types'
 
 const now = new Date('2026-07-29T12:00:00Z')
@@ -57,5 +57,51 @@ assert.match(
 assert.match(billingLine({ plan_tier: 'pro', subscription_end: inDays(300), billing_period: 'annual' }, now), /^Renews /)
 // The 4 tester rows: active, never expires.
 assert.match(billingLine({ plan_tier: 'unlimited', subscription_end: null }, now), /does not expire/)
+
+// planCta — who gets sold to. Rows below mirror real production accounts.
+// isWritable() compares against the real clock, so "still covered" dates are
+// relative: a hardcoded 2026-11-17 would silently start failing that November.
+const ACTIVE = 'active'
+const stillCovered = new Date(Date.now() + 90 * 86_400_000).toISOString()
+
+// Jonathan, 2026-08-19: bought a $39 season pass. Was shown "Your setup fits
+// Starter — $99/yr" and a Keep-this-setup button for the plan he had just bought.
+assert.equal(
+  planCta({ plan_tier: 'starter', subscription_status: ACTIVE, subscription_end: stillCovered,
+    billing_period: 'season_3mo', stripe_customer_id: null }),
+  'none',
+  'a current season-pass holder is not sold the plan they own',
+)
+
+// A tester: active, no expiry, no Stripe record. Nothing to sell, nothing to manage.
+assert.equal(
+  planCta({ plan_tier: 'unlimited', subscription_status: ACTIVE, subscription_end: null, stripe_customer_id: null }),
+  'none',
+  'a non-expiring account is never told to upgrade',
+)
+
+// An annual subscriber with a real customer record can reach the portal.
+assert.equal(
+  planCta({ plan_tier: 'pro', subscription_status: ACTIVE, subscription_end: stillCovered,
+    billing_period: 'annual', stripe_customer_id: 'cus_123' }),
+  'manage',
+  'an active subscriber gets billing management, not a pitch',
+)
+
+// A trial is the case the panel was originally written for.
+assert.equal(
+  planCta({ plan_tier: 'trial', subscription_status: 'trialing', subscription_end: null }),
+  'buy',
+  'a trial still sees the purchase CTA',
+)
+
+// greg.amundson@gmail.com: legacy tier 'small', real Stripe customer, lapsed
+// 2026-07-11. Lapsed outranks paid — they need to renew.
+assert.equal(
+  planCta({ plan_tier: 'small', subscription_status: ACTIVE, subscription_end: '2026-07-11T03:51:39Z',
+    stripe_customer_id: 'cus_456' }),
+  'buy',
+  'a lapsed paid plan is sold a renewal',
+)
 
 console.log('planUsage.test.ts — all assertions passed')

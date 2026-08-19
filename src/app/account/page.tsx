@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getSupabase } from '@/lib/supabase'
 import { getPlan, planDisplayName } from '@/lib/plans'
-import { billingLine } from '@/lib/planUsage'
+import { billingLine, planCta } from '@/lib/planUsage'
 import type { User } from '@supabase/supabase-js'
 
 interface Subscription {
@@ -112,6 +112,8 @@ export default function AccountPage() {
   // getPlan(plan_tier) showed every tier PLANS doesn't sell — 'unlimited',
   // legacy 'small' — as "Free Trial" with trial limits it does not have.
   const planName = planDisplayName(sub?.plan_tier)
+  // 'none' covers a non-expiring account: nothing to sell it, no portal to open.
+  const cta = sub ? planCta(sub) : 'buy'
   const fallback = getPlan('trial')
   const limits = {
     sports: sub?.sports_limit ?? fallback.sportsLimit,
@@ -166,7 +168,7 @@ export default function AccountPage() {
           {sub && <p className="text-sm text-gray-600 mb-4">{billingLine(sub)}</p>}
 
           <div className="flex gap-3">
-            {sub?.stripe_customer_id ? (
+            {cta === 'manage' && (
               <button
                 onClick={handleManageBilling}
                 disabled={portalLoading}
@@ -174,7 +176,8 @@ export default function AccountPage() {
               >
                 {portalLoading ? 'Opening…' : 'Manage billing →'}
               </button>
-            ) : (
+            )}
+            {cta === 'buy' && (
               <a href="/pricing" className="text-sm font-semibold text-[#00013a] underline">
                 Upgrade plan →
               </a>
