@@ -28,6 +28,8 @@ const PUBLIC_PREFIXES = [
   '/checkout/success',      // post-payment landing: polls for the row, then forwards to /.
                             //  Must be reachable by an authed user whose webhook hasn't
                             //  committed yet — gating it would re-create the bounce it fixes.
+  '/help',                  // public help docs, must be reachable by prospects who have
+                            //  no account yet (linked from sales emails)
 ]
 
 const PUBLIC_EXTENSIONS = ['.ico', '.png', '.svg', '.webmanifest', '.txt', '.xml']

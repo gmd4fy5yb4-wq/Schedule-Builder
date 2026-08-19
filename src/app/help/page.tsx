@@ -1,6 +1,7 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
-export const metadata = { title: 'Help — FieldDay Planner' }
+export const metadata: Metadata = { title: 'Help — FieldDay Planner' }
 
 const TOPICS = [
   { href: '/help/setting-up-your-season', title: 'Setting up your season', blurb: 'Name your league, set the dates, pick your sport.' },

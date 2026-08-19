@@ -1,6 +1,7 @@
 import HelpLayout from '../HelpLayout'
+import type { Metadata } from 'next'
 
-export const metadata = { title: 'Divisions & teams — FieldDay Planner Help' }
+export const metadata: Metadata = { title: 'Divisions & teams — FieldDay Planner Help' }
 
 export default function Page() {
   return (
