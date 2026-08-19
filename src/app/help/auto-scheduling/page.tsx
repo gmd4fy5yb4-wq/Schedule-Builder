@@ -29,11 +29,12 @@ export default function Page() {
 
       <h2>This starts your 14-day trial</h2>
       <p>
-        Your trial clock begins the first time you save a schedule that has something in it —
-        whether those games came from Auto-Schedule or you added one by hand — not when you
-        sign up. That is deliberate: if you set your league up in the off-season, you should
-        not burn the trial before you have seen the product do anything. Nothing is charged
-        when the clock starts, and you keep full access for the whole fourteen days.
+        Your trial clock begins the first time you save a schedule with anything on it —
+        whether Auto-Schedule generated it, or you added a single game, practice, or event by
+        hand — not when you sign up. That is deliberate: if you set your league up in the
+        off-season, you should not burn the trial before you have seen the product do anything.
+        Nothing is charged when the clock starts, and you keep full access for the whole
+        fourteen days.
       </p>
 
       <h2>After it runs</h2>
