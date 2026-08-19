@@ -290,7 +290,6 @@ export default function Home() {
       setCanUndo(undoStackRef.current.length > 1)
     }, 1000)
     return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, hydrated])
 
   // Auto-save on state change — debounced 800ms (skip in read-only mode)
