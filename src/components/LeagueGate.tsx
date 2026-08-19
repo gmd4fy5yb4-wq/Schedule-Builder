@@ -14,7 +14,7 @@ const TRIAL_SPORTS_LIMIT = getPlan('trial').sportsLimit
 
 interface Props {
   defaultState: AppState
-  onJoin: (code: string, state: AppState, userName: string) => void
+  onJoin: (code: string, state: AppState, userName: string, created: boolean) => void
 }
 
 type Mode = 'choose' | 'create' | 'join'
@@ -63,7 +63,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     const result = await createLeague(initialState, name.trim())
 
     if ('code' in result) {
-      onJoin(result.code, initialState, name.trim())
+      onJoin(result.code, initialState, name.trim(), true)
     } else {
       setError(result.error ?? 'Could not create league — check your connection and try again.')
     }
@@ -77,7 +77,7 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     setLoading(true); setError('')
     const result = await loadLeague(code)
     if (result) {
-      onJoin(code, result.data, name.trim())
+      onJoin(code, result.data, name.trim(), false)
     } else {
       setError('League not found — double-check the code and try again.')
     }
