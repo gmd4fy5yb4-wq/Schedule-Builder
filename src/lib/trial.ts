@@ -1,16 +1,31 @@
 import type { AppState } from './types'
 
-/** What the trial bar should say, or null for "say nothing". */
+/** What the top bar should say, or null for "say nothing". */
 export type TrialBanner =
   | { kind: 'not_started' }
   | { kind: 'running'; daysLeft: number }
+  /** A PAID plan that nothing will auto-renew, inside the warning window. */
+  | { kind: 'ending'; daysLeft: number }
 
 export interface TrialSubscription {
   plan_tier?: string | null
   subscription_end?: string | null
+  /**
+   * Present = a real Stripe subscription object exists and will renew itself.
+   * NULL = a one-time season pass (or a tester row), which simply lapses.
+   */
+  stripe_subscription_id?: string | null
 }
 
 const DAY_MS = 86_400_000
+
+/**
+ * How long before a non-renewing paid plan starts warning. A season pass runs 90
+ * days; counting down for all of them would be nagging, and saying nothing until
+ * the morning it stops is how you lose a renewal. Two weeks is enough notice to
+ * act and short enough to feel like news.
+ */
+export const ENDING_WARNING_DAYS = 14
 
 /**
  * Since fd_014 a NULL subscription_end means two different things: a trial whose
@@ -20,18 +35,40 @@ const DAY_MS = 86_400_000
  *
  * Lapsed returns null on purpose: the Phase 0 amber renew banner already owns
  * that state, and two banners stacked in the same header region is worse than one.
+ *
+ * Paid plans get a countdown too, but ONLY when nothing will renew them. An
+ * annual subscriber has a live Stripe subscription that renews itself — warning
+ * them their plan "ends in 9 days" would be false and alarming. A season pass has
+ * no subscription object at all (the webhook writes stripe_subscription_id NULL
+ * on purpose), so it genuinely stops, and the customer is the only thing that can
+ * restart it.
  */
 export function trialBanner(
   sub: TrialSubscription | null | undefined,
   now: Date = new Date()
 ): TrialBanner | null {
-  if (!sub || sub.plan_tier !== 'trial') return null
-  if (!sub.subscription_end) return { kind: 'not_started' }
+  if (!sub) return null
+
+  if (sub.plan_tier === 'trial') {
+    if (!sub.subscription_end) return { kind: 'not_started' }
+    const end = new Date(sub.subscription_end).getTime()
+    if (!Number.isFinite(end) || end <= now.getTime()) return null
+    return { kind: 'running', daysLeft: Math.ceil((end - now.getTime()) / DAY_MS) }
+  }
+
+  // ── Paid plans ─────────────────────────────────────────────────────────────
+  // No end date = the 4 plan_tier='unlimited' tester rows, which never expire.
+  if (!sub.subscription_end) return null
+  // A live Stripe subscription renews itself; saying it "ends" would be a lie.
+  if (sub.stripe_subscription_id) return null
 
   const end = new Date(sub.subscription_end).getTime()
+  // Already lapsed — the amber renew banner owns that state, same as for a trial.
   if (!Number.isFinite(end) || end <= now.getTime()) return null
 
-  return { kind: 'running', daysLeft: Math.ceil((end - now.getTime()) / DAY_MS) }
+  const daysLeft = Math.ceil((end - now.getTime()) / DAY_MS)
+  if (daysLeft > ENDING_WARNING_DAYS) return null
+  return { kind: 'ending', daysLeft }
 }
 
 /** The name every league was born with before the gate asked for one. */
