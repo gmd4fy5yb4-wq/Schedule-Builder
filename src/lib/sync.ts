@@ -27,16 +27,21 @@ export async function saveLeague(
   state: AppState,
   userName: string
 ): Promise<{ success: boolean; error?: string; limitType?: string }> {
-  const res = await fetch('/api/leagues/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: code.toUpperCase(), state, userName }),
-  })
-  const data = await res.json()
-  if (!res.ok) {
-    return { success: false, error: data.error, limitType: data.limitType }
+  try {
+    const res = await fetch('/api/leagues/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.toUpperCase(), state, userName }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { success: false, error: data.error, limitType: data.limitType }
+    }
+    return { success: true }
+  } catch {
+    // Network drop / tab closing mid-request — same contract as a failed save
+    return { success: false, error: 'Network error — your changes were not saved. Please try again.' }
   }
-  return { success: true }
 }
 
 /**
@@ -48,16 +53,20 @@ export async function createLeague(
   state: AppState,
   userName: string
 ): Promise<{ code: string } | { error: string; limitType?: string }> {
-  const res = await fetch('/api/leagues/create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ state, userName }),
-  })
-  const data = await res.json()
-  if (!res.ok) {
-    return { error: data.error ?? 'Failed to create league.', limitType: data.limitType }
+  try {
+    const res = await fetch('/api/leagues/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state, userName }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { error: data.error ?? 'Failed to create league.', limitType: data.limitType }
+    }
+    return { code: data.code }
+  } catch {
+    return { error: 'Network error — please check your connection and try again.' }
   }
-  return { code: data.code }
 }
 
 export async function leagueExists(code: string): Promise<boolean> {
@@ -85,14 +94,18 @@ export function generateCode(): string {
  * service-role-only (migration 008) and can't be called from the browser.
  */
 export async function getOrCreateViewToken(leagueCode: string): Promise<string | null> {
-  const res = await fetch('/api/league/share-token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: leagueCode.toUpperCase() }),
-  })
-  if (!res.ok) return null
-  const data = await res.json()
-  return data.token ?? null
+  try {
+    const res = await fetch('/api/league/share-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: leagueCode.toUpperCase() }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.token ?? null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -100,10 +113,16 @@ export async function getOrCreateViewToken(leagueCode: string): Promise<string |
  * Uses the server API route (service role) to bypass RLS.
  */
 export async function loadLeagueByViewToken(token: string): Promise<LeagueRecord | null> {
-  const res = await fetch(`/api/league/view?token=${encodeURIComponent(token)}`)
-  if (!res.ok) return null
-  const data = await res.json()
-  return { data: data.data as AppState, updatedAt: data.updated_at, updatedBy: data.updated_by }
+  try {
+    const res = await fetch(`/api/league/view?token=${encodeURIComponent(token)}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return { data: data.data as AppState, updatedAt: data.updated_at, updatedBy: data.updated_by }
+  } catch {
+    // Network drop on a shared-link viewer's phone — the Sentry event that
+    // prompted this guard. Caller shows the "couldn't load" state on null.
+    return null
+  }
 }
 
 // ── Snapshots ─────────────────────────────────────────────────────────────────

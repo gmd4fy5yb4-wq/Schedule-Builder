@@ -91,3 +91,11 @@ CREATE TRIGGER trg_leagues_guard_snapshot
   BEFORE UPDATE OR DELETE ON public.leagues
   FOR EACH ROW
   EXECUTE FUNCTION public.guard_snapshot_leagues();
+
+-- Applied 2026-08-21 via MCP as "fd_010_leagues_guard_snapshot" (reviewed: blob
+-- paths verified against all live leagues incl. multisport; league_snapshots has
+-- no FK so guard snapshots survive league deletion; shrink path live-tested in a
+-- rolled-back transaction, 97->0 items snapshotted). Addendum applied with it:
+REVOKE EXECUTE ON FUNCTION public.jsonb_arr_len(jsonb) FROM public;
+REVOKE EXECUTE ON FUNCTION public.league_item_count(jsonb) FROM public;
+REVOKE EXECUTE ON FUNCTION public.guard_snapshot_leagues() FROM public;
