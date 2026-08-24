@@ -4,15 +4,25 @@ import { getSupabase } from '@/lib/supabase'
 import Icon from '@/components/Icon'
 
 /**
- * Client-side auth callback — handles Supabase implicit flow.
+ * Client-side auth callback.
  *
- * With flowType: 'implicit', Supabase puts the session tokens directly in the
- * URL hash (#access_token=...&refresh_token=...) so no PKCE code verifier is
- * needed. This makes magic links work from any browser or device, not just the
- * one that originally requested the link.
+ * NOTE (verified in production 2026-08-24): this app does NOT use magic links.
+ * The Supabase email template emits only the 8-digit code ({{ .Token }}), and
+ * /login signs users in with verifyOtp() directly — which never routes through
+ * here. This page only matters if a Supabase email template is ever changed to
+ * include a confirmation URL again.
  *
- * createBrowserClient processes the hash automatically on init; we just wait
- * for the SIGNED_IN event from onAuthStateChange.
+ * It also does NOT run the implicit flow, despite what this comment used to
+ * claim: createBrowserClient hardcodes flowType: 'pkce' AFTER spreading the
+ * caller's auth options (@supabase/ssr createBrowserClient.js), so the flow is
+ * PKCE and has been since at least May 2026 (auth.flow_state rows carry
+ * code_challenge_method 's256'). PKCE ties the sign-in to the browser that
+ * requested it, so if links are ever re-enabled in the email template, opening
+ * one on a different device would fail here — switch to plain createClient with
+ * a cookie adapter (as Prospect Card does) before doing that.
+ *
+ * The handler below waits for SIGNED_IN from onAuthStateChange, which covers a
+ * hash-token redirect; a ?code= redirect would need exchangeCodeForSession.
  */
 export default function AuthCallbackPage() {
   const [status, setStatus] = useState<'exchanging' | 'error'>('exchanging')
