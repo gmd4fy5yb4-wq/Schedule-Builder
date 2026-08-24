@@ -30,8 +30,10 @@ RESEND_FROM_EMAIL=     # must be @alfred-digital.com (only verified Resend domai
 - Do NOT push directly to `main` for feature work
 
 ## Auth
-**8-digit code via Supabase — there is no sign-in link.** Confirmed 2026-08-24: the
-Supabase email template emits only the code, and `/login` signs users in with
+**8-digit code via Supabase — there is no sign-in link.** Confirmed 2026-08-24 from
+the actual email. **That template is shared with Prospect Card and AthleteCard** (one
+Supabase project = one set of auth templates), so re-enabling links here re-enables
+them everywhere. The template emits only the code, and `/login` signs users in with
 `verifyOtp()`, which never routes through `/auth/callback`. (An older note below,
 from 2026-07-29, says the magic-link email carries "both link and code" — the
 template has since changed, or that note was wrong. The code is what ships today.)
