@@ -4,10 +4,9 @@
  * of the tab list, and partitions silently lose members when someone adds a
  * twelfth tab and only thinks about desktop.
  */
-import { BOTTOM_TABS, isTabVisible, moreTabs } from './mobileNav'
+import { BOTTOM_TABS, NAV_ORDER, RETIRED_TABS, isTabVisible, moreTabs } from './mobileNav'
 
-// Mirrors NAV_GROUPS in page.tsx: Overview, Operate, Setup.
-const NAV_ORDER = [0, 8, 5, 6, 7, 9, 10, 1, 2, 3, 4]
+
 
 let passed = 0
 function assert(cond: boolean, msg: string) {
@@ -38,6 +37,11 @@ assert(viewerAll.every(i => !adminOnly.includes(i)), 'viewer: must never see Set
 assert(BOTTOM_TABS.every(i => isTabVisible(i, true)), 'bottom bar tabs must all be viewer-visible')
 
 // 5. More preserves the order it was given (Operate before Setup, as on desktop).
-assert(adminMore[0] === 8, 'More must preserve NAV_ORDER ordering, not sort numerically')
+assert(adminMore[0] === NAV_ORDER.find(i => !BOTTOM_TABS.includes(i as 0 | 5 | 9)), 'More must preserve NAV_ORDER ordering, not sort numerically')
+
+// 6. Retired indices stay retired. page.tsx renders nothing for them, so a
+//    nav entry pointing at one would be a blank tab.
+assert(RETIRED_TABS.every(i => !NAV_ORDER.includes(i)), 'retired tab indices must not appear in the nav')
+assert(new Set(NAV_ORDER).size === NAV_ORDER.length, 'no tab may appear in two nav groups')
 
 console.log(`mobileNav: ${passed}/${passed} assertions passed`)

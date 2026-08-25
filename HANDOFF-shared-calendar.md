@@ -6,6 +6,28 @@
 
 ---
 
+> ## ⚠️ SUPERSEDED — June 21, 2026
+>
+> Most of this document is now historical. Read this banner before trusting anything below it.
+>
+> **Pricing redesign (Section 3 + Phase 4): DONE.** Sports-gated tiers, Stripe annual + season pass, and the new-user trial trigger all shipped June 17 (commits `68012a4`, `8e363f2`). See `fieldday-planner/CLAUDE.md` → "Billing & Subscriptions" for the live model. Ignore the pricing tables and Phase 4 here.
+>
+> **Migration numbers are taken.** The handoff reserved `012` for `shared_calendar_groups` and `013` for pricing columns. Reality: `012_pricing_sports_gate.sql` and `013_new_user_trial_trigger.sql` shipped instead. **Next free migration is `014`.**
+>
+> **Premise changed.** Leagues are now multi-sport (`season.sports[]`, commit `7c086c2`). The "one league = one sport" assumption that drove the shared-calendar design no longer holds. A single multi-sport league already handles cross-sport field conflicts inside one blob.
+>
+> **What was actually built (June 21):** Greg's real need turned out to be *read-only viewing of other leagues' schedules* (e.g. interleague play between separate town leagues), NOT a shared field pool with cross-league conflict blocking. So instead of Phases 1–3 (groups table + conflict API + field matching), we shipped a tiny **"Other Leagues" tab** that reuses the existing `view_token` read-only flow:
+> - `src/lib/linkedCalendars.ts` — `extractViewToken()` + test
+> - `AppState.linkedCalendars?: { name, token }[]` — stored in the league JSONB, **no migration**
+> - `src/components/LinkedCalendarsTab.tsx` — paste a share link → view that league's calendar read-only
+> - No new tables, no new API routes. The `shared_calendar_groups` design below was **not built**.
+>
+> **Explicitly deferred (build only on proven demand):** cross-league field-conflict detection, shared field pool, interleague games (would need an `externalOpponent` string on `ScheduledGame`), and combined cross-league standings (would need cross-league team identity — the real expensive piece).
+>
+> Everything below is kept for historical context only.
+
+---
+
 ## 1. What FieldDay Planner Is
 
 A multi-sport league scheduling SaaS. Live at `fielddayplanner.app`. Stack: Next.js 15 / React 19 / TypeScript / Tailwind / Supabase (Postgres + auth) / Stripe / Resend.

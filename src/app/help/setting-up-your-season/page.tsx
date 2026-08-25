@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <HelpLayout
       title="Setting up your season"
-      intro="The Setup tab holds everything that describes your league: what it is called, when it runs, and what you play."
+      intro="The Season Settings tab holds everything that describes your league: what it is called, when it runs, and what you play."
     >
       <h2>League name</h2>
       <p>
@@ -24,7 +24,7 @@ export default function Page() {
 
       <h2>Scheduling preferences</h2>
       <p>
-        Setup does not include day or time preferences — there is no such setting here. Each
+        Season Settings does not include day or time preferences — there is no such setting here. Each
         division can set a preferred start time, and each team can mark which days it prefers
         to play; both live on the Auto-Schedule tab.
       </p>

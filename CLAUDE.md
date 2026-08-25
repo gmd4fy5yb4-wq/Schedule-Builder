@@ -30,7 +30,26 @@ RESEND_FROM_EMAIL=     # must be @alfred-digital.com (only verified Resend domai
 - Do NOT push directly to `main` for feature work
 
 ## Auth
-Magic link via Supabase. **Must use `flowType: 'implicit'`** (not PKCE) — implicit flow is required so email links work when opened in a different browser than where the OTP was requested. This is intentional and must not be changed to PKCE.
+**8-digit code via Supabase — there is no sign-in link.** Confirmed 2026-08-24 from
+the actual email. **That template is shared with Prospect Card and AthleteCard** (one
+Supabase project = one set of auth templates), so re-enabling links here re-enables
+them everywhere. The template emits only the code, and `/login` signs users in with
+`verifyOtp()`, which never routes through `/auth/callback`. (An older note below,
+from 2026-07-29, says the magic-link email carries "both link and code" — the
+template has since changed, or that note was wrong. The code is what ships today.)
+
+**This app runs PKCE, not implicit, whatever the option says.** `getSupabase()` uses
+`createBrowserClient`, which hardcodes `flowType: 'pkce'` AFTER spreading the
+caller's auth options — so the `flowType: 'implicit'` that used to sit there was a
+silent no-op. Verified in production 2026-08-24: a real login created an
+`auth.flow_state` row with `code_challenge_method: 's256'`, and such rows go back to
+at least 2026-05.
+
+That is **harmless today** because `verifyOtp()` is flow-agnostic and works on any
+device. It stops being harmless the moment the email template sends links again:
+PKCE keeps the code verifier in the requesting browser, so a link opened on a phone
+could not complete. **If links are ever re-enabled, move to plain `createClient` with
+a cookie adapter first** (Prospect Card's `src/lib/supabase.ts` is the reference).
 
 **"Confirm email" is OFF in Supabase (Authentication → Providers → Email) — deliberately. Do not turn it back on.** With it on, a brand-new address gets Supabase's *Confirm signup* template instead of *Magic Link*. That template carries a link but **no 8-digit code**, so the user lands on the "Check your email" screen — which promises a code and autofocuses the code field — with an email that doesn't contain one. Clicking the link confirmed the address without creating a session, dropping them back at `/login` to enter their email a second time. Only then, as an existing user, did they get the real magic-link email with the code. Two emails, and it read as broken on the first attempt.
 
@@ -188,7 +207,7 @@ and the invalid-view-token screen in `page.tsx` (the reload is what clears
 - ℹ️ **`user_subscriptions → auth.users` FK is NOT `ON DELETE CASCADE` in prod** (migration 002 source says it is — prod drift). To delete a user, delete their `user_subscriptions` row first.
 
 ## Common Gotchas
-- `flowType: 'implicit'` is required — do not change to PKCE
+- **Do NOT re-add `flowType: 'implicit'` to `createBrowserClient`** — it is silently overridden to `'pkce'` and reads as a load-bearing choice to the next person. See **Auth** above; it only matters if the email template starts sending links.
 - **Authorization uses `getUser()`, not `getSession()`** in middleware + payment routes — `getSession()` only reads the cookie without revalidating the JWT. Do not revert.
 - **Payment routes (`/api/payments/*`) are exempt from the subscription gate** in `middleware.ts` (`PUBLIC_PREFIXES`). An unsubscribed user must be able to reach `create-session`/`portal`; webhook has no cookie. Don't re-gate them, or checkout breaks with a redirect-to-`/pricing` (which surfaces as a misleading "Network error" in the UI).
 - **Service worker registers in PRODUCTION only** (`src/components/ServiceWorker.tsx`); in dev it self-unregisters and clears caches. If a dev page loads unstyled/non-interactive, a stale SW is the cause — hard-reload after clearing.

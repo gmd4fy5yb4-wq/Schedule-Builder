@@ -19,7 +19,7 @@ export default function Page() {
       <h2>Blackout dates</h2>
       <p>
         Blackouts are not set on this tab. League-wide blackouts — a date nothing can be
-        scheduled anywhere — are set on the Setup tab. Per-field blackouts — a single field
+        scheduled anywhere — are set on the Season Settings tab. Per-field blackouts — a single field
         closed for a tournament, maintenance, or a school using the site — are set on the
         Auto-Schedule tab&rsquo;s first step. Either way, a blackout is a single date, not a
         range; add one entry per date. The scheduler routes around them automatically, so you
@@ -35,7 +35,7 @@ export default function Page() {
 
       <h2>The field calendar</h2>
       <p>
-        Once a schedule exists, the Field Calendar tab shows one field at a time, one month at
+        Once a schedule exists, the Calendar tab’s “One field” view shows one field at a time, one month at
         a time, with buttons to step to the previous or next month. The event count shown next
         to the field covers the whole season even though the grid itself only shows a month.
       </p>
