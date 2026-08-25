@@ -668,7 +668,7 @@ export default function AutoScheduleTab({ state, setState, leagueCode, userName 
 
         {(!state.season.startDate || !state.season.endDate) && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 text-sm text-red-800">
-            <span>Set a season start and end date in the <strong>Setup</strong> tab before generating.</span>
+            <span>Set a season start and end date in the <strong>Season Settings</strong> tab before generating.</span>
           </div>
         )}
 

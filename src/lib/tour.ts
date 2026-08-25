@@ -55,7 +55,7 @@ export const TOUR_STEPS: TourStepDef[] = [
   {
     step: 4, tab: 3, selector: '[data-tour="add-field"]',
     title: 'Add your fields',
-    body: 'Every place a game or practice can happen. Blackout dates live on Setup and Auto-Schedule, not here — this tab is just the list of places.',
+    body: 'Every place a game or practice can happen. Blackout dates live on Season Settings and Auto-Schedule, not here — this tab is just the list of places.',
     advanceOn: 'next-button',
   },
   {

@@ -42,7 +42,7 @@ export default function Page() {
         Generating never touches your live schedule by itself — it builds a preview. Review it,
         then choose to append the new games to what you already have or replace your existing
         games with the preview; nothing changes until you commit one of those. Once committed,
-        everything is editable: open the Schedule tab and drag games to new slots — conflicts
+        everything is editable: open the Calendar tab and drag games to new slots — conflicts
         are flagged live as you move things, so you cannot accidentally break the season.
       </p>
     </HelpLayout>

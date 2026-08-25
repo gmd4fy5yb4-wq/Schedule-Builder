@@ -131,7 +131,7 @@ function SheetRow({ label, onClick, chevron = false, disabled = false }: {
 }
 
 const BAR_ICONS: Record<number, IconName> = { 0: 'home', 5: 'calendar', 9: 'chart' }
-const BAR_LABELS: Record<number, string> = { 0: 'Today', 5: 'Schedule', 9: 'Standings' }
+const BAR_LABELS: Record<number, string> = { 0: 'Today', 5: 'Calendar', 9: 'Standings' }
 
 export default function MobileNav(props: MobileNavProps) {
   const {
