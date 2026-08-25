@@ -10,6 +10,26 @@ interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction
 
 type Scope = 'all' | 'team' | 'venue'
 
+const SCOPE_KEY = 'sb-calendar-scope'
+const SCOPES: Scope[] = ['all', 'team', 'venue']
+
+/**
+ * Safe because page.tsx gates the whole tab tree behind `hydrated`, so this
+ * component never renders on the server or on the first client pass — there is
+ * no markup for a stored value to disagree with. The try/catch is for Safari
+ * private mode, where localStorage throws on access: an exception in a render
+ * initializer would take the app down, unlike the app's other reads which all
+ * sit inside effects.
+ */
+function storedScope(): Scope {
+  try {
+    const v = localStorage.getItem(SCOPE_KEY)
+    return SCOPES.includes(v as Scope) ? (v as Scope) : 'all'
+  } catch {
+    return 'all'
+  }
+}
+
 /**
  * One Calendar tab over the three panes that used to be three nav tabs
  * (Schedule / Team Schedules / <Venue> Calendar). They were never separate
@@ -25,7 +45,12 @@ type Scope = 'all' | 'team' | 'venue'
  */
 export default function CalendarTab({ state, setState, readOnly = false }: Props) {
   const sc = getSportConfig(state.season.sport)
-  const [scope, setScope] = useState<Scope>('all')
+  const [scope, setScope] = useState<Scope>(storedScope)
+
+  function chooseScope(next: Scope) {
+    setScope(next)
+    try { localStorage.setItem(SCOPE_KEY, next) } catch { /* private mode — the choice just won't persist */ }
+  }
 
   const scopes: { id: Scope; label: string }[] = [
     { id: 'all', label: 'Whole league' },
@@ -43,7 +68,7 @@ export default function CalendarTab({ state, setState, readOnly = false }: Props
           {scopes.map((s, i) => (
             <button
               key={s.id}
-              onClick={() => setScope(s.id)}
+              onClick={() => chooseScope(s.id)}
               aria-pressed={scope === s.id}
               className={`min-h-[44px] sm:min-h-0 px-4 sm:py-1.5 transition whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--fd-primary)] ${i > 0 ? 'border-l' : ''} ${
                 scope === s.id ? 'bg-[var(--fd-primary)] text-white' : 'text-gray-600 hover:bg-gray-50'
