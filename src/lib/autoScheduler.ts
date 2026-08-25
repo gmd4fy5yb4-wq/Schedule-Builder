@@ -325,7 +325,7 @@ export function generateSchedule(params: {
           awayTeamId: away,
           reason: `Could not find an available slot for ${homeTeamName} vs ${awayTeamName}`,
           details,
-          suggestions: suggestions.length > 0 ? suggestions : ['Schedule this game manually in the Schedule tab'],
+          suggestions: suggestions.length > 0 ? suggestions : ['Schedule this game manually in the Calendar tab'],
           resolution: 'pending',
         })
       }

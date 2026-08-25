@@ -31,7 +31,7 @@ export default function Page() {
 
       <h2>How many you can have</h2>
       <p>
-        Your plan sets the limits on divisions and teams. The Setup tab shows your current
+        Your plan sets the limits on divisions and teams. The Season Settings tab shows your current
         usage against those limits, and the app tells you before you hit one rather than after.
       </p>
     </HelpLayout>

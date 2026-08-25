@@ -14,9 +14,7 @@ import SetupTab from '@/components/SetupTab'
 import DivisionsTab from '@/components/DivisionsTab'
 import FieldsTab from '@/components/FieldsTab'
 import UmpiresTab from '@/components/UmpiresTab'
-import ScheduleTab from '@/components/ScheduleTab'
-import TeamScheduleTab from '@/components/TeamScheduleTab'
-import FieldCalendarTab from '@/components/FieldCalendarTab'
+import CalendarTab from '@/components/CalendarTab'
 import AutoScheduleTab from '@/components/AutoScheduleTab'
 import StandingsTab from '@/components/StandingsTab'
 import CoachesTab from '@/components/CoachesTab'
@@ -25,7 +23,7 @@ import LeagueGate from '@/components/LeagueGate'
 import TrialBar from '@/components/TrialBar'
 import Icon from '@/components/Icon'
 import MobileNav from '@/components/MobileNav'
-import { isTabVisible } from '@/lib/mobileNav'
+import { NAV_GROUPS, isTabVisible } from '@/lib/mobileNav'
 import CoachView from '@/components/CoachView'
 import TourOverlay from '@/components/TourOverlay'
 import TourWelcomeModal from '@/components/TourWelcomeModal'
@@ -560,16 +558,10 @@ export default function Home() {
   }
 
   const sc = getSportConfig(state.season.sport)
-  const TABS = ['Dashboard', 'Setup', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Schedule', 'Team Schedules', `${sc.venueSingular} Calendar`, 'Auto-Schedule', 'Standings', 'Coaches']
-  // Visual nav clusters (indices into TABS): overview → day-to-day operation → one-time setup.
-  // Content switch/onNavigate() below still key off these same TABS indices unchanged.
-  const NAV_GROUPS = [
-    { label: 'Overview', indices: [0] },
-    // Auto-Schedule (8) lives under Operate: generating a schedule is something you
-    // do to run the season, not a one-time setup step.
-    { label: 'Operate', indices: [8, 5, 6, 7, 9, 10] },
-    { label: 'Setup', indices: [1, 2, 3, 4] },
-  ]
+  // Indices are the app's only navigation truth (tour.ts, FirstRunChecklist and
+  // mobileNav all address tabs by number), so 6 and 7 keep their slots even
+  // though Calendar (5) now renders both — see RETIRED_TABS in mobileNav.ts.
+  const TABS = ['Today', 'Season Settings', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Calendar', '—', '—', 'Auto-Schedule', 'Standings', 'Coaches']
   const trial = trialBanner(sub)
   const tourStep = getActiveStep(tourState, tab)
   // Unclaimed (NULL owner) counts as your own, matching saveGate(). While `user`
@@ -891,9 +883,9 @@ export default function Home() {
       )}
 
       {/* Tab nav — hide setup/admin tabs in read-only mode.
-          Grouped into Overview / Operate / Setup so the 11 tabs read as clusters
-          instead of one flat row; indices stay the ones the switch below and
-          onNavigate() calls expect, only the visual order changes. */}
+          Grouped into Overview / Schedule / League (NAV_GROUPS in mobileNav.ts)
+          so the tabs read as clusters instead of one flat row; indices stay the
+          ones the switch below and onNavigate() calls expect. */}
       <div className="hidden sm:block bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4">
           <nav className="flex overflow-x-auto" role="tablist" aria-label="Sections">
@@ -945,9 +937,7 @@ export default function Home() {
           {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
           {tab === 3  && <FieldsTab state={state} setState={setState} />}
           {tab === 4  && <UmpiresTab state={state} setState={setState} />}
-          {tab === 5  && <ScheduleTab state={state} setState={setState} readOnly={readOnly} />}
-          {tab === 6  && <TeamScheduleTab state={state} setState={setState} readOnly={readOnly} />}
-          {tab === 7  && <FieldCalendarTab state={state} setState={setState} readOnly={readOnly} />}
+          {tab === 5  && <CalendarTab state={state} setState={setState} readOnly={readOnly} />}
           {tab === 8  && <AutoScheduleTab state={state} setState={setState} leagueCode={leagueCode} userName={userName} />}
           {tab === 9  && <StandingsTab state={state} readOnly={readOnly} />}
           {tab === 10 && <CoachesTab state={state} readOnly={readOnly} />}
