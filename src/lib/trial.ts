@@ -72,6 +72,39 @@ export function trialBanner(
 }
 
 /** The name every league was born with before the gate asked for one. */
+/**
+ * Whether THIS save should start the 14-day trial clock.
+ *
+ * fd_014's intent was "the clock starts when a trial user first saves a league
+ * whose schedule has been generated". The original implementation fired on ANY
+ * save of an already-generated schedule, and that turned out to be reachable
+ * with no user action at all: DashboardTab geocodes a field that has no cached
+ * coordinates, writes the coords into state, and the 800 ms autosave posts the
+ * whole season. So merely OPENING a populated league could burn a trial — and a
+ * collaborator opening someone else's league started their OWN clock, on a
+ * league the owner's plan pays for.
+ *
+ * Two conditions, both required:
+ *   1. TRANSITION — the schedule was not generated before this save and is now.
+ *      An incidental re-save of an already-generated season is not the event.
+ *   2. OWNERSHIP — the saver owns the league, or is claiming an unowned one in
+ *      this same save. A collaborator's own trial is irrelevant to a league
+ *      gated by the OWNER's plan (see `saveGate` in plans.ts).
+ *
+ * The caller still applies `plan_tier='trial'` and `trial_started_at IS NULL` as
+ * DB filters, so this stays one-shot and cannot touch a tester or a paying row.
+ */
+export function shouldStartTrialClock(args: {
+  ownerId: string | null | undefined
+  savingUserId: string
+  previousGeneratedAt: string | null | undefined
+  nextGeneratedAt: string | null | undefined
+}): boolean {
+  const ownsLeague = !args.ownerId || args.ownerId === args.savingUserId
+  const isFirstGeneration = !args.previousGeneratedAt && Boolean(args.nextGeneratedAt)
+  return ownsLeague && isFirstGeneration
+}
+
 export const DEFAULT_LEAGUE_NAME = 'My League'
 
 /**
