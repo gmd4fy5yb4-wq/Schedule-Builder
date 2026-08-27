@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { saveGate } from '@/lib/plans'
+import { shouldStartTrialClock } from '@/lib/trial'
 import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
 
@@ -34,7 +35,14 @@ export async function POST(req: NextRequest) {
   // The league code is the shared access credential — any authenticated user who
   // knows the code can save.
   const [{ data: league }, { data: sub }] = await Promise.all([
-    serviceSupabase.from('leagues').select('owner_id').eq('id', code).single(),
+    // `prev_generated` is a JSON-path projection, NOT the blob — it reads
+    // data->schedule->>generatedAt server-side so the trial-clock check can
+    // detect the first generation without transferring the whole season.
+    serviceSupabase
+      .from('leagues')
+      .select('owner_id, prev_generated:data->schedule->>generatedAt')
+      .eq('id', code)
+      .single(),
     serviceSupabase.from('user_subscriptions').select(SUB_COLS).eq('user_id', session.user.id).single(),
   ])
 
@@ -99,16 +107,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save league.' }, { status: 500 })
   }
 
-  // Trial clock (migration fd_014): the 14 days start the first time a trial user saves
-  // a league whose schedule has actually been generated — not at signup, which burned
-  // the whole trial for off-season admins (finding 2).
+  // Trial clock (migration fd_014): the 14 days start the first time a trial user
+  // generates a schedule on a league they own — not at signup, which burned the
+  // whole trial for off-season admins (finding 2).
   //
-  // The .eq('plan_tier','trial') + .is('trial_started_at', null) filters make this
-  // one-shot and unable to touch a tester or a paying subscriber, so it is safe to
-  // run on every save rather than reading first.
-  // ponytail: fires on any save of an already-generated schedule, not strictly the
-  // generation event. Same outcome (they've seen a schedule), one query, no new state.
-  if (state.schedule?.generatedAt) {
+  // This used to fire on ANY save of an already-generated schedule. That was
+  // reachable with no user action at all — a field geocode writes to state and
+  // the 800 ms autosave posts the whole season — so opening a populated league
+  // could start someone's trial, and a collaborator opening a league they don't
+  // own started their own. `shouldStartTrialClock` requires the not-generated ->
+  // generated transition AND ownership. See src/lib/trial.ts.
+  //
+  // The .eq('plan_tier','trial') + .is('trial_started_at', null) filters keep it
+  // one-shot and unable to touch a tester or a paying subscriber.
+  if (shouldStartTrialClock({
+    ownerId,
+    savingUserId: session.user.id,
+    previousGeneratedAt: (league as { prev_generated?: string | null } | null)?.prev_generated ?? null,
+    nextGeneratedAt: state.schedule?.generatedAt,
+  })) {
     const startedAt = new Date()
     const endsAt = new Date(startedAt.getTime() + 14 * 24 * 60 * 60 * 1000)
     const { error: clockError } = await serviceSupabase

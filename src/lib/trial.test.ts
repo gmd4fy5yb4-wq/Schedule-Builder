@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/trial.test.ts
 import assert from 'node:assert'
-import { trialBanner, checklistSteps, isUnnamedLeague, DEFAULT_LEAGUE_NAME } from './trial'
+import { trialBanner, checklistSteps, isUnnamedLeague, DEFAULT_LEAGUE_NAME, shouldStartTrialClock } from './trial'
 import type { AppState } from './types'
 
 const now = new Date('2026-07-29T12:00:00Z')
@@ -90,7 +90,6 @@ assert.deepEqual(checklistSteps(ready).map(s => s.done), [true, true, true, true
 // Deep links must stay pinned to the TABS indices page.tsx uses.
 assert.deepEqual(checklistSteps(blank).map(s => s.tab), [1, 2, 3, 8], 'tab indices unchanged')
 
-console.log('trial.test.ts — all assertions passed')
 
 // ── Expiry warning for PAID plans that will not auto-renew ───────────────────
 // Written after a real sale (2026-08-19): a customer bought a 90-day season pass
@@ -141,3 +140,76 @@ assert.deepEqual(
   { kind: 'running', daysLeft: 5 },
   'trial behaviour is unchanged',
 )
+
+// ── shouldStartTrialClock ────────────────────────────────────────────────────
+// Regression cover for the bug where merely OPENING a populated league could
+// burn a trial: a field geocode writes to state, the 800 ms autosave posts the
+// whole season, and the old check fired on any already-generated schedule.
+
+const OWNER = 'owner-uuid'
+const OTHER = 'collaborator-uuid'
+
+// The event fd_014 actually meant: this save is where the schedule first exists.
+assert.equal(
+  shouldStartTrialClock({
+    ownerId: OWNER, savingUserId: OWNER,
+    previousGeneratedAt: null, nextGeneratedAt: '2026-08-27T14:00:00Z',
+  }),
+  true,
+  'owner generating a schedule for the first time starts the clock',
+)
+
+// THE BUG. Same league, already generated, saved again for any reason at all —
+// a geocode, a tab switch, a re-save. Not a generation event.
+assert.equal(
+  shouldStartTrialClock({
+    ownerId: OWNER, savingUserId: OWNER,
+    previousGeneratedAt: '2026-08-25T20:52:55.942Z', nextGeneratedAt: '2026-08-25T20:52:55.942Z',
+  }),
+  false,
+  'an incidental re-save of an already-generated season must NOT start the clock',
+)
+
+// A collaborator's own trial is irrelevant: the league is gated by the OWNER's
+// plan, so burning their 14 days buys them nothing.
+assert.equal(
+  shouldStartTrialClock({
+    ownerId: OWNER, savingUserId: OTHER,
+    previousGeneratedAt: null, nextGeneratedAt: '2026-08-27T14:00:00Z',
+  }),
+  false,
+  "a collaborator generating on someone else's league must not start their own clock",
+)
+
+// An unclaimed league is auto-claimed by whoever saves it first, so that saver
+// really is becoming the owner in this same request.
+assert.equal(
+  shouldStartTrialClock({
+    ownerId: null, savingUserId: OTHER,
+    previousGeneratedAt: null, nextGeneratedAt: '2026-08-27T14:00:00Z',
+  }),
+  true,
+  'claiming an unowned league while generating does start the clock',
+)
+
+// Saving a league that has no schedule yet — setup work, divisions, fields.
+assert.equal(
+  shouldStartTrialClock({
+    ownerId: OWNER, savingUserId: OWNER,
+    previousGeneratedAt: null, nextGeneratedAt: null,
+  }),
+  false,
+  'setup work with no generated schedule does not start the clock',
+)
+
+// Defensive: an empty string from the JSON-path projection is not a timestamp.
+assert.equal(
+  shouldStartTrialClock({
+    ownerId: OWNER, savingUserId: OWNER,
+    previousGeneratedAt: null, nextGeneratedAt: '',
+  }),
+  false,
+  'an empty generatedAt is not a generation event',
+)
+
+console.log('trial.test.ts — all assertions passed')
