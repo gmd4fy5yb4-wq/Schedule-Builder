@@ -124,9 +124,31 @@ access — that exact sentence shipped on the account page and was corrected
   — the three legacy pre-migration-001 rows (`MZB7NY`, `U9TU6U`, `TFRD8G`, all
   empty default scaffolding) were deleted. Keep it that way; a NULL owner is a
   first-toucher ownership window.
-- RLS on `leagues` is `SELECT: true` (public read — the app relies on it) and
-  `UPDATE: owner_id IS NULL OR owner_id = auth.uid()`. Writes still go through the
-  service-role save route, which is where `saveGate` runs.
+- 🔒 **RLS on `leagues` is `SELECT` for `authenticated` ONLY (migration `fd_017`,
+  applied 2026-08-27). It used to be `USING (true)` to `public`, and the note here
+  claimed "the app relies on it" — that was wrong.** Anyone with the publishable
+  anon key could `select *` and enumerate every league blob without a login or a
+  league code, including the coach name/phone/email inside
+  `data->divisions->teams->coaches` (measured: 6 phones, 14 emails, 2 leagues).
+  Nothing needed it: the public read-only share link goes through
+  `/api/league/view` on the **service role**, and every browser-client read
+  (`sync.ts` `loadLeague`/`leagueExists`, `page.tsx`, `account/page.tsx`) happens on
+  `/` or `/account`, both behind the middleware auth gate. The policy predated the
+  server routes and stopped being load-bearing without anyone noticing.
+  **Do not re-open it.** Rollback (if ever needed):
+  `.backups/ROLLBACK-anon-rls-2026-08-27.sql`.
+  `UPDATE` is unchanged: `owner_id IS NULL OR owner_id = auth.uid()`. Writes still
+  go through the service-role save route, which is where `saveGate` runs.
+- 🔒 **`league_snapshots` lost its two `anon` policies in the same migration** —
+  anon could read *every* snapshot of *every* league (`USING (true)`) and INSERT
+  unbounded rows behind only a league-id format check. Both were `TO anon`, so
+  signed-in behaviour is untouched: the owner-scoped `authenticated_select` /
+  `authenticated_insert` / `authenticated_delete` policies still govern the app.
+- **`/api/notify-coaches` follows the same model** (changed 2026-08-27). It used to
+  be the one route that treated `owner_id` as *authorization*, 403-ing anyone but
+  the owner — so a collaborator could rewrite the whole schedule and read every
+  coach's address but not email them. The check protected nothing reachable and is
+  gone; auth + the 5-min per-user rate limit remain. Do not re-add it.
 - Real roles (recorded membership, owner-revocable access) do **not** exist and
   need their own design pass — it is a membership table plus a decision about
   whether to keep the frictionless link-sharing model at all.

@@ -55,19 +55,18 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Verify the requesting user owns this league
+  // The league code is the shared access credential, exactly as in the save
+  // route — anyone who knows it can already rewrite the schedule and read every
+  // coach's address, so gating email on ownership protected nothing. Abuse is
+  // bounded by the per-user rate limit above.
   const { data: league, error } = await serviceSupabase
     .from('leagues')
-    .select('data, owner_id')
+    .select('data')
     .eq('id', code)
     .single()
 
   if (error || !league) {
     return NextResponse.json({ error: 'League not found.' }, { status: 404 })
-  }
-
-  if (!league.owner_id || league.owner_id !== session.user.id) {
-    return NextResponse.json({ error: 'You do not have permission to notify coaches for this league.' }, { status: 403 })
   }
 
   const state = league.data as AppState
