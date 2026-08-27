@@ -23,7 +23,7 @@ function fmtTime(t: string) {
 
 // ── Email HTML template ──────────────────────────────────────────────────────
 
-function buildEmailHtml(opts: {
+export function buildEmailHtml(opts: {
   leagueName: string
   teamName: string
   coachName: string
@@ -44,7 +44,6 @@ function buildEmailHtml(opts: {
     .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
 
   const gameRows = upcomingGames.map(g => {
-    const isHome = g.homeTeamId === opts.games[0]?.homeTeamId || true // always show clearly
     const opponent = g.homeTeamId === g.awayTeamId
       ? '—'
       : teamMap.get(g.homeTeamId) === teamName
@@ -112,6 +111,14 @@ function buildEmailHtml(opts: {
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${leagueName} Schedule</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <!-- Preheader: the snippet mail clients show next to the subject. Without it
+       they scrape the markup, and with no whitespace between block elements the
+       words collide ("Planner2026", "SEASONSchedule"). The entity run after the
+       text pads the snippet so the scraped body cannot bleed in behind it. -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">
+    Upcoming games and practices for ${teamName} in ${leagueName}.
+    ${'&zwnj;&nbsp;'.repeat(60)}
+  </div>
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
