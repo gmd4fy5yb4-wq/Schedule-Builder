@@ -144,6 +144,11 @@ access — that exact sentence shipped on the account page and was corrected
   unbounded rows behind only a league-id format check. Both were `TO anon`, so
   signed-in behaviour is untouched: the owner-scoped `authenticated_select` /
   `authenticated_insert` / `authenticated_delete` policies still govern the app.
+- **`/api/notify-coaches` follows the same model** (changed 2026-08-27). It used to
+  be the one route that treated `owner_id` as *authorization*, 403-ing anyone but
+  the owner — so a collaborator could rewrite the whole schedule and read every
+  coach's address but not email them. The check protected nothing reachable and is
+  gone; auth + the 5-min per-user rate limit remain. Do not re-add it.
 - Real roles (recorded membership, owner-revocable access) do **not** exist and
   need their own design pass — it is a membership table plus a decision about
   whether to keep the frictionless link-sharing model at all.

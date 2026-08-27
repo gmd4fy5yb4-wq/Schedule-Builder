@@ -200,7 +200,9 @@ export async function sendCoachNotifications(
             to: email,
             subject: `[${state.season.leagueName}] Schedule Update — ${teamName}`,
             html,
-          }).then(() => ({ coachName, email, teamName, success: true as const }))
+          }).then(({ error }) => error
+            ? { coachName, email, teamName, success: false as const, error: error.message }
+            : { coachName, email, teamName, success: true as const })
             .catch((err: unknown) => ({
               coachName,
               email,
