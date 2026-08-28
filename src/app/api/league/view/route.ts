@@ -2,6 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServiceRole } from '@/lib/supabase-server'
+import { redactForViewer } from '@/lib/viewer-redaction'
 
 const tokenSchema = z.string().uuid()
 
@@ -31,7 +32,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'League not found.' }, { status: 404 })
   }
 
-  return NextResponse.json(data, {
+  // The share link is forwardable, so coach contact details are stripped here
+  // rather than in the UI — see src/lib/viewer-redaction.ts.
+  return NextResponse.json({ ...data, data: redactForViewer(data.data) }, {
     headers: { 'Cache-Control': 'private, no-store' },
   })
 }
