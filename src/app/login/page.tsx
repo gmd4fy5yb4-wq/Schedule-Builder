@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { signInCodeHint } from '@/lib/codeHints'
 import { getSupabase } from '@/lib/supabase'
 import Icon from '@/components/Icon'
 import { siteUrl } from '@/lib/siteUrl'
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const [code, setCode] = useState('')
   const [verifyLoading, setVerifyLoading] = useState(false)
   const [verifyError, setVerifyError] = useState('')
+  const [codeHint, setCodeHint] = useState<string | null>(null)
 
   // Seconds until "resend" is offered again. Supabase rate-limits repeat sends,
   // so an always-live resend button mostly produces rate-limit errors — the
@@ -129,7 +131,7 @@ export default function LoginPage() {
                 <Icon name="mail" className="w-10 h-10 mx-auto mb-3 text-[var(--fd-primary)]" />
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Check your email</h2>
                 <p className="text-gray-500 text-sm">
-                  We sent an 8-digit code to <strong>{email}</strong>{' '}
+                  We sent an 8-digit sign-in code to <strong>{email}</strong>{' '}
                   {/* Keeps the address so a typo can be corrected, not retyped. */}
                   <button
                     onClick={() => { setSent(false); setCode(''); setVerifyError(''); setError('') }}
@@ -144,7 +146,7 @@ export default function LoginPage() {
               <form onSubmit={handleVerifyCode} className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Enter the 8-digit code from the email
+                    Enter the 8-digit sign-in code from the email
                   </label>
                   <input
                     type="text"
@@ -153,11 +155,18 @@ export default function LoginPage() {
                     autoFocus
                     maxLength={8}
                     value={code}
-                    onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    onChange={e => {
+                      // The strip below is silent: paste a league code and all you
+                      // see is a lone digit appear. Read the RAW value first so we
+                      // can say what happened.
+                      setCodeHint(signInCodeHint(e.target.value))
+                      setCode(e.target.value.replace(/\D/g, '').slice(0, 8))
+                    }}
                     placeholder="12345678"
                     className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-center text-xl font-mono tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-[#00013a] focus:border-transparent"
                   />
                 </div>
+                {codeHint && <p className="text-amber-700 text-sm">{codeHint}</p>}
                 {verifyError && <p className="text-red-600 text-sm">{verifyError}</p>}
                 <button
                   type="submit"
@@ -170,9 +179,6 @@ export default function LoginPage() {
 
               <div className="mt-4 pt-4 border-t border-gray-100 text-center space-y-1">
                 <p className="text-gray-500 text-xs">
-                  On desktop? Just click the link in the email.
-                </p>
-                <p className="text-gray-500 text-xs">
                   Nothing after a minute? Check spam, or{' '}
                   {resendIn > 0 ? (
                     <span className="text-gray-400">resend in {resendIn}s</span>
@@ -183,7 +189,7 @@ export default function LoginPage() {
                   )}
                 </p>
                 <p className="text-gray-500 text-xs">
-                  The link and code expire in 1 hour.
+                  The sign-in code expires in 1 hour.
                 </p>
               </div>
             </div>

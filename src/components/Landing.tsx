@@ -45,7 +45,7 @@ const QUESTIONS = [
   },
   {
     q: 'Do coaches and parents need accounts?',
-    a: 'No. One read-only link shows the live schedule, standings and field maps on any phone. Only the person running the league signs in, and that is with an emailed 8-digit code — there is no password to forget.',
+    a: 'No. One read-only link shows the live schedule, standings and field maps on any phone. Only the person running the league signs in, and that is with an emailed 8-digit sign-in code — there is no password to forget.',
   },
   {
     q: 'Can someone help me run it?',

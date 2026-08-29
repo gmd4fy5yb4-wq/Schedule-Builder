@@ -30,6 +30,38 @@ RESEND_FROM_EMAIL=     # must be @alfred-digital.com (only verified Resend domai
 - Do NOT push directly to `main` for feature work
 
 ## Auth
+
+### There are TWO codes in this product. They are not the same length.
+
+This has been re-derived wrong more than once, in both directions — including
+once against a live marketing page — so check here before writing any copy that
+names a code:
+
+| | Length | Alphabet | Where |
+|---|---|---|---|
+| **Sign-in code** | **8** | digits only | emailed by Supabase, entered at `/login` |
+| **League code** | **6** | `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no I, O, 0, 1) | given out by a league admin, entered at the join gate |
+
+Verified 2026-08-29 against production: all 6 rows in `leagues` have a
+6-character `id` (`YWWM8G`, `UC2YE8`, `JF9ZDS`, `D7USBR`, `NRAMGV`, `ZKP833`),
+both generators are `length: 6` (`sync.ts:84`, `api/leagues/create/route.ts:16`),
+and `LeagueGate` sets `maxLength={6}`. `git log -S "length: 8"` on those files
+returns nothing — **the league code has never been 8.**
+
+**alfred-digital.com still says "Teams join with an 8-character code" and is
+wrong twice over**: wrong length, and teams don't join by code at all — admins
+do, while coaches and parents use the read-only token link. Fix it there and
+this stops regenerating.
+
+Real users mix the two up (the first paying tester does, routinely). Both wrong
+-code paths used to dead-end in "double-check the code and try again", which is
+useless advice when the code in hand is fine and merely the wrong kind.
+`src/lib/codeHints.ts` names the mistake at both inputs instead. **Those hints
+must never gate submission:** the league alphabet includes 2-9, so an all-digit
+league code is legal at roughly 1 in 4,096, and refusing one would lock a real
+league out of its own app. `codeHints.test.ts` asserts every production code
+above is hint-free.
+
 **8-digit code via Supabase — there is no sign-in link.** Confirmed 2026-08-24 from
 the actual email. **That template is shared with Prospect Card and AthleteCard** (one
 Supabase project = one set of auth templates), so re-enabling links here re-enables

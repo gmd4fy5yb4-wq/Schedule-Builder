@@ -5,6 +5,7 @@ import type { AppState } from '@/lib/types'
 import { SPORTS } from '@/lib/sports'
 import { getSupabase } from '@/lib/supabase'
 import { minPaidTierForSports, getPlan } from '@/lib/plans'
+import { leagueCodeHint } from '@/lib/codeHints'
 import type { User } from '@supabase/supabase-js'
 
 // Every new league starts on the trial, which covers 3 sports. Capping the picker
@@ -79,7 +80,10 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
     if (result) {
       onJoin(code, result.data, name.trim(), false)
     } else {
-      setError('League not found — double-check the code and try again.')
+      // A wrong-KIND-of-code is the likeliest cause, and 'double-check the code'
+      // is useless advice when the code they hold is a perfectly good sign-in
+      // code. Say which code they need.
+      setError(leagueCodeHint(code) ?? 'League not found — double-check the code and try again.')
     }
     setLoading(false)
   }
@@ -251,6 +255,11 @@ export default function LeagueGate({ defaultState, onJoin }: Props) {
                     maxLength={6}
                     onKeyDown={e => e.key === 'Enter' && handleJoin()}
                   />
+                  {/* A hint, never a gate — an all-digit league code is legal, so
+                      Join stays enabled and the server remains the authority. */}
+                  {leagueCodeHint(joinCode) && (
+                    <p className="text-xs text-amber-700 mt-1.5">{leagueCodeHint(joinCode)}</p>
+                  )}
                 </div>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
