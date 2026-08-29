@@ -253,6 +253,34 @@ still be committing the subscription row, so a full boot guarantees a fresh read
 and the invalid-view-token screen in `page.tsx` (the reload is what clears
 `?view=readonly&token=`). Both carry their reason inline. Do not "fix" them.
 
+## The league guard (fd_010 + fd_018)
+
+`trg_leagues_guard_snapshot` on `leagues` writes a recovery point into
+`league_snapshots` before a destructive write. It is **non-blocking by design** — it
+never rejects a save, it only guarantees something is recoverable. Two rules:
+
+- **fd_010** — one write that drops a league below half its previous size.
+- **fd_018** (2026-08-29) — a league that ends up below half its **high-water mark**,
+  however many saves it took. `public.fd_league_guard_peak` holds one row per league
+  with the largest version seen, blob and all; crossing the line promotes that copy
+  into `league_snapshots`, once per peak.
+
+fd_018 exists because fd_010 alone is nearly useless against a slow deletion. Replaying
+the 2026-07-28 loss (286 items removed 20 at a time), fd_010 fired only in the last
+gasp and left a best recovery point of **26 of 286 items**. Verified in prod with a
+rolled-back probe on YWWM8G: five saves taking it 144→68, each keeping 84–89% of the
+previous — fd_010 fired 0 times, fd_018 recovered all 144.
+
+**Do not turn the high-water copy into a daily auto-snapshot.** `loadSnapshots()` in
+`src/lib/sync.ts` reads the 30 most recent rows with no filter on `created_by`, so a
+daily guard row would flush the admin's own snapshots out of their own list inside a
+month. The copy is deliberately invisible to the app until something looks wrong.
+
+`fd_league_guard_peak` holds full league blobs (coach names, phones, emails). RLS is on
+with **no policies** and all grants revoked from `PUBLIC` — verified by
+`has_table_privilege`, not by reading `pg_policies`. Only the SECURITY DEFINER trigger
+touches it. If you ever add a policy to it, you have made a mistake.
+
 ## Known Issues / Do-Not-Touch
 - ✅ **Trial trigger RESTORED (migration 013, June 17 2026).** The `handle_new_user` / `on_auth_user_created` trigger was missing in the Sports DB (so new signups got no `user_subscriptions` row and were gated straight to `/pricing`). 013 recreates it with sports-model trial values (3/10/100, `subscription_end=now()+14d`) and backfilled the 6 rowless users. Verified: trigger enabled on `auth.users`; testers + legacy `small` row untouched.
 - ℹ️ **`greg.amundson@gmail.com` is one of the owner's own accounts, not a customer.** `plan_tier='small'` (1/4/16) is a legacy tier absent from `PLANS`, with a real `stripe_customer_id`, lapsed 2026-07-11. Confirmed 2026-08-19 to be left exactly as it is — do not migrate it to `starter`, and do not treat it as a customer needing outreach. It displays as "Small" since `planDisplayName` landed, which is correct and intended.
