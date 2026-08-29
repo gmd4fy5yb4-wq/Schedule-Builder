@@ -129,7 +129,7 @@ export default function LoginPage() {
                 <Icon name="mail" className="w-10 h-10 mx-auto mb-3 text-[var(--fd-primary)]" />
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Check your email</h2>
                 <p className="text-gray-500 text-sm">
-                  We sent a sign-in link and an 8-digit code to <strong>{email}</strong>{' '}
+                  We sent an 8-digit code to <strong>{email}</strong>{' '}
                   {/* Keeps the address so a typo can be corrected, not retyped. */}
                   <button
                     onClick={() => { setSent(false); setCode(''); setVerifyError(''); setError('') }}

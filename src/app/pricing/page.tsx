@@ -102,7 +102,7 @@ export default function PricingPage() {
             Start free — create your league
           </Link>
           <p className="text-xs text-gray-500 mt-3">
-            Takes 2 minutes · Your 14-day clock starts when you generate your first schedule
+            Takes 2 minutes · Your 14-day clock starts the first time you save a schedule with anything on it
           </p>
         </section>
 

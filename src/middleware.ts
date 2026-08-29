@@ -30,6 +30,8 @@ const PUBLIC_PREFIXES = [
                             //  committed yet — gating it would re-create the bounce it fixes.
   '/help',                  // public help docs, must be reachable by prospects who have
                             //  no account yet (linked from sales emails)
+  '/welcome',               // the landing page. `/` rewrites here for logged-out
+                            //  visitors, and the rewrite re-enters this matcher.
 ]
 
 const PUBLIC_EXTENSIONS = ['.ico', '.png', '.svg', '.webmanifest', '.txt', '.xml']
@@ -56,8 +58,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Read-only schedule viewers (coaches, players with view token) — no auth required
-  if (searchParams.get('view') === 'readonly' && searchParams.get('token')) {
+  // Read-only schedule viewers (coaches, players with view token) — no auth required.
+  // The TOKEN ALONE is sufficient, deliberately: messaging apps and clipboard tools
+  // strip query params, and page.tsx has always treated a bare ?token= as a valid
+  // share link. Requiring &view=readonly here sent those viewers to /login holding a
+  // link the app itself considers good — and, once `/` became the landing page, to
+  // the marketing site instead of the schedule they were sent.
+  if (searchParams.get('token')) {
     return NextResponse.next()
   }
 
@@ -92,6 +99,16 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith('/api')) {
       return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
     }
+    // The front door. A logged-out visitor to `/` gets the landing page, served
+    // at `/` — a rewrite, not a redirect, so the URL people paste and crawlers
+    // index stays fielddayplanner.app. Sending them to /login instead made the
+    // front door of a paid product a bare sign-in box.
+    //
+    // This branch, not a check inside app/page.tsx, is where the decision belongs:
+    // the refreshed session cookies set above ride on `response` and are NOT
+    // propagated to a server component, so a getUser() there could read a
+    // just-rotated refresh token and show a paying customer the marketing page.
+    if (pathname === '/') return NextResponse.rewrite(new URL('/welcome', req.url))
     return NextResponse.redirect(new URL('/login', req.url))
   }
 

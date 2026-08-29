@@ -20,7 +20,7 @@ export default function TrialBar({ banner }: { banner: TrialBanner }) {
 
   const message =
     banner.kind === 'not_started'
-      ? 'Full Pro access — your 14-day clock starts when you generate your first schedule'
+      ? 'Full Pro access — your 14-day clock starts the first time you save a schedule with anything on it'
       : ending
         // Say what actually happens. "Expires" is vague; people assume deletion.
         ? `Your season pass ends in ${dayWord} — after that your league becomes read-only. Nothing is deleted.`
