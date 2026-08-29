@@ -53,59 +53,131 @@ const QUESTIONS = [
   },
 ]
 
-/** The product, shown rather than described: one week of a real schedule. */
+/* The product, shown rather than described: the month grid from ScheduleTab,
+   which is the view the app opens on. Everything here mirrors that component —
+   the gray-50 month bar, the uppercase day headers, the date circle (filled
+   navy for today), division-coloured chips carrying a two-letter division badge
+   so they are not distinguishable by hue alone, gray practice chips, and
+   red-tinted blackout days marked "closed". If ScheduleTab's chips or palette
+   change, change them here too: this picture is a claim about the product. */
+
+type Chip = { time: string; badge: string; label: string; tone: 'blue' | 'purple' | 'practice' }
+
+const CHIP_TONE: Record<Chip['tone'], string> = {
+  blue: 'bg-blue-50 text-blue-800 border-blue-200',
+  purple: 'bg-purple-50 text-purple-800 border-purple-200',
+  practice: 'bg-gray-100 text-gray-600 border-gray-200',
+}
+
+const GAME = (time: string, label: string, tone: 'blue' | 'purple'): Chip => ({
+  time,
+  badge: tone === 'blue' ? 'MI' : 'MA',
+  label,
+  tone,
+})
+const PRACTICE = (time: string, team: string): Chip => ({
+  time,
+  badge: 'MI',
+  label: `${team} practice`,
+  tone: 'practice',
+})
+
+/* April 2027 — the 1st is a Thursday, so the grid opens with four blanks. */
+const FIRST_DOW = 4
+const DAYS_IN_MONTH = 30
+const TODAY = 12
+const BLACKOUT = new Set([16])
+
+const EVENTS: Record<number, Chip[]> = {
+  3: [GAME('9:00 AM', 'Comets vs Riptide', 'blue'), GAME('11:00 AM', 'Bandits vs Foxes', 'purple')],
+  7: [PRACTICE('5:30 PM', 'Comets')],
+  10: [GAME('9:00 AM', 'Sluggers vs Comets', 'blue'), GAME('1:00 PM', 'Meteors vs Bandits', 'purple')],
+  14: [PRACTICE('5:30 PM', 'Riptide')],
+  17: [GAME('9:00 AM', 'Riptide vs Bandits', 'blue'), GAME('11:00 AM', 'Foxes vs Meteors', 'purple')],
+  21: [PRACTICE('5:30 PM', 'Sluggers')],
+  24: [GAME('9:00 AM', 'Comets vs Meteors', 'blue'), GAME('11:00 AM', 'Bandits vs Sluggers', 'purple')],
+}
+
 function ScheduleProof() {
-  const rows = [
-    { field: 'Veterans 1', slots: [['Comets', 'v Riptide'], ['Bandits', 'v Comets'], ['Riptide', 'v Sluggers']] },
-    { field: 'Veterans 2', slots: [['Sluggers', 'v Bandits'], null, ['Comets', 'v Bandits']] },
-    { field: 'Lincoln Park', slots: [null, ['Riptide', 'v Comets'], ['Sluggers', 'v Riptide']] },
+  const cells: (number | null)[] = [
+    ...Array.from({ length: FIRST_DOW }, () => null),
+    ...Array.from({ length: DAYS_IN_MONTH }, (_, i) => i + 1),
   ]
+  while (cells.length % 7 !== 0) cells.push(null)
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2.5 min-w-0">
-          <span className="text-sm font-semibold text-gray-900 truncate">Spring 2027 · 10U Softball</span>
-          <span className="text-xs text-gray-500 shrink-0">Week 3</span>
-        </div>
-        <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full whitespace-nowrap">
-          No conflicts
+    <div className="bg-white rounded-lg border shadow-lg overflow-hidden">
+      {/* Month nav */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b">
+        <span className="text-gray-600 text-lg leading-none">‹</span>
+        <h3 className="font-semibold text-gray-800 flex-1 text-center text-[15px]">April 2027</h3>
+        <span className="text-gray-600 text-lg leading-none">›</span>
+        <span className="text-xs text-[var(--fd-primary)] border border-[var(--fd-primary)] rounded-lg px-2 py-1">
+          Today
         </span>
       </div>
 
-      <div className="grid grid-cols-[80px_repeat(3,minmax(0,1fr))] sm:grid-cols-[92px_repeat(3,minmax(0,1fr))] gap-px bg-gray-200">
-        {['Field', 'Sat 9:00', 'Sat 11:00', 'Sat 1:00'].map(h => (
-          <div key={h} className="bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-500">{h}</div>
-        ))}
-        {rows.map(row => (
-          <FieldRow key={row.field} field={row.field} slots={row.slots} />
+      {/* Day-of-week headers */}
+      <div className="grid grid-cols-7 border-b bg-gray-50">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} className="text-center text-[10px] sm:text-xs font-semibold text-gray-500 py-1.5 sm:py-2 uppercase tracking-wide">
+            {d}
+          </div>
         ))}
       </div>
 
-      <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between gap-3">
-        <span className="text-xs text-gray-500">Home/away and rest evened out across the season</span>
-        <span className="text-xs font-semibold text-[var(--fd-primary)] whitespace-nowrap">Share link ›</span>
+      {/* Grid */}
+      <div className="grid grid-cols-7">
+        {cells.map((day, i) => {
+          const col = i % 7
+          const edge = col < 6 ? 'border-r' : ''
+          if (day === null) {
+            return <div key={`b${i}`} className={`min-h-[74px] sm:min-h-[104px] bg-gray-50 border-b ${edge}`} />
+          }
+          const isBlackout = BLACKOUT.has(day)
+          const events = EVENTS[day] ?? []
+          return (
+            <div key={day} className={`min-h-[74px] sm:min-h-[104px] border-b p-1 sm:p-1.5 flex flex-col ${edge} ${isBlackout ? 'bg-red-50' : ''}`}>
+              <div className="flex items-center justify-between mb-0.5">
+                <span
+                  className={`text-[10px] sm:text-xs font-semibold w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full ${
+                    day === TODAY
+                      ? 'bg-[var(--fd-primary)] text-white'
+                      : isBlackout
+                        ? 'text-red-400'
+                        : 'text-gray-600'
+                  }`}
+                >
+                  {day}
+                </span>
+                {isBlackout && <span className="text-[10px] text-red-300 italic pr-0.5">closed</span>}
+              </div>
+              {/* Below sm the app swaps chips for a crimson count badge — the cells
+                  are a date picker at that width, not a readable schedule. */}
+              {events.length > 0 && (
+                <span className="sm:hidden mx-auto mb-1 flex items-center justify-center w-6 h-6 rounded-full bg-[var(--fd-accent)] text-white text-[11px] font-bold">
+                  {events.length}
+                </span>
+              )}
+              <div className="hidden sm:block space-y-0.5">
+                {events.map(ev => (
+                  <div
+                    key={ev.time + ev.label}
+                    className={`text-[9px] sm:text-[11px] leading-tight px-1 sm:px-1.5 py-0.5 rounded-lg truncate border ${CHIP_TONE[ev.tone]}`}
+                  >
+                    <span className="font-medium">{ev.time}</span>{' '}
+                    <span className="inline-block align-baseline mr-0.5 px-1 rounded bg-black/10 text-[8px] font-bold tracking-wide">
+                      {ev.badge}
+                    </span>
+                    {ev.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
-  )
-}
-
-function FieldRow({ field, slots }: { field: string; slots: (string[] | null)[] }) {
-  return (
-    <>
-      <div className="bg-white px-3 py-3 text-xs font-semibold text-gray-700">{field}</div>
-      {slots.map((slot, i) => (
-        <div key={i} className={slot ? 'bg-white px-3 py-2.5' : 'bg-gray-50 px-3 py-2.5 flex items-center'}>
-          {slot ? (
-            <>
-              <span className="block text-xs font-semibold text-gray-900">{slot[0]}</span>
-              <span className="block text-[11px] text-gray-500">{slot[1]}</span>
-            </>
-          ) : (
-            <span className="text-[11px] text-gray-400">—</span>
-          )}
-        </div>
-      ))}
-    </>
   )
 }
 
@@ -140,8 +212,8 @@ export default function Landing() {
           </nav>
         </header>
 
-        <section className="max-w-6xl mx-auto px-6 pt-12 pb-16 sm:pt-16 sm:pb-20 grid lg:grid-cols-2 gap-12 lg:gap-14 items-center">
-          <div>
+        <section className="max-w-6xl mx-auto px-6 pt-12 pb-16 sm:pt-16 sm:pb-24">
+          <div className="max-w-3xl">
             <p className="text-[var(--fd-primary-muted)] text-xs font-semibold uppercase tracking-[0.12em] mb-5">
               Youth &amp; rec league scheduling
             </p>
@@ -170,13 +242,21 @@ export default function Landing() {
               14 days free · No credit card · Takes about 2 minutes
             </p>
           </div>
-
-          <ScheduleProof />
         </section>
       </div>
 
+      {/* The app itself, straddling the fold — full content width, because that is
+          the width the month grid needs before its chips start truncating. */}
+      <div className="max-w-6xl mx-auto px-6 -mt-12 sm:-mt-16 relative">
+        <ScheduleProof />
+        <p className="text-center text-sm text-gray-500 mt-4">
+          One month of a 10U softball season: two divisions, weekend games, midweek practices,
+          and a field closure the scheduler worked around.
+        </p>
+      </div>
+
       {/* ── The wedge ──────────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-y border-gray-200 mt-16">
         <ul className="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-2 text-[15px] text-gray-700">
           {['No per-team fees', 'No transaction cuts', 'No sales call', 'Coaches and parents never need an account'].map(w => (
             <li key={w} className="flex items-center gap-2">
