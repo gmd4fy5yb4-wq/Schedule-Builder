@@ -2,7 +2,7 @@
 
 **Division:** Alfred Digital Sports
 **Supabase:** Alfred Digital Sports (`actgfxrinoxlyrprzkoh`) — MCP: `supabase-sports`
-**Live URL:** fielddayplanner.app (aliases: getfieldday.app all redirect to canonical)
+**Live URL:** fielddayplanner.app (aliases `getfieldday.app`, `getfieldday.xyz` + all three `www` 308 to it — actually wired 2026-08-31; this line claimed it before it was true)
 **Vercel project:** fieldday-planner
 
 ## Env Vars (copy .env.local.example → .env.local)
