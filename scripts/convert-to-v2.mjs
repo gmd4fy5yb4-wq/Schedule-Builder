@@ -9,7 +9,7 @@
 //   node scripts/convert-to-v2.mjs \
 //     --league .backups/YWWM8G-...json::LEv-IT \
 //     --league .backups/UC2YE8-...json::"Jonathan Fall League" \
-//     --aliases .backups/field-aliases.json --sql out.sql
+//     --aliases scripts/field-aliases.json --sql out.sql
 //
 // MANY ORGS, ONE FIELD REGISTRY.
 // 1.0 has no organization above a league, so each league carries its own copies of
@@ -21,6 +21,11 @@
 // A second org reaching the same field gets an fd2_field_grants row instead of a
 // duplicate. That is what makes a cross-org double-booking detectable at all.
 // See docs/superpowers/specs/2026-08-27-shared-field-registry-design.md
+//
+// The aliases file is TRACKED (scripts/field-aliases.json), deliberately. It records
+// human decisions about field identity, contains no PII — park and field names only —
+// and used to sit in the gitignored .backups/, where a fresh clone silently lost every
+// decision anyone had made. Keep it in the repo.
 //
 // MATCHING IS NEVER AUTOMATIC. Differently-named records are REPORTED, and merged
 // only via an --aliases file a human wrote. "Azalea Pool" and "Azalea Road Park"
@@ -170,6 +175,13 @@ export function convertRegistry(leagues, opts = {}) {
   }
 
   const canonVenue = raw => aliases[String(raw).trim()] ?? String(raw).trim()
+
+  // A merge a human has explicitly REJECTED. Recorded in the same aliases file,
+  // because that file is already "what a human decided about identity" — and a
+  // decision made once should not resurface as a warning on every run.
+  const pairKey = (a, b) => [norm(a), norm(b)].sort().join('<->')
+  const rejected = new Set(
+    (aliases._rejected ?? []).map(p => pairKey(...String(p).split('<->'))))
   const canonField = (venueName, fieldName) => {
     const hit = aliases[`${venueName}|${String(fieldName).trim()}`]
     return hit ? hit.split('|')[1] : String(fieldName).trim()
@@ -178,7 +190,12 @@ export function convertRegistry(leagues, opts = {}) {
   // Venues and fields are GLOBAL. First org to define one owns it; later orgs get
   // a grant. This is the whole point — same turf, one row.
   const venueFor = (rawName, sample, org) => {
-    const name = canonVenue(rawName || 'Unassigned venue')
+    // A field with no venue at all can still be placed, via an alias keyed on the
+    // empty venue side ("|Azalea Cages"). Azalea Cages carries Azalea Road Park's
+    // exact address and coordinates but an empty `location`, so without this it
+    // lands in "Unassigned venue" and cannot collide with the park it is part of.
+    const name = canonVenue(
+      rawName || aliases[`|${String(sample?.name ?? '').trim()}`] || 'Unassigned venue')
     const key = norm(name)
     if (!venueByKey.has(key)) {
       const v = { id: uuid5(`fieldday:venue:${key}`), owner_org_id: org.id, name,
@@ -233,7 +250,15 @@ export function convertRegistry(leagues, opts = {}) {
 
     const fieldByLegacy = new Map()
     for (const f of state.fields ?? []) {
-      if (!f.location) W('venue', `${code}: field "${f.name}" has no venue — grouped under "Unassigned venue"`)
+      if (!f.location) {
+        // Report where it ACTUALLY landed. This used to say "Unassigned venue"
+        // unconditionally, which was false for any field placed by a "|<field>"
+        // alias — it read as unresolved work that was in fact already decided.
+        const placed = aliases[`|${String(f.name).trim()}`]
+        W('venue', placed
+          ? `${code}: field "${f.name}" has no venue of its own — placed under "${placed}" by alias`
+          : `${code}: field "${f.name}" has no venue — grouped under "Unassigned venue"`)
+      }
       if (baseDistance(f.name) === null) W('field', `${code}: field "${f.name}" has no base distance in its name`)
       fieldByLegacy.set(f.id, fieldFor(f, org))
     }
@@ -336,11 +361,36 @@ export function convertRegistry(leagues, opts = {}) {
       push(t.blackoutDates, { team_id: teamByLegacy.get(t.id)?.id })
   }
 
+  // --- geocode outliers ----------------------------------------------------
+  // A wrong geocode is invisible in the UI and silently corrupts travel burden,
+  // which the 2.0 design treats as the one metric a home/away flip cannot spoil.
+  // Real case: "Red Wing Lane, Levittown NY 11756" geocoded to Red Wing,
+  // MINNESOTA — 1,609 km from every other field, with 6 bookings on it. Nobody
+  // noticed for months. Leagues are local by nature, so distance from the median
+  // field is a reliable tell; the median resists a handful of bad rows in a way
+  // a mean does not.
+  const geo = venues.filter(v => v.geo_lat !== null && v.geo_lon !== null)
+  if (geo.length >= 3) {
+    const mid = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)]
+    const clat = mid(geo.map(v => v.geo_lat)), clon = mid(geo.map(v => v.geo_lon))
+    for (const v of geo) {
+      const t = Math.PI / 180
+      const dLat = (v.geo_lat - clat) * t, dLon = (v.geo_lon - clon) * t
+      const h = Math.sin(dLat / 2) ** 2 +
+                Math.cos(clat * t) * Math.cos(v.geo_lat * t) * Math.sin(dLon / 2) ** 2
+      const km = 6371 * 2 * Math.asin(Math.sqrt(h))
+      if (km > 100) W('geocode',
+        `venue "${v.name}" (${v.address ?? 'no address'}) is ${Math.round(km)} km from the ` +
+        `other venues — almost certainly a wrong geocode. Do NOT guess a replacement; re-geocode the address.`)
+    }
+  }
+
   // --- suggest merges a human should confirm via --aliases -----------------
   const SIM = 0.4
   for (let i = 0; i < venues.length; i++) for (let j = i + 1; j < venues.length; j++) {
     const a = venues[i], b = venues[j]
     const first = s => String(s).trim().split(/\s+/)[0].toLowerCase()
+    if (rejected.has(pairKey(a.name, b.name))) continue
     if (first(a.name) === first(b.name) || trigramSim(a.name, b.name) >= SIM)
       W('suggest', `venues "${a.name}" and "${b.name}" may be the same place — add to --aliases to merge`)
   }
@@ -351,6 +401,7 @@ export function convertRegistry(leagues, opts = {}) {
     const compatible = a.surface === b.surface || a.surface === null || b.surface === null
     const distMatch = a.base_distance_ft && a.base_distance_ft === b.base_distance_ft && compatible
     // Compare FULL paths — venue-or-field alone is below any usable threshold.
+    if (rejected.has(pairKey(`${va}|${a.name}`, `${vb}|${b.name}`))) continue
     if ((sameVenue && distMatch) || trigramSim(`${va} ${a.name}`, `${vb} ${b.name}`) >= 0.5)
       W('suggest', `fields "${va} / ${a.name}" and "${vb} / ${b.name}" may be the same field — add to --aliases to merge`)
   }
@@ -468,6 +519,44 @@ function selfTest() {
   assert.equal(orphan.bookings.length, 1, 'orphan booking kept, not dropped')
   assert.equal(orphan.bookings[0].field_id, null)
   assert.ok(orphan.warnings.length >= 2)
+
+  // --- geocode outlier + rejected-merge + venue-less placement -------------
+  const geoLeague = (id, org, fields) => ({ id, orgName: org, data: {
+    season: { leagueName: id, startDate: '2026-08-31', endDate: '2026-11-30', sport: 'softball' },
+    fields, divisions: [], umpires: [], fieldStaff: [],
+    schedule: { games: [], practices: [], specialEvents: [] } } })
+
+  // Three venues clustered on Long Island, one geocoded to Minnesota.
+  const geoOut = convertRegistry([geoLeague('G1', 'Org', [
+    { id: 'a', name: 'Turf', location: 'Azalea',    geocoords: { lat: 40.7217, lon: -73.5125 } },
+    { id: 'b', name: 'Walker', location: 'Hicksville', geocoords: { lat: 40.7684, lon: -73.5251 } },
+    { id: 'c', name: 'Salisbury Turf', location: 'Central Nassau', geocoords: { lat: 40.7371, lon: -73.5501 } },
+    { id: 'd', name: 'Red Wing 75', location: 'Red Wing', geocoords: { lat: 44.5624, lon: -92.5338 } },
+  ])])
+  const geoWarn = geoOut.warnings.filter(w => w.kind === 'geocode')
+  assert.equal(geoWarn.length, 1, 'exactly the one far-away venue is flagged')
+  assert.match(geoWarn[0].msg, /Red Wing/, 'and it is the Minnesota one')
+
+  // A rejected pair must not be re-suggested.
+  const rejArgs = [geoLeague('G2', 'Org', [
+    { id: 'a', name: 'Dirt', location: 'Azalea Road Park' },
+    { id: 'b', name: 'Turf', location: 'Azalea Road Park' },
+  ])]
+  assert.ok(convertRegistry(rejArgs).warnings.some(w => w.kind === 'suggest'),
+    'similar names at one venue are suggested by default')
+  assert.ok(!convertRegistry(rejArgs, {
+      aliases: { _rejected: ['Azalea Road Park|Dirt<->Azalea Road Park|Turf'] },
+    }).warnings.some(w => w.kind === 'suggest'),
+    'and a human rejection silences that suggestion for good')
+
+  // A field with an empty `location` is placed by a "|<field>" alias.
+  const placed = convertRegistry([geoLeague('G3', 'Org', [
+    { id: 'a', name: 'Turf', location: 'Azalea Road Park' },
+    { id: 'b', name: 'Azalea Cages', location: '' },
+  ])], { aliases: { '|Azalea Cages': 'Azalea Road Park' } })
+  assert.equal(placed.venues.length, 1, 'the venue-less field joins the park, not "Unassigned venue"')
+  assert.match(placed.warnings.find(w => w.kind === 'venue').msg, /placed under "Azalea Road Park"/,
+    'and the warning says where it actually landed')
 
   console.log('self-test: all assertions passed')
 }

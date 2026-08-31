@@ -36,7 +36,6 @@ independently of any push.
   rolled forward to fall, and survived only inside one `league_snapshots` row.
   The `fd_010` guard trigger did **not** fire, because the deletion was incremental —
   each individual save stayed under the 50% threshold. That's a real gap in the guard.
-- `field-aliases.json` — human-confirmed venue/field merges for the converter
 - Both leagues also re-snapshotted into `league_snapshots` with labeled rows
 
 Jonathan's UC2YE8 (paid fall league) and the YWWM8G Force travel schedule are untouched.
@@ -60,14 +59,55 @@ writes without that clause. Now: anon grants NONE, anon/public EXECUTE NONE,
 
 **The tables are EMPTY.** Loading data is a separate, deliberate step — see below.
 
+### Field-identity decisions — SETTLED 2026-08-31 (Greg)
+
+**All three suggested merges were REJECTED, on evidence.** They were an artifact, not
+duplicates: **1.0 stores ONE geocode per venue**, so every field at a venue carries the
+park's coordinate. The design rule is "distance is primary, name similarity only the
+tiebreaker" — but *within* a venue the distance is always zero, so the suggester falls
+back on names, and the venue name dominates the trigram. That blind spot is the whole
+source of the suggestions.
+
+- **Azalea Dirt vs Turf — distinct, PROVEN.** They hold **8 bookings at the identical
+  date and time** (2026-06-14 09:00, 06-21, 06-28, 07-05, …). One physical field cannot
+  host two events at once. 11 vs 42 bookings, and dirt is not turf.
+- **Salisbury Turf vs Grass — distinct** (different surfaces; Grass has 0 bookings, so
+  no usage evidence either way — Greg's call).
+- **East Meadow Greco vs Cook — distinct** (two named diamonds; both 0 bookings — Greg's call).
+
+Rejections are recorded in `scripts/field-aliases.json` under `_rejected`, and the
+converter now skips them, so **a decision made once no longer resurfaces as a warning on
+every run.** Two more pairs were rejected the same way (Azalea Cages vs Dirt, vs Turf) —
+the identical artifact, surfaced only once the cages were correctly placed into the park.
+
+### Two defects the suggester never flagged
+
+1. **`Red Wing 75` is geocoded to Minnesota.** Address `Red Wing Lane, Levittown NY 11756`,
+   stored coordinate `44.56247, -92.5338` — **1,607 km** from every other field, which all
+   sit in Nassau County at ~`40.7, -73.5`. It carries **6 real bookings**, and travel burden
+   is the one metric the design says a home/away flip must not be able to corrupt.
+   **No replacement coordinate was invented** (Greg's explicit call). The converter now
+   emits a `[geocode]` warning for any venue >100 km from the median, so this class cannot
+   hide again — leagues are local by nature, and the median resists a few bad rows where a
+   mean would not. **Still open: re-geocode that address for real.**
+2. **`Azalea Cages` had no venue at all** — empty `location`, but byte-identical address and
+   coordinates to Azalea Road Park. Now placed there via a `"|<field>"` alias key. The
+   "no venue" warning used to say "grouped under Unassigned venue" unconditionally, which
+   was false once an alias placed it; it now reports where the field actually landed.
+
+Net effect: warnings **47 → 44**, venues **7 → 6**, fields still **14** (nothing wrongly
+merged), and `[suggest]` is now empty. The remaining blocker for loading is unchanged:
+**24 events with free-text locations**. Everything else is informational — 14 fields whose
+names carry no base distance, 1 placeholder opponent, 1 division needing a program set by
+hand, and the 3 `[grant]` lines, which are the feature working correctly.
+
 The converter is proven against real data (`--self-test` passes; a full run over both
 live leagues produced 2 seasons / 7 venues / 14 fields / 21 teams / 87 bookings and
 correctly emitted 3 cross-org field grants for Azalea Dirt, Azalea Turf and MacLaren
 Turf 60' — the exact double-booking risk 2.0 exists to solve). **47 warnings are not yet
 resolved**, and they are the reason nothing was loaded: 24 events carry free-text
-locations (`"REDWING 75 TURF"`, `"Azelea - Turf"`) with no field mapping, and 3 field
-pairs are flagged as possible duplicates needing Greg's confirmation before they are
-merged into one registry row. Loading now would bake all 47 into the new schema.
+locations (`"REDWING 75 TURF"`, `"Azelea - Turf"`) with no field mapping. The field-identity
+half of that list is now settled — see the section immediately below.
 
 - `src/db/migrations/fd_016_v2_schema.sql` — 12 tables, 24 policies, 67 objects.
   Header carries a SAFETY CONTRACT: purely additive, only `fd2_*` names, never touches

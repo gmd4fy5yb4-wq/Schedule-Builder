@@ -1,0 +1,16 @@
+{
+  "_comment": "Human-confirmed field/venue identity across leagues. The converter NEVER auto-merges differently-named records; this file is the confirmation step. Keys: '<venue>' -> canonical venue, '<venue>|<field>' -> canonical '<venue>|<field>', or '|<field>' -> venue for a field whose own `location` is empty.",
+  "Azalea Pool": "Azalea Road Park",
+  "Azalea Road Park|Azalea Turf": "Azalea Road Park|Turf",
+  "Azalea Road Park|Azalea Dirt": "Azalea Road Park|Dirt",
+  "MacLaren Stadium|MacLaren 60'": "MacLaren Stadium|Turf 60'",
+  "|Azalea Cages": "Azalea Road Park",
+  "_rejected_comment": "Pairs a human has confirmed are DISTINCT. Decided 2026-08-31 by Greg. The suggester matches on coordinates, but 1.0 stores ONE geocode per venue, so every field at a venue shares it and distance can never discriminate within a venue — these are that blind spot, not real duplicates. The two Azalea Cages pairs are the same artifact, surfaced only after the cages were correctly placed into Azalea Road Park: a batting cage is not a ball diamond.",
+  "_rejected": [
+    "Azalea Road Park|Dirt<->Azalea Road Park|Turf",
+    "Central Nassau|Salisbury Turf<->Central Nassau|Salisbury Grass",
+    "East Meadow|Greco<->East Meadow|Cook",
+    "Azalea Road Park|Dirt<->Azalea Road Park|Azalea Cages",
+    "Azalea Road Park|Turf<->Azalea Road Park|Azalea Cages"
+  ]
+}
