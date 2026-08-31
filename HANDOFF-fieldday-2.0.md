@@ -41,9 +41,33 @@ independently of any push.
 
 Jonathan's UC2YE8 (paid fall league) and the YWWM8G Force travel schedule are untouched.
 
-## The 2.0 work — drafted, nothing applied
+## The 2.0 work — Phase 1 APPLIED 2026-08-31
 
-Three untracked files. **Zero `fd2_` tables exist in production.**
+**`fd_016` is live in the Sports DB.** Applied via MCP and verified by measurement,
+not by the tool's success flag: 12 tables, 12 with RLS, **24 policies (every table has
+BOTH a read and a write policy — the silent deny-all trap did not recur)**, 5 functions,
+12 indexes. anon reads 0 rows from all 12 by impersonation. 1.0 untouched and re-counted
+after the fact: 6 leagues, 63 snapshots, 23 subscriptions, 10 Prospect Card teams,
+8 policies.
+
+**`fd_019` followed immediately.** fd_016's `revoke execute … from public` did NOT remove
+anon's access, because Supabase's default privileges grant anon **explicitly** — the
+spoc_006 trap, third time in this DB. Measured after fd_016: anon held table privileges
+on all 12 fd2_ tables and EXECUTE on all 5 functions. Not a live leak (every policy is
+`to authenticated`, so anon read 0 rows), but a tripwire for the first policy someone
+writes without that clause. Now: anon grants NONE, anon/public EXECUTE NONE,
+`authenticated` retains all 12 tables and all 5 functions.
+
+**The tables are EMPTY.** Loading data is a separate, deliberate step — see below.
+
+The converter is proven against real data (`--self-test` passes; a full run over both
+live leagues produced 2 seasons / 7 venues / 14 fields / 21 teams / 87 bookings and
+correctly emitted 3 cross-org field grants for Azalea Dirt, Azalea Turf and MacLaren
+Turf 60' — the exact double-booking risk 2.0 exists to solve). **47 warnings are not yet
+resolved**, and they are the reason nothing was loaded: 24 events carry free-text
+locations (`"REDWING 75 TURF"`, `"Azelea - Turf"`) with no field mapping, and 3 field
+pairs are flagged as possible duplicates needing Greg's confirmation before they are
+merged into one registry row. Loading now would bake all 47 into the new schema.
 
 - `src/db/migrations/fd_016_v2_schema.sql` — 12 tables, 24 policies, 67 objects.
   Header carries a SAFETY CONTRACT: purely additive, only `fd2_*` names, never touches
@@ -72,10 +96,10 @@ Three untracked files. **Zero `fd2_` tables exist in production.**
   ~590×; two people editing at once would clobber each other.
 - LEv-IT is the test case, not the customer shape. This generalizes.
 
-### Blocking prerequisite
+### Blocking prerequisite — DONE
 
-Register the `fd2_` prefix in the **Table Ownership Map** in `memory/migrations.md`
-*before* `fd_016` is ever applied. The Sports DB is shared with Prospect Card and AthleteCard.
+The `fd2_` prefix is registered in the **Table Ownership Map** (`memory/migrations.md`
+line 56), which was confirmed before `fd_016` was applied.
 
 ## Open threads (none started)
 

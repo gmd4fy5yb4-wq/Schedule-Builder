@@ -1,6 +1,11 @@
 -- fd_016_v2_schema.sql — FieldDay Planner 2.0 core schema
 --
--- STATUS: DRAFT. NOT APPLIED. Do not run this in the SQL editor yet.
+-- STATUS: APPLIED to production 2026-08-31 via Supabase MCP (name: fd_016_v2_schema).
+--   Verified after apply: 12 tables, 12 with RLS, 24 policies, 5 functions,
+--   12 indexes; every table has BOTH a read and a write policy; anon reads 0
+--   rows by impersonation. 1.0 untouched (6 leagues, 63 snapshots, 23 subs).
+--   FOLLOW-UP: fd_019 closes the anon grants Supabase's default privileges
+--   added to these tables/functions — fd_016's revoke-from-PUBLIC did not.
 --
 -- SAFETY CONTRACT (read before editing):
 --   * This migration is PURELY ADDITIVE. It creates only `fd2_*` tables and
