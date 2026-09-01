@@ -82,14 +82,46 @@ the identical artifact, surfaced only once the cages were correctly placed into 
 
 ### Two defects the suggester never flagged
 
-1. **`Red Wing 75` is geocoded to Minnesota.** Address `Red Wing Lane, Levittown NY 11756`,
-   stored coordinate `44.56247, -92.5338` — **1,607 km** from every other field, which all
-   sit in Nassau County at ~`40.7, -73.5`. It carries **6 real bookings**, and travel burden
-   is the one metric the design says a home/away flip must not be able to corrupt.
-   **No replacement coordinate was invented** (Greg's explicit call). The converter now
-   emits a `[geocode]` warning for any venue >100 km from the median, so this class cannot
-   hide again — leagues are local by nature, and the median resists a few bad rows where a
-   mean would not. **Still open: re-geocode that address for real.**
+1. **`Red Wing 75` was geocoded to Minnesota — FIXED IN PROD 2026-08-31.**
+   Stored coordinate was `44.56247, -92.5338`, **1,609 km** from every other field, from the
+   address `Red Wing Lane, Levittown NY 11756`, carrying 6 real bookings.
+
+   **Root cause was the geocode chain, not a bad row.** `/api/geocode` led with an
+   Open-Meteo lookup of the bare **venue name** — the least specific input available, with
+   no state or country constraint — and returned on first success, so the address was never
+   tried. "Red Wing" is a real city in Minnesota. Confirmed against the live API: it returns
+   exactly the stored value. `Hicksville` survived the same path only by luck, that venue
+   genuinely being in Hicksville.
+
+   **Reordering alone was NOT enough** — that address resolves nowhere, so the chain fell
+   straight through to the bare name anyway. The fix is that the bare name is now the LAST
+   stage, below the city+state extracted from the address. Open-Meteo indexes populated
+   places, not parks, so a bare name only ever yields an *unconstrained* city-level guess;
+   the city derived from an address we were actually given is the same granularity but
+   anchored to real input. Simulated over all six venues before shipping: Red Wing moves
+   1,609 km to Levittown, Hicksville and Central Nassau get *more* precise (they now use
+   their street address rather than a city centroid), East Meadow resolves for the first
+   time, and nothing regresses.
+
+   The chain moved to `src/lib/geocodeChain.ts` as a pure function so its ORDER is testable
+   (`src/lib/geocodeChain.test.ts`, verified to fail when the old order is reintroduced).
+   The route delegates to it, so there is one implementation rather than two.
+
+   Production value is now `40.721775, -73.512558`, from a real Nominatim lookup of
+   `Levittown, NY` — the same value the corrected chain produces. **No coordinate was
+   hand-invented.** Rollback: `.backups/ROLLBACK-redwing-geocode-2026-08-31.sql`; the prior
+   value is recorded above in case that gitignored file is ever lost. Verified after the
+   write: 0 geocode outliers across all 6 leagues, all 15 YWWM8G fields present with every
+   other coordinate byte-identical, 153 scheduled items untouched.
+
+   **Caveat worth knowing:** Levittown's centroid is also what Azalea Road Park stores, so
+   the two now sit at the same point and travel burden between them reads 0 km. That is
+   city-level accuracy, which is what the chain promises; a precise fix needs a real
+   street address for the actual park.
+
+   The converter also emits a `[geocode]` warning for any venue >100 km from the median, so
+   the class cannot hide again — leagues are local by nature, and the median resists a few
+   bad rows where a mean would not.
 2. **`Azalea Cages` had no venue at all** — empty `location`, but byte-identical address and
    coordinates to Azalea Road Park. Now placed there via a `"|<field>"` alias key. The
    "no venue" warning used to say "grouped under Unassigned venue" unconditionally, which
@@ -128,8 +160,8 @@ and `[suggest]` and `[event]` are both empty.
 **Nothing blocking remains.** The 21 are all informational: 14 field names that carry no
 base distance, 1 note that Azalea Cages was placed by alias, 1 placeholder opponent
 correctly flagged external, 3 `[grant]` lines that are the feature working, 1 division
-needing a program set by hand, and the `[geocode]` warning for Red Wing — which is real
-and still open.
+needing a program set by hand, and the `[geocode]` warning for Red Wing, which is now FIXED in prod (re-run the
+converter against fresh data and it will be gone).
 
 The converter is proven against real data (`--self-test` passes; a full run over both
 live leagues produced 2 seasons / 7 venues / 14 fields / 21 teams / 87 bookings and

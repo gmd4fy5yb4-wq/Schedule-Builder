@@ -1,8 +1,9 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase-server'
+import { resolveCoords } from '@/lib/geocodeChain'
 
-type Coords = { lat: number; lon: number }
+import type { Coords } from '@/lib/geocodeChain'
 
 const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=86400, s-maxage=86400' }
 
@@ -57,34 +58,18 @@ async function tryNominatim(query: string): Promise<Coords | null> {
 }
 
 /**
- * Extract "City, ST" from a US street address.
- * Handles both comma-separated and space-separated city/state formats:
- *   "100 Azalea Rd, Uniondale, NY 11553" → "Uniondale, NY"
- *   "100 Periwinkle Rd, Levittown NY 11756" → "Levittown, NY"
- *   "Eisenhower Park, East Meadow, NY"   → "East Meadow, NY"
- * Returns null if no city/state pattern is found.
- */
-function extractCityState(address: string): string | null {
-  // Format 1: "..., City, ST [zip]" — comma before state abbreviation
-  let m = address.match(/,\s*([A-Za-z][A-Za-z\s]*),\s*([A-Z]{2})(?:\s+\d{5})?/i)
-  if (m) return `${m[1].trim()}, ${m[2].toUpperCase()}`
-  // Format 2: "..., City ST [zip]" — space (no comma) before state abbreviation
-  m = address.match(/,\s*([A-Za-z][A-Za-z\s]*?)\s+([A-Z]{2})(?:\s+\d{5})?$/i)
-  if (m) return `${m[1].trim()}, ${m[2].toUpperCase()}`
-  return null
-}
-
-/**
  * GET /api/geocode?address=<street+address>&location=<venue+name>
  *
  * Resolves a softball field to lat/lon using a 4-stage fallback chain:
- *  1. Open-Meteo geocoding with the venue/park name  (fast, reliable)
- *  2. Nominatim with the full street address         (precise, slower)
- *  3. Open-Meteo geocoding with the full address     (second pass)
- *  4. Open-Meteo geocoding with city+state extracted from the address
+ *  1. Nominatim with the full street address         (precise)
+ *  2. Open-Meteo geocoding with the full address     (second pass)
+ *  3. Open-Meteo geocoding with city+state extracted from the address
+ *  4. Open-Meteo geocoding with the venue/park name — LAST, because a bare name
+ *     is unconstrained by state and must not outrank anything derived from the
+ *     address we were actually given
  *     — nearly always succeeds when the address includes a city name
  *
- * Stage 4 ensures weather shows even for obscure park names. City-level
+ * Stage 3 ensures weather shows even for obscure park names. City-level
  * accuracy (~5 mile radius) is plenty for local softball league weather.
  *
  * Results are cached at the edge for 24 h; the browser also caches in
@@ -104,50 +89,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'address or location is required' }, { status: 400 })
   }
 
-  // Stage 1 — Open-Meteo with venue/park name (fastest, most reliable)
-  if (location) {
-    const coords = await tryOpenMeteo(location)
-    if (coords) return NextResponse.json(coords, { headers: CACHE_HEADERS })
-  }
-
-  // Stage 2 — Nominatim with full street address (most precise)
-  if (address) {
-    const coords = await tryNominatim(address)
-    if (coords) return NextResponse.json(coords, { headers: CACHE_HEADERS })
-  }
-
-  // Stage 3 — Open-Meteo with full street address
-  if (address) {
-    const coords = await tryOpenMeteo(address)
-    if (coords) return NextResponse.json(coords, { headers: CACHE_HEADERS })
-  }
-
-  // Stage 4 — extract city+state from address, then try multiple geocoders.
-  // Handles small parks / venues not in any geocoding index.
-  // "100 Azalea Rd, Uniondale, NY 11553" → "Uniondale, NY" / "Uniondale"
-  // "100 Perrwinkle Rd, Levittown NY 11756" → "Levittown, NY" / "Levittown"
-  //
-  // NOTE: Open-Meteo searches GeoNames by exact city name, so "Levittown, NY"
-  // does NOT match the stored entry "Levittown" — always try the city name alone
-  // as a second pass.
-  if (address) {
-    const cityState = extractCityState(address)
-    if (cityState) {
-      const city = cityState.split(',')[0].trim()
-
-      // 4a — Nominatim with city+state (handles US "City, ST" well)
-      const n = await tryNominatim(cityState)
-      if (n) return NextResponse.json(n, { headers: CACHE_HEADERS })
-
-      // 4b — Open-Meteo with city name only (most reliable; GeoNames exact match)
-      const om = await tryOpenMeteo(city)
-      if (om) return NextResponse.json(om, { headers: CACHE_HEADERS })
-
-      // 4c — Open-Meteo with "City, ST" (some locales include state in GeoNames)
-      const oms = await tryOpenMeteo(cityState)
-      if (oms) return NextResponse.json(oms, { headers: CACHE_HEADERS })
-    }
-  }
+  // The chain itself lives in src/lib/geocodeChain.ts so its ORDER can be
+  // tested (src/lib/geocodeChain.test.ts). Order is the entire logic here, and
+  // getting it wrong fails silently — it returns a confident, well-formed
+  // coordinate for the wrong place.
+  const hit = await resolveCoords(address, location, {
+    precise: tryNominatim,
+    place: tryOpenMeteo,
+  })
+  if (hit) return NextResponse.json(hit.coords, { headers: CACHE_HEADERS })
 
   // Don't cache failed lookups — no headers so browser/edge won't store a null result
   return NextResponse.json({ lat: null, lon: null })
