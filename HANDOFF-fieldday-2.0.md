@@ -59,6 +59,44 @@ writes without that clause. Now: anon grants NONE, anon/public EXECUTE NONE,
 
 **The tables are EMPTY.** Loading data is a separate, deliberate step — see below.
 
+### Converter inputs must be re-exported, not reused (2026-08-31)
+
+The first conversion runs used `.backups/*-2026-08-27-1108-live.json`, which had gone
+**stale within four days**: YWWM8G had grown from 14 fields to 15 and from ~80 scheduled
+items to **153** (20 games, 108 practices, 25 events), because it is a live league someone
+edits. Every count reported off those files was therefore wrong, including "Red Wing has 6
+bookings" — it has **23**.
+
+**Re-export before every conversion run.** Straight from PostgREST to disk with the service
+role key, so the blob (which carries coach names, phones and emails) never passes through a
+terminal or an agent's context:
+
+```bash
+set -a; . ./.env.local; set +a
+curl -s "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/leagues?id=eq.YWWM8G&select=id,data,updated_at,updated_by,view_token,owner_id"   -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"   -o ".backups/YWWM8G-$(date +%Y-%m-%d-%H%M)-live.json"
+```
+
+The converter accepts a PostgREST array directly (`Array.isArray(raw) ? raw[0] : raw`), so
+that file needs no reshaping.
+
+**Current numbers, from `2026-08-31-2107` exports:** 2 orgs, 2 seasons, **7 venues**,
+**15 fields**, 3 grants, 4 divisions, 23 teams, 18 contacts, **162 bookings**
+(= 153 + 7 source items, +2 from the two tournaments splitting into per-field blocks).
+21 warnings, none blocking.
+
+**Everything decided earlier survived the refresh**, which is the real test of keying
+decisions by id rather than by position or text: `[event]` 0, `[suggest]` 0, and
+`[geocode]` 0 — the last confirming the Red Wing fix reaches all the way through
+conversion.
+
+**One new item: `LSW FIELD (TBD)`** at a venue literally named `TBD`, added to YWWM8G in
+that same edit, with no address and **0 bookings**. It matters because venues and fields
+in 2.0 are **global and owned by the first org to define them**, so a placeholder typed
+into one league becomes a permanent shared row every other org can be granted against. The
+converter now emits a `[placeholder]` warning for any TBD/TBA/unknown field with no
+bookings — **flagged, not dropped**: silently discarding a row someone typed is worse than
+carrying it with a warning. Cleanest fix is to delete it in the 1.0 UI before loading.
+
 ### Field-identity decisions — SETTLED 2026-08-31 (Greg)
 
 **All three suggested merges were REJECTED, on evidence.** They were an artifact, not
@@ -84,7 +122,8 @@ the identical artifact, surfaced only once the cages were correctly placed into 
 
 1. **`Red Wing 75` was geocoded to Minnesota — FIXED IN PROD 2026-08-31.**
    Stored coordinate was `44.56247, -92.5338`, **1,609 km** from every other field, from the
-   address `Red Wing Lane, Levittown NY 11756`, carrying 6 real bookings.
+   address `Red Wing Lane, Levittown NY 11756`, carrying **23 real bookings** (the
+   "6" reported earlier came from a stale 2026-08-27 export; current data has 23).
 
    **Root cause was the geocode chain, not a bad row.** `/api/geocode` led with an
    Open-Meteo lookup of the bare **venue name** — the least specific input available, with

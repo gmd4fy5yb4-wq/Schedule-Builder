@@ -404,11 +404,27 @@ export function convertRegistry(leagues, opts = {}) {
       push(t.blackoutDates, { team_id: teamByLegacy.get(t.id)?.id })
   }
 
+  // --- placeholder fields --------------------------------------------------
+  // Venues and fields are GLOBAL and owned by the first org to define them, so a
+  // placeholder typed into one league becomes a permanent shared row every other
+  // org can be granted against. "LSW FIELD (TBD)" at venue "TBD" appeared in
+  // YWWM8G with no address and no bookings and would have created a venue
+  // literally named TBD. Flagged rather than dropped: silently discarding a row
+  // someone typed is worse than carrying it with a warning.
+  const bookedFields = new Set(bookings.map(b => b.field_id).filter(Boolean))
+  for (const f of fields) {
+    const v = venues.find(x => x.id === f.venue_id)
+    const looksPlaceholder = /\b(tbd|tba|unknown|placeholder)\b/i.test(`${f.name} ${v?.name ?? ''}`)
+    if (looksPlaceholder && !bookedFields.has(f.id))
+      W('placeholder', `field "${v?.name ?? '?'} / ${f.name}" looks like a placeholder and has 0 bookings — ` +
+        `it would still create a GLOBAL venue/field row. Delete it in 1.0, or confirm it is real.`)
+  }
+
   // --- geocode outliers ----------------------------------------------------
   // A wrong geocode is invisible in the UI and silently corrupts travel burden,
   // which the 2.0 design treats as the one metric a home/away flip cannot spoil.
   // Real case: "Red Wing Lane, Levittown NY 11756" geocoded to Red Wing,
-  // MINNESOTA — 1,609 km from every other field, with 6 bookings on it. Nobody
+  // MINNESOTA — 1,609 km from every other field, with 23 bookings on it. Nobody
   // noticed for months. Leagues are local by nature, so distance from the median
   // field is a reliable tell; the median resists a handful of bad rows in a way
   // a mean does not.
@@ -636,6 +652,18 @@ function selfTest() {
   assert.equal(party.field_id, null, 'an empty list means deliberately no field')
   assert.equal(party.needs_review, false, 'and a decided event is NOT re-flagged for review')
   assert.match(party.source_raw, /Azelea/, 'while the original text is still kept verbatim')
+
+  // --- placeholder fields ---------------------------------------------------
+  {
+    const withPlaceholder = convertRegistry([geoLeague('P1', 'Org', [
+      { id: 'a', name: 'Turf', location: 'Azalea Road Park' },
+      { id: 'b', name: 'LSW FIELD (TBD)', location: 'TBD' },
+    ])])
+    const w = withPlaceholder.warnings.filter(x => x.kind === 'placeholder')
+    assert.equal(w.length, 1, 'an unbooked TBD field is flagged')
+    assert.match(w[0].msg, /LSW FIELD/)
+    assert.equal(withPlaceholder.fields.length, 2, 'but it is NOT dropped — flagged, not discarded')
+  }
 
   console.log('self-test: all assertions passed')
 }

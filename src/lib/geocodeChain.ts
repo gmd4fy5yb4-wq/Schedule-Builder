@@ -5,7 +5,7 @@
  * tested. The order is the whole logic here, and getting it wrong is not a
  * visible failure: it returns a confident, well-formed coordinate for the
  * wrong place. LEv-IT's "Red Wing" field sat 1,609 km away in Minnesota for
- * months, with six real bookings on it, because the chain led with the bare
+ * months, with 23 real bookings on it, because the chain led with the bare
  * venue name.
  */
 
