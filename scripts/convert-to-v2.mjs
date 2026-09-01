@@ -719,3 +719,16 @@ if (r.warnings.length) {
 }
 
 if (flag('--sql')) { writeFileSync(flag('--sql'), toSQL(r)); console.log(`\nwrote ${flag('--sql')}`) }
+
+// --json emits the same row sets as plain JSON, for loading over PostgREST
+// instead of pasting 77KB of SQL through something. Keys are in FK-safe order.
+if (flag('--json')) {
+  const ORDER = ['orgs', 'seasons', 'venues', 'fields', 'field_grants', 'divisions',
+                 'teams', 'team_contacts', 'staff', 'blackouts', 'bookings']
+  const src = { orgs: r.orgs, seasons: r.seasons, venues: r.venues, fields: r.fields,
+                field_grants: r.grants, divisions: r.divisions, teams: r.teams,
+                team_contacts: r.contacts, staff: r.staff, blackouts: r.blackouts,
+                bookings: r.bookings }
+  writeFileSync(flag('--json'), JSON.stringify(ORDER.map(k => ({ table: `fd2_${k}`, rows: src[k] })), null, 2))
+  console.log(`\nwrote ${flag('--json')}`)
+}

@@ -57,7 +57,60 @@ on all 12 fd2_ tables and EXECUTE on all 5 functions. Not a live leak (every pol
 writes without that clause. Now: anon grants NONE, anon/public EXECUTE NONE,
 `authenticated` retains all 12 tables and all 5 functions.
 
-**The tables are EMPTY.** Loading data is a separate, deliberate step — see below.
+**LOADED 2026-08-31.** 236 rows across 9 tables: 2 orgs, 2 seasons, 7 venues, 15 fields,
+3 field grants, 4 divisions, 23 teams, 18 contacts, 162 bookings (block 4, event 23,
+game 27, practice 108). `fd2_staff`, `fd2_blackouts` and `fd2_org_members` are empty.
+Verified after load: **0 orphan foreign keys, 0 rows left needing review**, 26 rows keeping
+their original free-text in `source_raw`, 2 events deliberately holding no field, and 1.0
+untouched (6 leagues, 63 snapshots).
+
+Loaded over **PostgREST from the converter's `--json` output**, not by pasting SQL — 77KB of
+generated INSERTs through a chat context is a transcription risk on a production write, and
+the blob carries coach PII. `scripts/convert-to-v2.mjs --json <file>` emits the row sets in
+FK-safe order; the loader upserts each table on its primary key, so re-running is safe
+because every id is a deterministic UUIDv5. One wrinkle worth knowing: **PostgREST bulk
+insert requires every object in a batch to carry identical keys**, and rows legitimately
+differ (a game has no `source_raw`), so the loader pads to the union with nulls. A null
+landing in a NOT NULL column is rejected by the database, so that padding cannot quietly
+corrupt anything.
+
+### Security re-verified WITH data in the tables
+
+- **`anon` gets `permission denied`, not an empty result** — `fd_019` removed the table
+  grant, so it is stopped at the privilege layer before RLS is even consulted.
+- **A signed-in user with no `fd2_org_members` row reads 0** bookings, 0 contacts, 0 teams,
+  0 orgs. This is the cross-app check that matters: the Sports DB has ONE `auth.users`, so a
+  Prospect Card or AthleteCard session is a valid login here and must see nothing.
+- 7 venues ARE visible to any authenticated user, by design (`fd2_venues_read USING (true)`
+  — a public park's name and address, so cross-org field matching can work).
+
+**Nobody can see this data in an app yet**, because `fd2_org_members` is empty and every
+policy routes through `fd2_role_in()`. Membership rows are the next functional step.
+
+### The first thing 2.0 found: 4 cross-org overlaps — READ THE CAVEAT
+
+The moment both leagues shared one field registry, this query became answerable for the
+first time, and it returned four collisions on shared fields:
+
+| Date | Field | LEv-IT | Jonathan Fall League |
+|---|---|---|---|
+| 2026-09-13 10:00 | Azalea Turf | Force (14U) Harrison vs **Away Team** | Force (White) vs Cobras (Gold) |
+| 2026-09-19 10:00 | Azalea Turf | Force (14U) Harrison vs **Away Team** | Force (White) vs Lady Diamond Pros |
+| 2026-09-19 12:00 | Azalea Turf | Force (16U) Herrera vs **Away Team** | Force (Hererra) vs Lady Diamond Pros |
+| 2026-09-20 10:00 | MacLaren Turf 60' | Force (16U) Herrera vs **Away Team** | Force (Hererra) vs Cobras (Black) |
+
+**These are very probably NOT conflicts.** In all four, LEv-IT's side plays `Away Team`
+(`is_external = true`, its placeholder for an out-of-league opponent) while Jonathan's side
+carries the same club team against a *named* opponent — and `Force (16U) Herrera` /
+`Force (Hererra)` is the same team with the coach's name misspelled. The likeliest reading
+is one interleague game recorded in both leagues, which matches the note that ~70% of
+LEv-IT's games are interleague.
+
+**This is the deferred cross-org TEAM identity gap, showing up in real data on day one.**
+Field identity is solved; team identity is not, so the detector cannot yet tell "two teams
+collide" from "one game, two records". Greg should confirm whether `Force (White)` is
+`Force (14U) Harrison` — if so, dedup by team identity is the next design question, and it
+is now backed by four concrete examples instead of a hypothetical.
 
 ### Converter inputs must be re-exported, not reused (2026-08-31)
 
