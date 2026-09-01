@@ -12,5 +12,152 @@
     "East Meadow|Greco<->East Meadow|Cook",
     "Azalea Road Park|Dirt<->Azalea Road Park|Azalea Cages",
     "Azalea Road Park|Turf<->Azalea Road Park|Azalea Cages"
-  ]
+  ],
+  "_event_fields_comment": "Which field a free-text special event belongs on, keyed by the 1.0 event id. One raw string ('Azelea') covers a clinic, a 12-hour tournament and a team party, so a string->field table cannot express this; the event id can. Value is a list of 'Venue|Field'; several means a block per field (the event occupies each); [] means the event deliberately occupies no field. Decided 2026-08-31 by Greg.",
+  "_event_fields": {
+    "6s2ve0ea5hbmpbgj6kl": {
+      "fields": [
+        "Red Wing|Red Wing 75"
+      ],
+      "note": "2026-05-22 17:30 \"Wolverines Practice\" <- \"REDWING 75 TURF\" — raw names Red Wing 75 turf"
+    },
+    "4946jtdsgjgmppocmko": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-06-02 17:00 \"12u - Williamsport Practice 5pm to 7:30  Azelea - Turf\" <- \"Azelea - Turf\" — raw names Turf"
+    },
+    "piu1dqmkpicmppobk5b": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-05-30 17:00 \"12u Williamsport Practice\" <- \"Azelea - Turf\" — raw names Turf"
+    },
+    "1ejlxomfq7dmpravkqn": {
+      "fields": [
+        "Azalea Road Park|Dirt"
+      ],
+      "note": "2026-05-30 11:00 \"10u - Williamsport Practice\" <- \"Azelea - Dirt\" — raw names Dirt"
+    },
+    "5jimywx2kklmpvjfjwr": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-06-11 17:30 \"10u Final\" <- \"Azelea - Turf\" — raw names Turf"
+    },
+    "rbcepsrgj8omq0b3oaj": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-06-08 17:30 \"10u - Williamsport Practice 5pm to 7:30  Azelea - Turf\" <- \"Azelea\" — title names Turf (raw did not)"
+    },
+    "bv8uny86eemqphetue": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-07-29 18:00 \"Ciccarello - 10U Tryouts\" <- \"Azelea - Turf\" — raw names Turf"
+    },
+    "s8skyl41dxmqphfktk": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-08-05 18:00 \"Ciccarello - 10U Tryouts\" <- \"Azelea - Turf\" — raw names Turf"
+    },
+    "6utwa7bdgzlmqpjmotp": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-07-31 18:00 \"16u / 14u / 12u  - TRYOUT\" <- \"Azelea Fields\" — Greg: tryouts on Turf"
+    },
+    "m22osev7wvjmqh7u4fv": {
+      "fields": [
+        "MacLaren Stadium|Turf 60'"
+      ],
+      "note": "2026-07-20 19:30 \"16u / 14u / 12u  - TRYOUT\" <- \"MacLaren Stadium Loring Road\" — MacLaren has exactly one field"
+    },
+    "gbksoyhvt3bmqpjo5jr": {
+      "fields": [
+        "MacLaren Stadium|Turf 60'"
+      ],
+      "note": "2026-08-07 19:30 \"16u / 14u / 12u  - TRYOUT\" <- \"Mclarean Stadium\" — MacLaren has exactly one field"
+    },
+    "mrck53pqvsimqtrbtdp": {
+      "fields": [
+        "Azalea Road Park|Turf",
+        "Azalea Road Park|Dirt"
+      ],
+      "note": "2026-07-11 08:00 \"NYSA - (ONE Day Tournament)\" <- \"Azelea\" — Greg: one-day tournament takes both diamonds, not the cages"
+    },
+    "mj4q0mb04gmqtrdy44": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-07-18 09:00 \"Summer Clinic\" <- \"Azelea\" — Greg: Summer Clinic on Turf"
+    },
+    "ssgtgyiezajmqtreuhi": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-07-25 09:00 \"Summer Clinic\" <- \"Azelea\" — Greg: Summer Clinic on Turf"
+    },
+    "jqsx0xlmscbmqtrfs7o": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-08-01 09:00 \"Summer Clinic\" <- \"Azela\" — Greg: Summer Clinic on Turf"
+    },
+    "3chiulyd1o4mqtrg9fa": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-08-08 09:00 \"Summer Clinic\" <- \"Azelea\" — Greg: Summer Clinic on Turf"
+    },
+    "jthapou5xynmqtrh16l": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-08-15 09:00 \"Summer Clinic\" <- \"Azelea\" — Greg: Summer Clinic on Turf"
+    },
+    "wcrg5gtfqiemqtrhv85": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-08-22 09:00 \"Summer Clinic\" <- \"Azelea\" — Greg: Summer Clinic on Turf"
+    },
+    "a3d4357nm47mnyjft61": {
+      "fields": [
+        "Azalea Road Park|Dirt"
+      ],
+      "note": "2026-07-29 17:30 \"Giglietta  - 8U Tryouts\" <- \"Azelea Dirt\" — raw names Dirt"
+    },
+    "np27f2c6sxrmqzlk5nx": {
+      "fields": [
+        "Azalea Road Park|Dirt"
+      ],
+      "note": "2026-08-05 17:30 \"Giglietta - 8u TRYOUTS\" <- \"Azelea Dirt\" — raw names Dirt"
+    },
+    "ypz3nahfmdmrcfj2bc": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-07-10 17:00 \"Island fast - Day 1\" <- \"Azelea Turf\" — raw names Turf"
+    },
+    "x8wllu2b5xtms7qd4n2": {
+      "fields": [],
+      "note": "2026-08-06 15:00 \"12U Team Party / End of party\" <- \"Azelea\" — Greg: a party is not a field booking"
+    },
+    "07thc6sx3qx8ms7mcdyk": {
+      "fields": [
+        "Azalea Road Park|Turf"
+      ],
+      "note": "2026-08-19 17:00 \"TRYOUTS (10u,12u,14u,16u)\" <- \"AZELEA FIELD\" — Greg: tryouts on Turf"
+    },
+    "y5oqjwnp57mt0fbzce": {
+      "fields": [
+        "Azalea Road Park|Turf",
+        "Azalea Road Park|Dirt"
+      ],
+      "note": "2026-11-08 08:00 \"10u ONE DAY Tournament\" <- \"Azalea\" — Greg: one-day tournament takes both diamonds, not the cages"
+    }
+  }
 }

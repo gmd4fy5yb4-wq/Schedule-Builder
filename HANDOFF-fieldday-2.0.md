@@ -95,11 +95,41 @@ the identical artifact, surfaced only once the cages were correctly placed into 
    "no venue" warning used to say "grouped under Unassigned venue" unconditionally, which
    was false once an alias placed it; it now reports where the field actually landed.
 
-Net effect: warnings **47 → 44**, venues **7 → 6**, fields still **14** (nothing wrongly
-merged), and `[suggest]` is now empty. The remaining blocker for loading is unchanged:
-**24 events with free-text locations**. Everything else is informational — 14 fields whose
-names carry no base distance, 1 placeholder opponent, 1 division needing a program set by
-hand, and the 3 `[grant]` lines, which are the feature working correctly.
+### Free-text event locations — SETTLED 2026-08-31 (Greg)
+
+**All 24 resolved; `[event]` warnings are now 0.** The 24 collapsed to 12 distinct strings
+(`Azelea` is a consistent misspelling of Azalea), and 13 were unambiguous:
+6 named the Turf, 3 named the Dirt, 1 named Red Wing 75, 2 named MacLaren — which has
+exactly one field, so "park only" was never ambiguous there — and 1 more was recoverable
+because its **title** named the Turf even though its location field did not.
+
+The remaining 11 named only Azalea Road Park, which has three fields. Greg's calls:
+Summer Clinic ×6 → Turf; Tryouts ×2 → Turf; **one-day tournaments ×2 → Turf AND Dirt,
+not the cages** (so each emits a `block` per field and is visible to conflict detection);
+12U Team Party → **no field**, because a party is not a field booking and should not
+block five hours of ball.
+
+**The decisions are keyed by 1.0 event id, not by the location string, and they have to
+be** — the single string `"Azelea"` covers a clinic, a 12-hour tournament and the team
+party, which resolve three different ways. A string→field table cannot express that.
+They live in `scripts/field-aliases.json` under `_event_fields`, each with a
+human-readable note. A decided event carries `needs_review: false` — re-flagging a
+settled question is what makes a review queue useless — while `source_raw` keeps the
+original text verbatim either way.
+
+Two events legitimately end with no field: the team party (decided), and
+**"Williamsport Tryout" (2026-05-16), which had no location at all in 1.0** — nothing was
+lost in conversion, 1.0 simply never recorded one. Worth a look if that tryout mattered.
+
+Net effect across both passes: warnings **47 → 21**, venues **7 → 6**, fields still **14**
+(nothing wrongly merged), bookings **87 → 89** (the two tournaments split into blocks),
+and `[suggest]` and `[event]` are both empty.
+
+**Nothing blocking remains.** The 21 are all informational: 14 field names that carry no
+base distance, 1 note that Azalea Cages was placed by alias, 1 placeholder opponent
+correctly flagged external, 3 `[grant]` lines that are the feature working, 1 division
+needing a program set by hand, and the `[geocode]` warning for Red Wing — which is real
+and still open.
 
 The converter is proven against real data (`--self-test` passes; a full run over both
 live leagues produced 2 seasons / 7 venues / 14 fields / 21 teams / 87 bookings and

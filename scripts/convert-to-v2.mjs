@@ -155,6 +155,10 @@ export function convertRegistry(leagues, opts = {}) {
   const warnings = []
   const W = (kind, msg) => warnings.push({ kind, msg })
   const aliases = opts.aliases ?? {}
+  // Human decisions about which field a free-text special event belongs on,
+  // keyed by the 1.0 event id. Value is a list of "Venue|Field"; [] means the
+  // event deliberately occupies no field at all.
+  const eventFields = opts.eventFields ?? aliases._event_fields ?? {}
   const grantVisibility = opts.grantVisibility ?? 'detail'
 
   const orgs = [], orgByName = new Map()
@@ -339,13 +343,52 @@ export function convertRegistry(leagues, opts = {}) {
 
     for (const s of sched.specialEvents ?? []) {
       const loc = (s.location || '').trim()
-      const matched = loc ? (fieldByKey.get([...fieldByKey.keys()].find(k => k.endsWith('|' + norm(loc))) ?? '') ?? null) : null
-      if (loc && !matched) W('event', `${code}: "${s.name}" has free-text location "${loc}" — needs a field`)
-      bookings.push({ ...base(s.id, 'event', { ...s, fieldId: null }), field_id: matched?.id ?? null,
+      // 1.0 lets a special event carry a free-text location and no field, so it
+      // occupies nothing and is invisible to conflict checks. Resolution order:
+      //   1. the event's own id in `_event_fields` — a human decision, and the only
+      //      thing precise enough here, because ONE raw string ("Azelea") covers a
+      //      clinic, a 12-hour tournament and a team party, which resolve differently.
+      //   2. an exact field-name match on the free-text ("Turf" -> that field).
+      //   3. nothing: field_id NULL, needs_review, source_raw kept verbatim.
+      // Entries are { fields: [...], note } so the file stays auditable by eye;
+      // a bare array is accepted too.
+      const entry = eventFields[s.id]
+      const decided = Array.isArray(entry) ? entry : entry?.fields
+      const resolved = decided
+        ? decided.map(fk => fieldByKey.get(`${norm(fk.split('|')[0])}|${norm(fk.split('|')[1])}`))
+        : null
+      if (decided && resolved.some(r => !r))
+        W('event', `${code}: "${s.name}" is mapped to a field that does not exist — check _event_fields`)
+
+      const common = {
         division_id: null, program: null, team_id: null, opponent_team_id: null, home_team_id: null,
         home_away_method: 'venue', official_id: null, score_home: null, score_away: null,
         title: s.name || null, notes: s.comments || null,
-        source_raw: loc && !matched ? `location: ${loc}` : null, needs_review: Boolean(loc && !matched) })
+        source_raw: loc ? `location: ${loc}` : null,
+      }
+
+      if (resolved && resolved.every(Boolean) && resolved.length) {
+        // One field -> the event itself. Several -> a block per field, because a
+        // whole-park tournament genuinely occupies each one and must be visible to
+        // conflict detection. Ids stay deterministic by qualifying with the field.
+        const many = resolved.length > 1
+        for (const f of resolved)
+          bookings.push({ ...base(many ? `${s.id}#${f.id}` : s.id, many ? 'block' : 'event',
+                                 { ...s, fieldId: null }),
+            ...common, field_id: f.id, needs_review: false })
+      } else if (resolved && !resolved.length) {
+        // Deliberately no field (a team party is not a field booking). Decided, so
+        // it is NOT flagged for review — that would re-raise a settled question.
+        bookings.push({ ...base(s.id, 'event', { ...s, fieldId: null }),
+          ...common, field_id: null, needs_review: false })
+      } else {
+        const matched = loc ? (fieldByKey.get([...fieldByKey.keys()].find(k => k.endsWith('|' + norm(loc))) ?? '') ?? null) : null
+        if (loc && !matched) W('event', `${code}: "${s.name}" has free-text location "${loc}" — needs a field`)
+        bookings.push({ ...base(s.id, 'event', { ...s, fieldId: null }), ...common,
+          field_id: matched?.id ?? null,
+          source_raw: loc && !matched ? `location: ${loc}` : null,
+          needs_review: Boolean(loc && !matched) })
+      }
     }
 
     const push = (entries, target) => {
@@ -557,6 +600,42 @@ function selfTest() {
   assert.equal(placed.venues.length, 1, 'the venue-less field joins the park, not "Unassigned venue"')
   assert.match(placed.warnings.find(w => w.kind === 'venue').msg, /placed under "Azalea Road Park"/,
     'and the warning says where it actually landed')
+
+  // --- special-event field resolution --------------------------------------
+  const evLeague = (events) => ({ id: 'E1', orgName: 'Org', data: {
+    season: { leagueName: 'E1', startDate: '2026-05-01', endDate: '2026-11-30', sport: 'softball' },
+    fields: [{ id: 'f1', name: 'Turf', location: 'Azalea Road Park' },
+             { id: 'f2', name: 'Dirt', location: 'Azalea Road Park' }],
+    divisions: [], umpires: [], fieldStaff: [],
+    schedule: { games: [], practices: [], specialEvents: events } } })
+
+  const evs = [
+    { id: 'e1', date: '2026-07-18', time: '09:00', durationMinutes: 120, name: 'Summer Clinic',  location: 'Azelea' },
+    { id: 'e2', date: '2026-07-11', time: '08:00', durationMinutes: 720, name: 'ONE Day Tournament', location: 'Azelea' },
+    { id: 'e3', date: '2026-08-06', time: '15:00', durationMinutes: 300, name: 'Team Party',    location: 'Azelea' },
+  ]
+
+  // Unmapped, the same raw string is unresolvable and every event is flagged.
+  const raw = convertRegistry([evLeague(evs)])
+  assert.equal(raw.warnings.filter(w => w.kind === 'event').length, 3,
+    'without decisions, all three free-text events need a field')
+
+  // Mapped: one string, three different outcomes — which is why the map is keyed
+  // by event id and not by the location text.
+  const done = convertRegistry([evLeague(evs)], { eventFields: {
+    e1: { fields: ['Azalea Road Park|Turf'] },
+    e2: { fields: ['Azalea Road Park|Turf', 'Azalea Road Park|Dirt'] },
+    e3: { fields: [] },
+  } })
+  assert.equal(done.warnings.filter(w => w.kind === 'event').length, 0, 'decisions clear the warnings')
+  const ev = done.bookings.filter(b => b.kind === 'event' || b.kind === 'block')
+  assert.equal(ev.length, 4, 'the two-field event becomes TWO rows, so 3 events -> 4 rows')
+  assert.equal(ev.filter(b => b.kind === 'block').length, 2, 'and those two are blocks')
+  assert.equal(new Set(ev.map(b => b.id)).size, 4, 'the split rows still get distinct ids')
+  const party = ev.find(b => b.title === 'Team Party')
+  assert.equal(party.field_id, null, 'an empty list means deliberately no field')
+  assert.equal(party.needs_review, false, 'and a decided event is NOT re-flagged for review')
+  assert.match(party.source_raw, /Azelea/, 'while the original text is still kept verbatim')
 
   console.log('self-test: all assertions passed')
 }
