@@ -159,6 +159,16 @@ export function convertRegistry(leagues, opts = {}) {
   // keyed by the 1.0 event id. Value is a list of "Venue|Field"; [] means the
   // event deliberately occupies no field at all.
   const eventFields = opts.eventFields ?? aliases._event_fields ?? {}
+
+  // Cross-org team identity, from a human-confirmed map: { key: ["Org|Team", ...] }.
+  // Teams are org-scoped (unique per season+name), so the same real team appears once per
+  // league under whatever name that league typed. Two rows sharing identity_key are one
+  // real team. NEVER inferred from names — "Force (White)" and "Force (14U) Harrison" share
+  // almost nothing, and "Force (Hererra)" is a misspelling of another league's "Herrera".
+  const teamIdentity = new Map()
+  for (const [key, members] of Object.entries(opts.teamIdentity ?? aliases._team_identity ?? {}))
+    if (Array.isArray(members))
+      for (const m of members) teamIdentity.set(norm(m), key)
   const grantVisibility = opts.grantVisibility ?? 'detail'
 
   const orgs = [], orgByName = new Map()
@@ -287,7 +297,8 @@ export function convertRegistry(leagues, opts = {}) {
           org_id: org.id, season_id: seasonId, division_id: div.id, name: t.name,
           is_external: isPlaceholderTeam(t.name), external_org: null,
           home_venue_id: homeField ? fields.find(x => x.id === homeField.id)?.venue_id ?? null : null,
-          preferred_days: t.preferredDays ?? [] }
+          preferred_days: t.preferredDays ?? [],
+          identity_key: teamIdentity.get(norm(`${org.name}|${t.name}`)) ?? null }
         if (row.is_external) W('team', `${code}: "${t.name}" looks like a placeholder opponent — flagged is_external`)
         teamByLegacy.set(t.id, row); divisionOfTeam.set(t.id, div); teams.push(row)
         for (const c of t.coaches ?? [])
@@ -663,6 +674,33 @@ function selfTest() {
     assert.equal(w.length, 1, 'an unbooked TBD field is flagged')
     assert.match(w[0].msg, /LSW FIELD/)
     assert.equal(withPlaceholder.fields.length, 2, 'but it is NOT dropped — flagged, not discarded')
+  }
+
+  // --- cross-org team identity ---------------------------------------------
+  {
+    const mk2 = (id, org, team) => ({ id, orgName: org, data: {
+      season: { leagueName: id, startDate: '2026-09-01', endDate: '2026-11-30', sport: 'softball' },
+      fields: [{ id: 'f1', name: 'Turf', location: 'Azalea Road Park' }],
+      divisions: [{ id: 'd1', name: 'D', teams: [{ id: 't1', name: team }, { id: 't2', name: 'Away Team' }] }],
+      umpires: [], fieldStaff: [],
+      schedule: { games: [{ id: 'g1', date: '2026-09-13', time: '10:00', durationMinutes: 120,
+                            fieldId: 'f1', homeTeamId: 't1', awayTeamId: 't2', divisionId: 'd1', umpireId: '' }] } } })
+    const leagues = [mk2('A', 'LEv-IT', 'Force (14U) Harrison'),
+                     mk2('B', 'Jonathan Fall League', 'Force (White)')]
+
+    // Unlinked, the two rows look like unrelated teams.
+    const plain = convertRegistry(leagues)
+    assert.equal(plain.teams.filter(t => t.identity_key).length, 0, 'identity is never inferred from names')
+
+    const linked = convertRegistry(leagues, { teamIdentity: {
+      'force-14u-harrison': ['LEv-IT|Force (14U) Harrison', 'Jonathan Fall League|Force (White)'],
+    } })
+    const keyed = linked.teams.filter(t => t.identity_key === 'force-14u-harrison')
+    assert.equal(keyed.length, 2, 'both leagues\' rows carry the same key')
+    assert.notEqual(keyed[0].org_id, keyed[1].org_id, 'and they belong to DIFFERENT orgs')
+    assert.notEqual(keyed[0].id, keyed[1].id, 'linked, NOT merged — each org keeps its own row')
+    assert.notEqual(keyed[0].name, keyed[1].name, 'and its own name for the team')
+    assert.equal(linked.teams.filter(t => t.identity_key).length, 2, 'nothing else is touched')
   }
 
   console.log('self-test: all assertions passed')

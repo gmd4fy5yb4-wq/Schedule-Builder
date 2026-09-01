@@ -106,11 +106,36 @@ carries the same club team against a *named* opponent — and `Force (16U) Herre
 is one interleague game recorded in both leagues, which matches the note that ~70% of
 LEv-IT's games are interleague.
 
-**This is the deferred cross-org TEAM identity gap, showing up in real data on day one.**
-Field identity is solved; team identity is not, so the detector cannot yet tell "two teams
-collide" from "one game, two records". Greg should confirm whether `Force (White)` is
-`Force (14U) Harrison` — if so, dedup by team identity is the next design question, and it
-is now backed by four concrete examples instead of a hypothetical.
+**RESOLVED same day — `fd_020`.** Greg confirmed `Force (White)` IS `Force (14U) Harrison`,
+and `Force (Blue)` IS `Force Blue (10U) Ciccarello`. So **all four are duplicate records and
+there are ZERO real cross-org conflicts.**
+
+The fix is a **link, not a merge**: a nullable `fd2_teams.identity_key`. Two rows sharing a
+key are the same real-world team, while each org keeps its own row, name, division and
+contacts — merging would have raised an ownership question nobody has answered and destroyed
+each league's naming. NULL is the default and stays the default for every other team.
+
+Three keys, six rows:
+
+| key | LEv-IT | Jonathan Fall League |
+|---|---|---|
+| `force-14u-harrison` | Force (14U) Harrison | Force (White) |
+| `force-16u-herrera` | Force (16U) Herrera | Force (Hererra) |
+| `force-10u-ciccarello` | Force Blue (10U) Ciccarello | Force (Blue) |
+
+**Identity is never inferred from names** and there is an assertion holding that line:
+"Force (White)" and "Force (14U) Harrison" share almost no trigrams, and real data misspells
+Herrera. The map lives in `scripts/field-aliases.json` under `_team_identity` and the
+converter emits the column, so the link survives a re-export rather than being a one-off
+SQL update.
+
+Detection now separates the two cases — an overlap whose two sides share an `identity_key`
+is one game recorded twice, anything else is a genuine conflict. Verified in prod:
+**0 real conflicts, 4 duplicates identified.**
+
+Still open, deliberately: nothing *dedups* those four. Both rows remain, which is correct —
+each league legitimately has its own record of the game — but a future ledger or
+travel-burden calculation must count them once, not twice.
 
 ### Converter inputs must be re-exported, not reused (2026-08-31)
 

@@ -159,5 +159,20 @@
       ],
       "note": "2026-11-08 08:00 \"10u ONE DAY Tournament\" <- \"Azalea\" — Greg: one-day tournament takes both diamonds, not the cages"
     }
+  },
+  "_team_identity_comment": "Cross-org team identity: the same real-world team as each league names it. Two rows sharing a key are one team. Confirmed by Greg 2026-08-31 — NEVER inferred from names, which differ between leagues and are misspelt in real data ('Force (Hererra)' vs 'Force (16U) Herrera'). Without this, one interleague game recorded in both leagues reads as a cross-org double-booking; the first data load produced four such false conflicts. Format: key -> ['Org|Team', ...].",
+  "_team_identity": {
+    "force-14u-harrison": [
+      "LEv-IT|Force (14U) Harrison",
+      "Jonathan Fall League|Force (White)"
+    ],
+    "force-16u-herrera": [
+      "LEv-IT|Force (16U) Herrera",
+      "Jonathan Fall League|Force (Hererra)"
+    ],
+    "force-10u-ciccarello": [
+      "LEv-IT|Force Blue (10U) Ciccarello",
+      "Jonathan Fall League|Force (Blue)"
+    ]
   }
 }
