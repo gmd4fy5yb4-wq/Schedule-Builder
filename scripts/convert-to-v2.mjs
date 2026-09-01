@@ -188,6 +188,14 @@ export function convertRegistry(leagues, opts = {}) {
     return orgByName.get(key)
   }
 
+  // A stand-in for a location that is not yet known. Leagues know the date, time and
+  // teams before the field — an opponent has not named their diamond, or the park
+  // assignment lands later — and the established workaround is a field called "TBD".
+  // That workaround is preserved deliberately: the game genuinely has a field, so the
+  // team is correctly marked busy, which is the behaviour that matters. It only needs
+  // to be kept OUT of the global registry, not replaced.
+  const looksPlaceholder = (...parts) => /\b(tbd|tba)\b/i.test(parts.filter(Boolean).join(' '))
+
   const canonVenue = raw => aliases[String(raw).trim()] ?? String(raw).trim()
 
   // A merge a human has explicitly REJECTED. Recorded in the same aliases file,
@@ -210,7 +218,9 @@ export function convertRegistry(leagues, opts = {}) {
     // lands in "Unassigned venue" and cannot collide with the park it is part of.
     const name = canonVenue(
       rawName || aliases[`|${String(sample?.name ?? '').trim()}`] || 'Unassigned venue')
-    const key = norm(name)
+    // A placeholder venue is keyed per-org. Globally, "TBD" is not a place, and two
+    // leagues each with one would otherwise collapse into a single shared row.
+    const key = looksPlaceholder(name, sample?.name) ? `${org.id}|${norm(name)}` : norm(name)
     if (!venueByKey.has(key)) {
       const v = { id: uuid5(`fieldday:venue:${key}`), owner_org_id: org.id, name,
                   address: sample?.address || null,
@@ -227,9 +237,13 @@ export function convertRegistry(leagues, opts = {}) {
   const fieldFor = (f, org) => {
     const venue = venueFor(f.location, f, org)
     const fname = canonField(venue.name, f.name)
-    const key = `${norm(venue.name)}|${norm(fname)}`
+    const placeholder = looksPlaceholder(fname, venue.name)
+    const key = placeholder
+      ? `${org.id}|${norm(venue.name)}|${norm(fname)}`
+      : `${norm(venue.name)}|${norm(fname)}`
     if (!fieldByKey.has(key)) {
       const row = { id: uuid5(`fieldday:field:${key}`), owner_org_id: org.id, is_seed: false,
+                    is_placeholder: placeholder,
                     venue_id: venue.id, name: fname,
                     base_distance_ft: baseDistance(fname), surface: surfaceOf(fname),
                     opens_at: '08:00', closes_at: '20:00', priority_division_id: null }
@@ -237,7 +251,9 @@ export function convertRegistry(leagues, opts = {}) {
     }
     const row = fieldByKey.get(key)
     // A different org reached an existing field -> grant, not a duplicate row.
-    if (row.owner_org_id !== org.id) {
+    // Placeholders are org-private and can never reach this branch (their key carries
+    // the org id), but the guard states the rule rather than relying on the key shape.
+    if (row.owner_org_id !== org.id && !row.is_placeholder) {
       const gk = `${row.id}|${org.id}`
       if (!grantSeen.has(gk)) {
         grantSeen.add(gk)
@@ -415,20 +431,17 @@ export function convertRegistry(leagues, opts = {}) {
       push(t.blackoutDates, { team_id: teamByLegacy.get(t.id)?.id })
   }
 
-  // --- placeholder fields --------------------------------------------------
-  // Venues and fields are GLOBAL and owned by the first org to define them, so a
-  // placeholder typed into one league becomes a permanent shared row every other
-  // org can be granted against. "LSW FIELD (TBD)" at venue "TBD" appeared in
-  // YWWM8G with no address and no bookings and would have created a venue
-  // literally named TBD. Flagged rather than dropped: silently discarding a row
-  // someone typed is worse than carrying it with a warning.
-  const bookedFields = new Set(bookings.map(b => b.field_id).filter(Boolean))
-  for (const f of fields) {
+  // --- placeholder fields: a WORKLIST, not a complaint ----------------------
+  // Booking onto a "TBD" field is the correct way to record a real commitment whose
+  // location is still open, and it is why the team shows as busy. So this reports what
+  // is still awaiting a field — something a scheduler wants to chase — rather than
+  // telling anyone to delete a row they meant to create.
+  for (const f of fields.filter(x => x.is_placeholder)) {
     const v = venues.find(x => x.id === f.venue_id)
-    const looksPlaceholder = /\b(tbd|tba|unknown|placeholder)\b/i.test(`${f.name} ${v?.name ?? ''}`)
-    if (looksPlaceholder && !bookedFields.has(f.id))
-      W('placeholder', `field "${v?.name ?? '?'} / ${f.name}" looks like a placeholder and has 0 bookings — ` +
-        `it would still create a GLOBAL venue/field row. Delete it in 1.0, or confirm it is real.`)
+    const n = bookings.filter(b => b.field_id === f.id).length
+    W('placeholder', n
+      ? `${n} booking(s) on "${v?.name ?? '?'} / ${f.name}" are still awaiting a real field`
+      : `placeholder "${v?.name ?? '?'} / ${f.name}" has no bookings yet — kept, and private to its org`)
   }
 
   // --- geocode outliers ----------------------------------------------------
@@ -466,6 +479,8 @@ export function convertRegistry(leagues, opts = {}) {
   }
   for (let i = 0; i < fields.length; i++) for (let j = i + 1; j < fields.length; j++) {
     const a = fields[i], b = fields[j]
+    // A placeholder is not a place, so it can never be "the same field" as anything.
+    if (a.is_placeholder || b.is_placeholder) continue
     const va = venues.find(v => v.id === a.venue_id)?.name ?? '', vb = venues.find(v => v.id === b.venue_id)?.name ?? ''
     const sameVenue = a.venue_id === b.venue_id
     const compatible = a.surface === b.surface || a.surface === null || b.surface === null
@@ -664,16 +679,38 @@ function selfTest() {
   assert.equal(party.needs_review, false, 'and a decided event is NOT re-flagged for review')
   assert.match(party.source_raw, /Azelea/, 'while the original text is still kept verbatim')
 
-  // --- placeholder fields ---------------------------------------------------
+  // --- placeholder fields stay private to their org --------------------------
   {
-    const withPlaceholder = convertRegistry([geoLeague('P1', 'Org', [
+    const one = convertRegistry([geoLeague('P1', 'Org', [
       { id: 'a', name: 'Turf', location: 'Azalea Road Park' },
       { id: 'b', name: 'LSW FIELD (TBD)', location: 'TBD' },
     ])])
-    const w = withPlaceholder.warnings.filter(x => x.kind === 'placeholder')
-    assert.equal(w.length, 1, 'an unbooked TBD field is flagged')
-    assert.match(w[0].msg, /LSW FIELD/)
-    assert.equal(withPlaceholder.fields.length, 2, 'but it is NOT dropped — flagged, not discarded')
+    const ph = one.fields.find(f => f.is_placeholder)
+    assert.ok(ph, 'a TBD field is recognised as a placeholder')
+    assert.equal(one.fields.filter(f => f.is_placeholder).length, 1, 'and only that one is')
+    assert.equal(one.fields.length, 2, 'it is kept, never dropped — someone meant to create it')
+    assert.match(one.warnings.find(w => w.kind === 'placeholder').msg, /no bookings yet/,
+      'and it reads as a worklist entry, not an instruction to delete it')
+
+    // THE REGRESSION THIS GUARDS: two leagues each with a "TBD" field must NOT collapse
+    // into one shared row, and neither may be granted to the other.
+    const two = convertRegistry([
+      geoLeague('P2', 'LEv-IT',   [{ id: 'x', name: 'TBD', location: 'TBD' }]),
+      geoLeague('P3', 'Jonathan', [{ id: 'y', name: 'TBD', location: 'TBD' }]),
+    ])
+    assert.equal(two.fields.filter(f => f.is_placeholder).length, 2,
+      'each org keeps its OWN placeholder — they are not the same field')
+    assert.equal(two.venues.length, 2, 'and its own placeholder venue; "TBD" is not a place')
+    assert.equal(two.grants.length, 0, 'a placeholder is never granted across orgs')
+    assert.equal(new Set(two.fields.map(f => f.id)).size, 2, 'distinct ids, so neither overwrites the other')
+
+    // A real shared field still merges, so the guard did not break the whole point of 2.0.
+    const real = convertRegistry([
+      geoLeague('P4', 'LEv-IT',   [{ id: 'x', name: 'Turf', location: 'Azalea Road Park' }]),
+      geoLeague('P5', 'Jonathan', [{ id: 'y', name: 'Turf', location: 'Azalea Road Park' }]),
+    ])
+    assert.equal(real.fields.length, 1, 'a REAL shared field is still one row')
+    assert.equal(real.grants.length, 1, 'and the second org still gets a grant')
   }
 
   // --- cross-org team identity ---------------------------------------------

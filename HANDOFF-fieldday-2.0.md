@@ -167,13 +167,37 @@ decisions by id rather than by position or text: `[event]` 0, `[suggest]` 0, and
 `[geocode]` 0 — the last confirming the Red Wing fix reaches all the way through
 conversion.
 
-**One new item: `LSW FIELD (TBD)`** at a venue literally named `TBD`, added to YWWM8G in
-that same edit, with no address and **0 bookings**. It matters because venues and fields
-in 2.0 are **global and owned by the first org to define them**, so a placeholder typed
-into one league becomes a permanent shared row every other org can be granted against. The
-converter now emits a `[placeholder]` warning for any TBD/TBA/unknown field with no
-bookings — **flagged, not dropped**: silently discarding a row someone typed is worse than
-carrying it with a warning. Cleanest fix is to delete it in the 1.0 UI before loading.
+**One new item: `LSW FIELD (TBD)`** — and my first reading of it was wrong. I called it a
+placeholder to delete. It is a deliberate, load-bearing workaround.
+
+**Booking onto a "TBD" field is how these leagues schedule, and it works.** Greg,
+2026-08-31: *"It has been very helpful for us to create a field called TBD or TBA and just
+use that when we don't know the field. It does mark the team as busy."* Date, time and
+teams are routinely known before the field — an opponent has not named their diamond, or
+the park assignment lands later. Marking the team busy is the behaviour that matters, and
+it falls out for free precisely BECAUSE the game genuinely has a field.
+
+**A design was drafted and then dropped.** It added `location_status`
+(`field`/`home_tbd`/`away`/`none`), a `day_part` column and a candidate-field join table.
+It was abandoned once Greg said the workaround works: replacing a working model with a
+richer one is how you acquire a subsystem nobody asked for. Recorded here so it is not
+re-proposed without new evidence. Two facts that killed it: Auto-Schedule is not used
+("we don't use the auto scheduler that often if at all"), which removed the one structural
+objection; and the confusing coach-view entry needs **no code at all** — CoachView renders
+`name · location`, so leaving the location box empty when creating a TBD field renders a
+clean `LSW FIELD (TBD)` instead of `LSW FIELD (TBD) · TBD`.
+
+**What DID need fixing is 2.0-only.** Venues and fields here are global and owned by the
+first org to define them, so one league's "TBD" would become a shared row others could be
+granted against, and two leagues each with one would collide via `unique (venue_id, name)`.
+`fd_021` adds `fd2_fields.is_placeholder`; the converter sets it from the TBD/TBA name and
+keys placeholders by org id, so they are org-private, never cross-org matched and never
+granted — while staying fully bookable. The `[placeholder]` warning is now a **worklist**
+("N bookings still awaiting a real field") rather than an instruction to delete a row
+someone meant to create.
+
+Verified in prod: the placeholder is org-private, 0 placeholder grants, 0 orphans, and the
+3 real shared-field grants still work.
 
 ### Field-identity decisions — SETTLED 2026-08-31 (Greg)
 
