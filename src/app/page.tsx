@@ -934,7 +934,7 @@ export default function Home() {
         <div id="tab-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
           {tab === 0  && <DashboardTab state={state} setState={setState} readOnly={readOnly} onNavigate={setTab} />}
           {tab === 1  && <SetupTab state={state} setState={setState} planLimits={planLimits} sub={sub ?? undefined} isLeagueOwner={isLeagueOwner} />}
-          {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} />}
+          {tab === 2  && <DivisionsTab state={state} setState={setState} planLimits={planLimits} isLeagueOwner={isLeagueOwner} />}
           {tab === 3  && <FieldsTab state={state} setState={setState} />}
           {tab === 4  && <UmpiresTab state={state} setState={setState} />}
           {tab === 5  && <CalendarTab state={state} setState={setState} readOnly={readOnly} />}

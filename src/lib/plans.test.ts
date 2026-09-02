@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/plans.test.ts
 import assert from 'node:assert'
-import { checkLimits, getPlan, minPaidTierForSports, isWritable, saveGate, planDisplayName } from './plans'
+import { checkLimits, getPlan, minPaidTierForSports, isWritable, saveGate, planDisplayName, atClientLimit } from './plans'
 
 const div = (teams = 0) => ({ teams: Array(teams).fill(0) })
 const starter = getPlan('starter')   // sports 1, divisions 3, teams 24
@@ -151,5 +151,15 @@ assert.equal(planDisplayName(null), 'Free Trial', 'no row at all falls back to t
 assert.equal(planDisplayName(undefined), 'Free Trial', 'undefined tier falls back to trial')
 assert.notEqual(getPlan('unlimited' as never).name, 'Unlimited',
   'getPlan still cannot name an unsold tier — which is why planDisplayName exists')
+
+// atClientLimit — the UI mirror of saveGate()'s governing-plan rule. Getting this
+// wrong greys out a control the server would have accepted (or offers one it will
+// reject), so the collaborator case is the one that matters.
+assert.equal(atClientLimit(3, 3, true), true, 'owner at their own limit → gated')
+assert.equal(atClientLimit(2, 3, true), false, 'owner under their limit → not gated')
+assert.equal(atClientLimit(4, 3, true), true, 'owner over their limit → gated')
+assert.equal(atClientLimit(3, 3, false), false, 'COLLABORATOR is never gated by their own limit — the owner\'s plan governs, and the server checks it')
+assert.equal(atClientLimit(99, 3, false), false, 'collaborator well past their own limit → still the server\'s call')
+assert.equal(atClientLimit(3, undefined, true), false, 'limits not loaded yet → do not gate')
 
 console.log('plans.test.ts OK')

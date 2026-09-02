@@ -4,17 +4,20 @@ import type { AppState, Team, Coach } from '@/lib/types'
 import { getDivisionColor } from '@/lib/divisionColors'
 import UpgradePrompt from './UpgradePrompt'
 import type { PlanLimits } from '@/lib/plans'
-import { planDisplayName } from '@/lib/plans'
+import { planDisplayName, atClientLimit } from '@/lib/plans'
 
 interface Props {
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
   planLimits?: Pick<PlanLimits, 'divisionsLimit' | 'teamsLimit'> & { planTier?: string }
+  /** False when viewing a league someone else owns. Defaults true so an
+   *  unclaimed league (owner_id NULL) behaves as it always has. */
+  isLeagueOwner?: boolean
 }
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36) }
 
-export default function DivisionsTab({ state, setState, planLimits }: Props) {
+export default function DivisionsTab({ state, setState, planLimits, isLeagueOwner = true }: Props) {
   const [newTeam, setNewTeam] = useState<Record<string, string>>({})
   const [newDivName, setNewDivName] = useState('')
   const [newDivGames, setNewDivGames] = useState(10)
@@ -155,8 +158,8 @@ export default function DivisionsTab({ state, setState, planLimits }: Props) {
   }
 
   const totalTeams = state.divisions.reduce((sum, d) => sum + d.teams.length, 0)
-  const divisionsAtLimit = planLimits ? state.divisions.length >= planLimits.divisionsLimit : false
-  const teamsAtLimit = planLimits ? totalTeams >= planLimits.teamsLimit : false
+  const divisionsAtLimit = atClientLimit(state.divisions.length, planLimits?.divisionsLimit, isLeagueOwner)
+  const teamsAtLimit = atClientLimit(totalTeams, planLimits?.teamsLimit, isLeagueOwner)
   const planName = planDisplayName(planLimits?.planTier)
 
   return (

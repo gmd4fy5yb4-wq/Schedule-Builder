@@ -158,6 +158,24 @@ export function checkLimits(
   return { allowed: true }
 }
 
+/**
+ * Client-side mirror of saveGate()'s governing-plan rule, for greying out a
+ * control before the user clicks it.
+ *
+ * On someone else's league the viewer's own limits are the wrong yardstick —
+ * saveGate() measures the write against the OWNER's plan — and the owner's row
+ * is unreadable from the browser (user_subscriptions RLS is own-row only). So a
+ * collaborator is not gated client-side at all; the server answers. PlanPanel
+ * suppresses its meters for the same reason.
+ */
+export function atClientLimit(
+  count: number,
+  limit: number | undefined,
+  isLeagueOwner: boolean
+): boolean {
+  return isLeagueOwner && limit !== undefined && count >= limit
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Save gate: whose plan governs a write, and does it pass?
 // ─────────────────────────────────────────────────────────────────────────────
