@@ -222,10 +222,16 @@ export default function AccountPage() {
         </div>
 
         {/* Owned leagues */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        {/* id is the target of the "Change" link beside the league code in the
+            app header — that link is how an owner finds this at all. */}
+        <div id="leagues" className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm scroll-mt-4">
           <h2 className="font-semibold text-gray-900 mb-1">Leagues You Own</h2>
-          <p className="text-xs text-gray-400 mb-4">
+          <p className="text-xs text-gray-400 mb-2">
             Leagues you joined with someone else&rsquo;s code aren&rsquo;t listed here.
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            Anyone with a league&rsquo;s code can edit it. <span className="font-medium text-gray-700">Change code</span>{' '}
+            gives that league a new one, which is how you remove someone you shared it with.
           </p>
           {leagues.length === 0 ? (
             <p className="text-sm text-gray-400">You don&rsquo;t own any leagues yet.</p>

@@ -233,6 +233,14 @@ access — that exact sentence shipped on the account page and was corrected
     separate path, and coaches holding a read-only link should not lose the
     schedule because an admin was removed. `revokeViewLinks: true` opts in — the
     UI checkbox is off by default and says what each choice means.
+  - **Discoverability is part of the feature.** A rotation nobody can find does
+    not remove anyone, so the owner is told where it lives from the place the
+    code is actually displayed: a "Change" link in the header code badge
+    (desktop) and a row in the mobile League sheet, both gated on
+    `canChangeCode = ownerResolved && isLeagueOwner` and both **linking** to
+    `/account#leagues` rather than rotating in place. Rotating removes every
+    collaborator at once — it belongs behind the confirm panel, not one stray
+    click from "Copy".
   - Codes now come from `generateLeagueCode()` (`src/lib/leagueCode.ts`), a
     **CSPRNG**. The old `Math.random()` generator was fine for uniqueness and
     wrong for a credential you rotate to lock out someone who is holding a

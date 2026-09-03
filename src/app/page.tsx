@@ -611,6 +611,11 @@ export default function Home() {
   // A share-link viewer, as opposed to an owner whose plan lapsed. Only the former
   // should lose the admin chrome (league code, share link, setup tabs).
   const isViewer = readOnly && !expired
+  // Only the owner may rotate the code, and only once we actually know who that
+  // is — isLeagueOwner reads NULL-owner as "yours", which is also what an
+  // unresolved fetch looks like. Not gated on the plan: a lapsed owner still
+  // needs to be able to lock someone out.
+  const canChangeCode = ownerResolved && isLeagueOwner
 
   // WAI-ARIA tabs keyboard support. The visual order is NAV_GROUPS' order, not
   // TABS' numeric order, so arrow keys must walk the flattened visible list —
@@ -726,6 +731,26 @@ export default function Home() {
                 <button onClick={copyCode} className="text-[var(--fd-primary-muted)] hover:text-white transition text-sm" title="Copy league code">
                   {codeCopied ? 'Copied' : 'Copy'}
                 </button>
+                {/* Where an owner discovers that the code can be changed at all.
+                    Handing out the code is how people get edit access, so this is
+                    the only way to take it back — and nobody was going to find it
+                    buried on /account. It LINKS there rather than rotating here:
+                    the action removes every collaborator at once, so it belongs
+                    behind the explain-and-confirm panel, not one stray click away
+                    from "Copy". Owners only — a collaborator following it would
+                    find a page that does not list the league. */}
+                {canChangeCode && (
+                  <>
+                    <span className="text-[var(--fd-primary-muted)] text-xs" aria-hidden="true">·</span>
+                    <a
+                      href="/account#leagues"
+                      className="text-[var(--fd-primary-muted)] hover:text-white transition text-sm"
+                      title="Change this league's code — the way to remove someone you gave it to"
+                    >
+                      Change
+                    </a>
+                  </>
+                )}
               </div>
             )}
 
@@ -1010,6 +1035,7 @@ export default function Home() {
         tabLabels={TABS}
         navOrder={NAV_GROUPS.flatMap(g => g.indices)}
         isViewer={isViewer}
+        canChangeCode={canChangeCode}
         leagueCode={leagueCode}
         onCopyCode={copyCode}
         codeCopied={codeCopied}

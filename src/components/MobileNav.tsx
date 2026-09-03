@@ -9,6 +9,8 @@ interface MobileNavProps {
   tabLabels: string[]
   navOrder: number[]
   isViewer: boolean
+  /** Owner-only: whether to surface "change the code" as an option at all. */
+  canChangeCode: boolean
   leagueCode: string
   onCopyCode: () => void
   codeCopied: boolean
@@ -135,7 +137,7 @@ const BAR_LABELS: Record<number, string> = { 0: 'Today', 5: 'Calendar', 9: 'Stan
 
 export default function MobileNav(props: MobileNavProps) {
   const {
-    tab, setTab, tabLabels, navOrder, isViewer, leagueCode, onCopyCode, codeCopied,
+    tab, setTab, tabLabels, navOrder, isViewer, canChangeCode, leagueCode, onCopyCode, codeCopied,
     syncStatus, canUndo, onUndo, onSnapshots, onSignOut, onLeave, isSignedIn, readOnly,
     kebabOpen, onKebabChange,
   } = props
@@ -216,6 +218,18 @@ export default function MobileNav(props: MobileNavProps) {
                     </span>
                   </button>
                 </div>
+                {/* The mobile half of the same discovery problem: an owner who
+                    hands the code to the wrong person has to learn somewhere
+                    that it can be changed. Links to /account, where the
+                    confirmation panel explains what rotating actually does. */}
+                {canChangeCode && (
+                  <a
+                    href="/account#leagues"
+                    className="flex items-center text-xs text-[var(--fd-accent)] min-h-[44px]"
+                  >
+                    Change this code to remove someone&rsquo;s access →
+                  </a>
+                )}
                 {!readOnly && (
                   <p className="text-xs text-gray-500">
                     {syncStatus === 'saving' ? 'Saving…'
