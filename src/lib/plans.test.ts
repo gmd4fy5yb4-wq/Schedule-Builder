@@ -1,6 +1,6 @@
 // Standalone assert-based check (no framework). Run: npx tsx src/lib/plans.test.ts
 import assert from 'node:assert'
-import { checkLimits, getPlan, minPaidTierForSports, isWritable, saveGate, planDisplayName, atClientLimit } from './plans'
+import { checkLimits, getPlan, minPaidTierForSports, isWritable, saveGate, planDisplayName, atClientLimit, shouldLockForOwnPlan } from './plans'
 
 const div = (teams = 0) => ({ teams: Array(teams).fill(0) })
 const starter = getPlan('starter')   // sports 1, divisions 3, teams 24
@@ -161,5 +161,47 @@ assert.equal(atClientLimit(4, 3, true), true, 'owner over their limit → gated'
 assert.equal(atClientLimit(3, 3, false), false, 'COLLABORATOR is never gated by their own limit — the owner\'s plan governs, and the server checks it')
 assert.equal(atClientLimit(99, 3, false), false, 'collaborator well past their own limit → still the server\'s call')
 assert.equal(atClientLimit(3, undefined, true), false, 'limits not loaded yet → do not gate')
+
+// shouldLockForOwnPlan — the client mirror of saveGate()'s EXPIRY check. page.tsx
+// locked on `!isWritable(sub)` alone, so a collaborator whose own plan had lapsed
+// got a dead app and "Your plan has expired" on a league owned by an active
+// account. Walk all five viewers, as CLAUDE.md's plan-display section requires.
+const lapsed = { subscription_status: 'trialing', subscription_end: '2026-07-07T00:00:00Z' }
+const live = { subscription_status: 'active', subscription_end: null }
+const lock = (o: Partial<Parameters<typeof shouldLockForOwnPlan>[0]>) =>
+  shouldLockForOwnPlan({ sub: lapsed, leagueCode: 'YWWM8G', ownerResolved: true, isLeagueOwner: true, ...o })
+
+// 1. Lapsed OWNER on their own league — the case read-only mode exists for.
+assert.equal(lock({}), true, 'lapsed owner locks')
+
+// 2. THE REGRESSION. Lapsed COLLABORATOR on someone else's league. The owner's
+//    plan governs the write and is unreadable from the browser, so the client
+//    must stay editable and let the server answer.
+assert.equal(lock({ isLeagueOwner: false }), false,
+  'a collaborator is NEVER locked by their own expiry — that is achic107 on YWWM8G')
+
+// 3. Paying / active user: never locked, either way.
+assert.equal(lock({ sub: live }), false, 'active owner is not locked')
+assert.equal(lock({ sub: live, isLeagueOwner: false }), false, 'active collaborator is not locked')
+
+// 4. Tester row — NULL subscription_end means no expiry, ever.
+assert.equal(lock({ sub: { subscription_status: 'active', subscription_end: null } }), false,
+  'a never-expiring tester row is not locked')
+
+// 5. Share-link viewer: no plan row at all. Locking here would flash the
+//    expired banner at every coach opening a read-only link.
+assert.equal(lock({ sub: null }), false, 'no subscription row yet → do not lock')
+assert.equal(lock({ sub: undefined }), false, 'undefined row → do not lock')
+assert.equal(lock({ leagueCode: 'VIEW', ownerResolved: false, isLeagueOwner: true }), true,
+  'the VIEW sentinel has no owner to resolve, so a lapsed user is still their own gate')
+
+// The ordering trap that made the first fix ineffective: leagueOwnerId is null
+// both when the league is unclaimed AND before the fetch lands. Deciding before
+// it resolves reads every collaborator as the owner — and since the effect only
+// ever SETS read-only, that lock would never be lifted.
+assert.equal(lock({ ownerResolved: false, isLeagueOwner: true }), false,
+  'must wait for ownership on a real league, or a collaborator locks on the first pass')
+assert.equal(lock({ leagueCode: null, ownerResolved: false }), true,
+  'no league loaded (join gate) → only the user\'s own plan is in play')
 
 console.log('plans.test.ts OK')

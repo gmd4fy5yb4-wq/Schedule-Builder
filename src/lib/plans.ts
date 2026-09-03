@@ -176,6 +176,45 @@ export function atClientLimit(
   return isLeagueOwner && limit !== undefined && count >= limit
 }
 
+/**
+ * Should the UI lock itself to read-only because the SIGNED-IN USER's plan has
+ * lapsed? The client-side counterpart to saveGate()'s expiry check.
+ *
+ * The whole content of this function is "and only on a league your plan actually
+ * governs". saveGate() weighs a write against the OWNER's plan, so on someone
+ * else's league your own expiry is not the rule — and you cannot check theirs,
+ * because user_subscriptions RLS is own-row only. The correct client behaviour
+ * there is to stay editable and let the server answer.
+ *
+ * page.tsx got this wrong from the day the read-only mode landed: it locked on
+ * `!isWritable(sub)` alone. A collaborator whose personal trial had lapsed was
+ * shown "Your plan has expired" and a dead app on a league owned by an active
+ * account — wrong twice, because it is not their plan's business and buying one
+ * would not have unlocked anything. (Reported 2026-09-03: achic107@gmail.com on
+ * YWWM8G, whose owner is on an unlimited plan with no expiry.)
+ */
+export function shouldLockForOwnPlan(input: {
+  sub: SubscriptionState | null | undefined
+  /** null while booting; 'VIEW' is the share-link sentinel, which has no owner. */
+  leagueCode: string | null
+  /** False until the owner_id fetch lands. NULL owner is ambiguous without it. */
+  ownerResolved: boolean
+  isLeagueOwner: boolean
+}): boolean {
+  // No row yet — still loading. Locking here would flash the expired banner at
+  // every user on every boot.
+  if (!input.sub) return false
+  if (isWritable(input.sub)) return false
+
+  // On a real league, wait for ownership. An unresolved leagueOwnerId reads as
+  // NULL, which means "unclaimed, therefore yours" — so deciding early locks
+  // every collaborator and never unlocks them.
+  const onRealLeague = !!input.leagueCode && input.leagueCode !== 'VIEW'
+  if (onRealLeague && !input.ownerResolved) return false
+
+  return input.isLeagueOwner
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Save gate: whose plan governs a write, and does it pass?
 // ─────────────────────────────────────────────────────────────────────────────

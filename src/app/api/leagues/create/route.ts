@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServer, getSupabaseServiceRole } from '@/lib/supabase-server'
 import { checkLimits, isWritable } from '@/lib/plans'
+import { generateLeagueCode } from '@/lib/leagueCode'
 import { getSports } from '@/lib/sports'
 import type { AppState } from '@/lib/types'
 
@@ -10,11 +11,6 @@ const schema = z.object({
   state: z.unknown().refine(v => JSON.stringify(v).length < 500_000, 'State too large'),
   userName: z.string().min(1).max(100).trim(),
 })
-
-function generateCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await getSupabaseServer()
@@ -66,7 +62,7 @@ export async function POST(req: NextRequest) {
   // Generate unique code (retry up to 10 times)
   let code = ''
   for (let i = 0; i < 10; i++) {
-    const candidate = generateCode()
+    const candidate = generateLeagueCode()
     const { data: existing } = await serviceSupabase
       .from('leagues')
       .select('id')

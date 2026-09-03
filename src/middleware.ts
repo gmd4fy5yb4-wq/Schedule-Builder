@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { isWritable } from '@/lib/plans'
+import { isOwnerGatedMutation } from '@/lib/writeGate'
 
 /** Redirect domains → canonical domain (308 Permanent Redirect). */
 const REDIRECT_HOSTS = new Set([
@@ -118,6 +119,11 @@ export async function middleware(req: NextRequest) {
   // writes only. Reads (GET) always pass; anything that changes state does not.
   const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
   if (!isMutation) return response
+
+  // Routes that gate themselves, correctly, against the plan that actually pays
+  // for the league being written. See src/lib/writeGate.ts — middleware cannot
+  // make this call, because it does not know which league the request is for.
+  if (isOwnerGatedMutation(pathname)) return response
 
   const { data: sub } = await supabase
     .from('user_subscriptions')

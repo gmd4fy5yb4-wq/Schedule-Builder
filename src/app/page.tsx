@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { AppState } from '@/lib/types'
 import { getSportConfig } from '@/lib/sports'
-import { isWritable } from '@/lib/plans'
+import { shouldLockForOwnPlan } from '@/lib/plans'
 import { trialBanner, isUnnamedLeague, DEFAULT_LEAGUE_NAME } from '@/lib/trial'
 import type { PlanPanelSubscription } from '@/lib/planUsage'
 import { getTheme, buildThemeVars } from '@/lib/themes'
@@ -133,6 +133,15 @@ export default function Home() {
   // load site: a league arrives here three ways (URL code, saved code, join gate)
   // and only the code is common to all of them.
   const [leagueOwnerId, setLeagueOwnerId] = useState<string | null>(null)
+  // NULL leagueOwnerId is ambiguous — it means "unclaimed" AND "not fetched yet"
+  // — so ownership decisions need this to know which. Without it the read-only
+  // gate below reads a collaborator as the owner during the first render pass,
+  // greys the app out, and never takes it back.
+  const [ownerResolved, setOwnerResolved] = useState(false)
+  // Unclaimed (NULL owner) counts as your own, matching saveGate(). While `user`
+  // is still loading we assume owner, so the real owner never sees a flash of
+  // collaborator copy on their own league.
+  const isLeagueOwner = !leagueOwnerId || !user || leagueOwnerId === user.id
 
   // ponytail: the tour lives inline because page.tsx already owns `tab`, `setTab`
   // and `user`. A useTour() hook would need all three passed in and would return
@@ -270,10 +279,6 @@ export default function Home() {
           .eq('user_id', session.user.id)
           .single()
         setSub(sub as SubscriptionRow | null)
-        // Lapsed plan → read-only app instead of the old /pricing lockout. The server
-        // enforces the same rule (isWritable in the save/create routes); this only
-        // stops the UI from offering edits it knows will be rejected.
-        if (sub && !isWritable(sub)) { setExpired(true); setReadOnly(true) }
       }
     })
     const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
@@ -379,13 +384,48 @@ export default function Home() {
     })
   }, [leagueCode, readOnly])
 
+  // Keyed on the VIEW sentinel rather than `readOnly`: the plan gate below sets
+  // readOnly, so depending on it here made the two effects feed each other —
+  // going read-only wiped leagueOwnerId, which told the gate the league was the
+  // user's own, which kept it read-only.
   useEffect(() => {
-    if (!leagueCode || readOnly) { setLeagueOwnerId(null); return }
+    if (!leagueCode || leagueCode === 'VIEW') {
+      setLeagueOwnerId(null)
+      setOwnerResolved(false)
+      return
+    }
     let cancelled = false
+    setOwnerResolved(false)
     getSupabase().from('leagues').select('owner_id').eq('id', leagueCode).single()
-      .then(({ data }) => { if (!cancelled) setLeagueOwnerId((data?.owner_id as string | null) ?? null) })
+      .then(({ data }) => {
+        if (cancelled) return
+        setLeagueOwnerId((data?.owner_id as string | null) ?? null)
+        setOwnerResolved(true)
+      })
     return () => { cancelled = true }
-  }, [leagueCode, readOnly])
+  }, [leagueCode])
+
+  // Lapsed plan → read-only app instead of the old /pricing lockout.
+  //
+  // Only on a league YOUR plan governs. saveGate() weighs a write against the
+  // OWNER's plan, so on someone else's league your own expiry is simply not the
+  // rule — and the owner's row is unreadable from the browser (user_subscriptions
+  // RLS is own-row only), so there is nothing to check client-side. Leave the UI
+  // editable and let the server answer.
+  //
+  // This is what broke Alicia Ciccarello on YWWM8G (2026-09-03): her personal
+  // trial had lapsed months earlier, so she was shown "your plan has expired" and
+  // a dead app on a league owned by an unlimited account. Telling a collaborator
+  // that is wrong twice — it is not their plan's business, and buying one would
+  // not have changed anything.
+  //
+  // Only ever sets read-only, never clears it: share-link viewers get readOnly
+  // from the view-token path above and must keep it.
+  useEffect(() => {
+    if (!shouldLockForOwnPlan({ sub, leagueCode, ownerResolved, isLeagueOwner })) return
+    setExpired(true)
+    setReadOnly(true)
+  }, [sub, leagueCode, ownerResolved, isLeagueOwner])
 
   // Poll for remote changes
   useEffect(() => {
@@ -564,10 +604,6 @@ export default function Home() {
   const TABS = ['Today', 'Season Settings', 'Divisions & Teams', sc.venuePlural, `${sc.officialPlural} / Staff`, 'Calendar', '—', '—', 'Auto-Schedule', 'Standings', 'Coaches']
   const trial = trialBanner(sub)
   const tourStep = getActiveStep(tourState, tab)
-  // Unclaimed (NULL owner) counts as your own, matching saveGate(). While `user`
-  // is still loading we assume owner, so the real owner never sees a flash of
-  // collaborator copy on their own league.
-  const isLeagueOwner = !leagueOwnerId || !user || leagueOwnerId === user.id
   const planLimits = sub
     ? { sportsLimit: sub.sports_limit, divisionsLimit: sub.divisions_limit, teamsLimit: sub.teams_limit, planTier: sub.plan_tier }
     : undefined

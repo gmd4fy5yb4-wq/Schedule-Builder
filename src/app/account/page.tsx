@@ -32,6 +32,13 @@ export default function AccountPage() {
   const [claimLoading, setClaimLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [loading, setLoading] = useState(true)
+  // Which league's "change code" panel is open, and whether that rotation should
+  // also kill share links already in circulation.
+  const [rotating, setRotating] = useState<string | null>(null)
+  const [rotateRevokeLinks, setRotateRevokeLinks] = useState(false)
+  const [rotateBusy, setRotateBusy] = useState(false)
+  const [rotated, setRotated] = useState<{ from: string; to: string; linksRevoked: boolean } | null>(null)
+  const [rotateError, setRotateError] = useState<string | null>(null)
 
   useEffect(() => {
     const sb = getSupabase()
@@ -81,6 +88,35 @@ export default function AccountPage() {
       setClaimStatus({ type: 'error', msg: data.error ?? 'Failed to claim league.' })
     }
     setClaimLoading(false)
+  }
+
+  async function handleRotate(oldCode: string) {
+    setRotateBusy(true)
+    setRotateError(null)
+
+    const res = await fetch('/api/leagues/rotate-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: oldCode, revokeViewLinks: rotateRevokeLinks }),
+    })
+    const data = await res.json()
+
+    if (res.ok) {
+      // This browser may itself be holding the old code — page.tsx loads from
+      // localStorage on boot and would silently fail to find the league, which
+      // reads as "my league is gone" rather than "I just changed the code".
+      if (localStorage.getItem('sb-league-code') === oldCode) {
+        localStorage.setItem('sb-league-code', data.code)
+      }
+      localStorage.removeItem(`fd-unload-${oldCode}`)
+      setLeagues(prev => prev.map(l => (l.id === oldCode ? { ...l, id: data.code } : l)))
+      setRotated({ from: oldCode, to: data.code, linksRevoked: !!data.viewLinksRevoked })
+      setRotating(null)
+      setRotateRevokeLinks(false)
+    } else {
+      setRotateError(data.error ?? 'Could not change the code.')
+    }
+    setRotateBusy(false)
   }
 
   async function handleManageBilling() {
@@ -196,16 +232,96 @@ export default function AccountPage() {
           ) : (
             <ul className="space-y-2">
               {leagues.map(league => (
-                <li key={league.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                  <div>
-                    <span className="font-mono text-sm font-semibold text-gray-800">{league.id}</span>
-                    <span className="text-xs text-gray-400 ml-3">
-                      Updated {new Date(league.updated_at).toLocaleDateString()}
-                    </span>
+                <li key={league.id} className="py-2 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <span className="font-mono text-sm font-semibold text-gray-800">{league.id}</span>
+                      <span className="text-xs text-gray-400 ml-3">
+                        Updated {new Date(league.updated_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <button
+                        onClick={() => {
+                          setRotating(rotating === league.id ? null : league.id)
+                          setRotateRevokeLinks(false)
+                          setRotateError(null)
+                          setRotated(null)
+                        }}
+                        className="text-xs text-gray-500 underline hover:text-gray-700"
+                      >
+                        Change code
+                      </button>
+                      <a href={`/?code=${league.id}`} className="text-xs text-[#00013a] underline">
+                        Open →
+                      </a>
+                    </div>
                   </div>
-                  <a href={`/?code=${league.id}`} className="text-xs text-[#00013a] underline">
-                    Open →
-                  </a>
+
+                  {rotating === league.id && (
+                    <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-4">
+                      <p className="text-sm text-amber-900 font-semibold mb-1">
+                        Change the code for {league.id}?
+                      </p>
+                      <p className="text-sm text-amber-900 mb-3">
+                        The code is how people edit this league, so this is how you remove
+                        someone you gave it to. <span className="font-semibold">Everyone</span>{' '}
+                        using the old code loses access &mdash; including you on your other
+                        devices &mdash; so send the new one to the people you still want editing.
+                        Your schedule, snapshots and settings are untouched.
+                      </p>
+
+                      <label className="flex items-start gap-2 mb-4 text-sm text-amber-900">
+                        <input
+                          type="checkbox"
+                          checked={rotateRevokeLinks}
+                          onChange={e => setRotateRevokeLinks(e.target.checked)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          Also break the read-only share links already sent out.{' '}
+                          <span className="text-amber-800">
+                            Leave this off to let coaches and parents keep viewing the schedule
+                            &mdash; those links can&rsquo;t edit anything. Turn it on if the person
+                            you&rsquo;re removing shouldn&rsquo;t see it either; you&rsquo;ll need to
+                            re-share a fresh link with everyone.
+                          </span>
+                        </span>
+                      </label>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleRotate(league.id)}
+                          disabled={rotateBusy}
+                          className="px-4 py-2 rounded-lg bg-amber-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-amber-800 transition-colors"
+                        >
+                          {rotateBusy ? 'Changing…' : 'Change code'}
+                        </button>
+                        <button
+                          onClick={() => { setRotating(null); setRotateError(null) }}
+                          disabled={rotateBusy}
+                          className="text-sm text-amber-900 underline disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+
+                      {rotateError && <p className="mt-3 text-sm text-red-600">{rotateError}</p>}
+                    </div>
+                  )}
+
+                  {rotated?.to === league.id && (
+                    <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-4">
+                      <p className="text-sm text-green-900">
+                        <span className="font-semibold">{rotated.from}</span> is now{' '}
+                        <span className="font-mono font-semibold">{rotated.to}</span>. The old
+                        code no longer works.
+                        {rotated.linksRevoked
+                          ? ' Existing read-only share links have been broken — open the league and share a new one.'
+                          : ' Read-only share links already sent out still work.'}
+                      </p>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

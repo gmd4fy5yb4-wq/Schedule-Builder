@@ -133,6 +133,37 @@ for. Fixed 2026-08-19; nine assertions in `plans.test.ts` cover it.
 owner's expiry must not be told "your plan has expired", which would send them to
 `/pricing` to buy something that cannot fix it.
 
+**And then it happened again one layer out (fixed 2026-09-03).** `saveGate` was
+correct and *unreachable*: two gates in front of it still tested the requester's
+own row.
+
+- `middleware.ts` 403'd every non-GET on a lapsed plan **before the save route
+  ran**. It cannot do better — it does not know which league a request is for —
+  so `/api/leagues/save` is now exempt via `OWNER_GATED_MUTATIONS` in
+  `src/lib/writeGate.ts` and `saveGate` is the sole authority. **Do not put a
+  league write back under the middleware expiry check.**
+- `page.tsx` set `expired`/`readOnly` from `!isWritable(sub)` alone. Now
+  `shouldLockForOwnPlan()` in `plans.ts`, which locks **only** on a league your
+  plan governs. A collaborator is never locked client-side: the owner's row is
+  unreadable from the browser (`user_subscriptions` RLS is own-row only), so the
+  server answers.
+  Watch the ordering trap: `leagueOwnerId` is NULL both for "unclaimed" and for
+  "not fetched yet", so the decision waits on `ownerResolved`. Deciding early
+  reads every collaborator as the owner, and the effect only ever *sets*
+  read-only — so the lock never lifts.
+
+The victim was `achic107@gmail.com` (Alicia Ciccarello, a head coach in YWWM8G's
+Travel Softball division): personal trial lapsed 2026-07-07, told "your plan has
+expired" on a league owned by an unlimited account, with a Renew button that
+would have fixed nothing. Nine assertions in `plans.test.ts` and
+`writeGate.test.ts` cover both gates.
+
+**Still self-gated, deliberately or otherwise:** `/api/leagues/create` correctly
+(a new league is always your own). `/api/notify-coaches` and
+`/api/league/share-token` are *inconsistent* with the owner-pays model — a lapsed
+collaborator on a paid league cannot email its coaches or mint a share link.
+Not fixed because neither has an owner-aware gate to defer to yet.
+
 ## League ownership vs. access (they are NOT the same thing)
 
 **The 6-character league code IS the access credential.** Any authenticated user
@@ -181,9 +212,36 @@ access — that exact sentence shipped on the account page and was corrected
   the owner — so a collaborator could rewrite the whole schedule and read every
   coach's address but not email them. The check protected nothing reachable and is
   gone; auth + the 5-min per-user rate limit remain. Do not re-add it.
-- Real roles (recorded membership, owner-revocable access) do **not** exist and
-  need their own design pass — it is a membership table plus a decision about
-  whether to keep the frictionless link-sharing model at all.
+- 🔑 **The owner can now ROTATE the code (fd_022, 2026-09-03)** — the only way to
+  withdraw edit access, since there is nobody to remove from a membership table.
+  `/api/leagues/rotate-code` → `fd_rotate_league_code()`; UI is "Change code" per
+  league on `/account`.
+  - **Ownership is authorization here, and this is the one place that is right.**
+    Gating on the code would hand the power to the person being removed. An
+    unclaimed league is refused outright (nobody can authorise it, and allowing it
+    would let any code-holder lock everyone else out).
+  - **`leagues.id` is the PK *and* the credential**, so a rename is not a column
+    update. `fd_league_guard_peak` FK'd it `ON DELETE CASCADE` only — a plain
+    UPDATE was **rejected**; fd_022 adds `ON UPDATE CASCADE`. `league_snapshots`
+    has **no FK at all**, so the same UPDATE would have silently orphaned every
+    snapshot including the fd_010/fd_018 recovery points. The function re-keys
+    them explicitly, in the same transaction. **Anything else that ever keys off
+    a league code must be added to that function.**
+  - The guard trigger no-ops on a rotation (its UPDATE path needs
+    `NEW.data IS DISTINCT FROM OLD.data`). Verified, not assumed.
+  - **`view_token` is NOT rotated by default.** It is a separate credential on a
+    separate path, and coaches holding a read-only link should not lose the
+    schedule because an admin was removed. `revokeViewLinks: true` opts in — the
+    UI checkbox is off by default and says what each choice means.
+  - Codes now come from `generateLeagueCode()` (`src/lib/leagueCode.ts`), a
+    **CSPRNG**. The old `Math.random()` generator was fine for uniqueness and
+    wrong for a credential you rotate to lock out someone who is holding a
+    previous one. It is the single copy of the alphabet+length now (was four).
+- Real roles (recorded membership, owner-revocable access) still do **not** exist.
+  Rotation is a blunt substitute: it removes *everyone*, so the owner has to
+  re-share with the people they are keeping. A membership table remains the real
+  fix, plus a decision about whether to keep the frictionless link-sharing model
+  at all.
 
 ## Plan display rules (three bugs came from getting these wrong)
 
@@ -286,6 +344,7 @@ touches it. If you ever add a policy to it, you have made a mistake.
 - ℹ️ **`greg.amundson@gmail.com` is one of the owner's own accounts, not a customer.** `plan_tier='small'` (1/4/16) is a legacy tier absent from `PLANS`, with a real `stripe_customer_id`, lapsed 2026-07-11. Confirmed 2026-08-19 to be left exactly as it is — do not migrate it to `starter`, and do not treat it as a customer needing outreach. It displays as "Small" since `planDisplayName` landed, which is correct and intended.
 - 🛑 **Tester accounts — do not modify.** **3** accounts have `plan_tier='unlimited'` (an invalid value vs code's `trial/starter/pro/org`), `active`, no Stripe link, `subscription_end=NULL` (never expires). Migration 012 set their `sports_limit=999`. These are real-world testers depending on the app: **never change their access, and never complete a Stripe checkout while signed in as one** (the webhook would overwrite the protected row).
   **This has already happened once:** `jonathan@lev-itsb.com` was a 4th `unlimited` tester until he bought a season pass on 2026-08-19, which overwrote his row to `starter`. He is a paying customer now, deliberately left that way — the row is an honest customer record. He keeps write access to the shared test league `YWWM8G` because collaborator writes are gated on the league OWNER's plan (see below), not his own.
+- ℹ️ **`achic107@gmail.com` (Alicia Ciccarello) has `subscription_end = NULL` as of 2026-09-03** — set by hand at the owner's request while diagnosing the gate bug above. `plan_tier` is still `trial`/`trialing`, so **NULL here means her trial now never expires** (same shape as the tester rows, without the 999 limits — she keeps 3/10/100). She did not need it for YWWM8G once the gate was fixed, since that league's owner is on an unlimited plan; it only matters if she owns or creates a league of her own. Put a date back in `subscription_end` to make it a normal trial again.
 - ℹ️ **`user_subscriptions → auth.users` FK is NOT `ON DELETE CASCADE` in prod** (migration 002 source says it is — prod drift). To delete a user, delete their `user_subscriptions` row first.
 
 ## Common Gotchas

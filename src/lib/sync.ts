@@ -78,12 +78,6 @@ export async function leagueExists(code: string): Promise<boolean> {
   return !!data
 }
 
-/** @deprecated Use createLeague() instead — it sets owner_id and enforces limits. */
-export function generateCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
-
 // ── Read-only view tokens ──────────────────────────────────────────────────────
 // A view_token is a random UUID stored alongside the league. It is completely
 // separate from the admin code and cannot be used to modify the league.
