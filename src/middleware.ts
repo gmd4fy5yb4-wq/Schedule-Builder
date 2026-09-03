@@ -26,6 +26,8 @@ const PUBLIC_PREFIXES = [
   '/_next',
   '/pwa-icon',
   '/api/league/view',       // read-only token route
+  '/api/welcome',           // first-sign-in welcome email; does its own getUser(), and a
+                            //  brand-new user has no subscription row for the write gate yet
   '/checkout/success',      // post-payment landing: polls for the row, then forwards to /.
                             //  Must be reachable by an authed user whose webhook hasn't
                             //  committed yet — gating it would re-create the bounce it fixes.

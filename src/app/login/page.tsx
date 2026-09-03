@@ -106,6 +106,10 @@ export default function LoginPage() {
       return
     }
 
+    // First sign-in gets the welcome email (the route is idempotent, so every
+    // sign-in may call it). keepalive lets the request outlive the redirect below.
+    fetch('/api/welcome', { method: 'POST', keepalive: true }).catch(() => {})
+
     // Success — redirect (session is now set in this browser context)
     const next = localStorage.getItem('sb-login-next')
     if (next) localStorage.removeItem('sb-login-next')
