@@ -237,9 +237,9 @@ export default function LoginPage() {
 
               <div className="text-center mt-6">
                 <p className="text-gray-500 text-xs">
-                  New to FieldDay?{' '}
+                  New to FieldDay? Enter your email above — a new address creates your league.{' '}
                   <a href="/pricing" className="text-[#00013a] underline font-medium">
-                    Start free — create your league
+                    See plans
                   </a>
                 </p>
                 <p className="text-gray-400 text-xs mt-1">14-day full trial · no credit card</p>

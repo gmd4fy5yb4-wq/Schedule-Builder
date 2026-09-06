@@ -14,12 +14,12 @@ const STEPS = [
   {
     n: '1',
     title: 'Set up your season',
-    body: 'Name the league, set the dates, add your divisions and fields. Import teams from a spreadsheet with CSV, or type them in. FieldDay speaks your sport — innings, halves or periods.',
+    body: 'Name the league, set the dates, add your divisions and fields. Import teams from a spreadsheet with CSV, or type them in. FieldDay speaks your sport — fields or courts, umpires or referees.',
   },
   {
     n: '2',
     title: 'Auto-schedule it',
-    body: 'One click builds the whole season: home and away balanced, field time shared out, rest days respected, double-bookings caught before anyone sees them. Don’t like a week? Change it, and undo if you change your mind.',
+    body: 'One click builds the whole season: home and away balanced, field time shared out, no team playing twice in a day, double-bookings caught before anyone sees them. Don’t like a week? Change it, and undo if you change your mind.',
   },
   {
     n: '3',

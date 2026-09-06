@@ -33,6 +33,8 @@ const PUBLIC_PREFIXES = [
                             //  committed yet — gating it would re-create the bounce it fixes.
   '/help',                  // public help docs, must be reachable by prospects who have
                             //  no account yet (linked from sales emails)
+  '/icon',                  // favicon + apple-touch-icon are next/og routes, not files, so the
+  '/apple-icon',            //  extension rule below misses them; logged-out tabs had no icon
   '/opengraph-image',       // the link-preview card; crawlers carry no cookie, and a 307
                             //  to /login here is exactly the bug class in memory/tech-patterns.
   '/welcome',               // the landing page. `/` rewrites here for logged-out

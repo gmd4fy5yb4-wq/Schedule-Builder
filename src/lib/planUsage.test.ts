@@ -46,7 +46,7 @@ assert.equal(unlimited.meters[0].percent, 0, 'unlimited shows an empty bar, not 
 
 // ── billingLine ──────────────────────────────────────────────────────────────
 
-assert.match(billingLine({ plan_tier: 'trial', subscription_end: null }, now), /clock starts when you generate/)
+assert.match(billingLine({ plan_tier: 'trial', subscription_end: null }, now), /clock starts the first time you save a schedule/)
 assert.match(billingLine({ plan_tier: 'trial', subscription_end: inDays(1) }, now), /1 day left/)
 assert.match(billingLine({ plan_tier: 'trial', subscription_end: inDays(-2) }, now), /read-only until you pick a plan/)
 // A season pass does not renew — saying "Renews" would be a false promise.

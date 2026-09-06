@@ -55,7 +55,7 @@ export function billingLine(sub: PlanPanelSubscription & { billing_period?: stri
   const when = end?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
   if (sub.plan_tier === 'trial') {
-    if (!end) return 'Free trial — your 14-day clock starts when you generate your first schedule. No card on file.'
+    if (!end) return 'Free trial — your 14-day clock starts the first time you save a schedule with anything on it. No card on file.'
     const days = Math.ceil((end.getTime() - now.getTime()) / 86_400_000)
     return days > 0
       ? `Free trial — ${days} day${days === 1 ? '' : 's'} left, through ${when}. No card on file.`

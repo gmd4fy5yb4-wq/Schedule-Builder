@@ -95,7 +95,7 @@ export default function PricingPage() {
             Full Pro access — 3 sports, 10 divisions, 100 teams, auto-scheduling. No credit card.
           </p>
           <Link
-            href="/"
+            href="/login"
             className="inline-block mt-6 px-7 py-3.5 rounded-xl text-white font-semibold shadow-sm hover:opacity-90 transition"
             style={{ backgroundColor: CRIMSON }}
           >
