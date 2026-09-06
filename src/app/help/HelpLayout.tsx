@@ -15,7 +15,7 @@ export default function HelpLayout({
           {children}
         </div>
         <div className="mt-12 pt-6 border-t border-gray-200 text-sm text-gray-500">
-          Still stuck? Email <a className="text-[var(--fd-primary)] underline" href="mailto:greg@alfred-digital.com">greg@alfred-digital.com</a>.
+          Still stuck? Email <a className="text-[var(--fd-primary)] underline" href="mailto:help@alfred-digital.com?subject=FieldDay%20Planner%20help">help@alfred-digital.com</a>.
         </div>
       </div>
     </main>
