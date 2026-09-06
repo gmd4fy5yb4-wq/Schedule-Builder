@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { siteUrl } from '@/lib/siteUrl'
 import './globals.css'
 import ServiceWorker from '@/components/ServiceWorker'
 
@@ -9,6 +10,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  // Makes the root opengraph-image (and any relative og/canonical URL) absolute.
+  metadataBase: new URL(siteUrl('https://fielddayplanner.app')),
   title: 'FieldDay Planner',
   description: 'Schedule any sport, any league',
   appleWebApp: {
