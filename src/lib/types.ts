@@ -74,6 +74,7 @@ export interface ScheduledGame {
   divisionId: string
   result?: { homeScore: number; awayScore: number }
   confirmed?: boolean   // league admin has verified all parties notified
+  umpireConfirmed?: boolean  // the assigned official has accepted this game
 }
 
 export interface ScheduledPractice {
