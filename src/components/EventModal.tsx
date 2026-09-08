@@ -18,7 +18,8 @@ export interface EventForm {
   time: string      // "HH:MM"
   endTime: string   // "HH:MM"
   result?: { homeScore: number; awayScore: number }
-  confirmed?: boolean        // preserved transparently; not user-editable in the form
+  confirmed?: boolean        // all parties notified (also editable from the Today tab)
+  umpireConfirmed?: boolean  // the assigned official has accepted
   // Special event fields
   specialName?: string
   specialLocation?: string
@@ -60,7 +61,7 @@ export function formFromEvent(ev: ScheduledGame | ScheduledPractice | ScheduledS
   const endTime = minsToTime(toMins(ev.time) + dur)
   if (ev.type === 'game') {
     const g = ev as ScheduledGame
-    return { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, endTime, result: g.result, confirmed: g.confirmed, specialName: '', specialLocation: '', specialComments: '' }
+    return { id: g.id, type: 'game', date: g.date, divisionId: g.divisionId, homeTeamId: g.homeTeamId, awayTeamId: g.awayTeamId, teamId: '', umpireId: g.umpireId, fieldId: g.fieldId, time: g.time, endTime, result: g.result, confirmed: g.confirmed, umpireConfirmed: g.umpireConfirmed, specialName: '', specialLocation: '', specialComments: '' }
   } else if (ev.type === 'practice') {
     const p = ev as ScheduledPractice
     return { id: p.id, type: 'practice', date: p.date, divisionId: p.divisionId, homeTeamId: '', awayTeamId: '', teamId: p.teamId, umpireId: '', fieldId: p.fieldId, time: p.time, endTime, specialName: '', specialLocation: '', specialComments: '' }
@@ -317,7 +318,7 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
       for (const date of dates) {
         const id = (!isNew && dates.length === 1) ? (f.id ?? uid()) : uid()
         if (f.type === 'game') {
-          games.push({ id, type: 'game', date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId, ...(f.result !== undefined && { result: f.result }), ...(f.confirmed !== undefined && { confirmed: f.confirmed }) })
+          games.push({ id, type: 'game', date, time: f.time, durationMinutes, fieldId: f.fieldId, homeTeamId: f.homeTeamId, awayTeamId: f.awayTeamId, umpireId: f.umpireId, divisionId: f.divisionId, ...(f.result !== undefined && { result: f.result }), ...(f.confirmed !== undefined && { confirmed: f.confirmed }), ...(f.umpireConfirmed !== undefined && { umpireConfirmed: f.umpireConfirmed }) })
         } else if (f.type === 'practice') {
           practices.push({ id, type: 'practice', date, time: f.time, durationMinutes, fieldId: f.fieldId, teamId: f.teamId, divisionId: f.divisionId })
         } else {
@@ -520,11 +521,11 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
                 className={`py-2.5 text-sm font-medium transition ${f.type === 'game' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >{sc.eventSingular}</button>
               <button
-                onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '' })}
+                onClick={() => upd({ type: 'practice', endTime: defaultEndTime(f.time, state.season.practiceDurationMinutes || 90), homeTeamId: '', awayTeamId: '', umpireId: '', umpireConfirmed: undefined })}
                 className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'practice' ? 'bg-[var(--fd-primary)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >Practice</button>
               <button
-                onClick={() => upd({ type: 'special', endTime: defaultEndTime(f.time, 60), divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '' })}
+                onClick={() => upd({ type: 'special', endTime: defaultEndTime(f.time, 60), divisionId: '', homeTeamId: '', awayTeamId: '', teamId: '', umpireId: '', fieldId: '', umpireConfirmed: undefined })}
                 className={`py-2.5 text-sm font-medium border-l transition ${f.type === 'special' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >Special Event</button>
             </div>
@@ -593,11 +594,33 @@ export default function EventModal({ state, setState, initialForm, onClose }: Pr
               </div>
 
               <FF label={sc.officialSingular}>
-                <select className="input" value={f.umpireId} onChange={e => upd({ umpireId: e.target.value })}>
+                <select className="input" value={f.umpireId} onChange={e => upd({ umpireId: e.target.value, ...(e.target.value ? {} : { umpireConfirmed: undefined }) })}>
                   <option value="">TBD / Unassigned</option>
                   {state.umpires.map(u => <option key={u.id} value={u.id}>{u.name}{u.phone ? ` — ${u.phone}` : ''}</option>)}
                 </select>
               </FF>
+
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <label className={`flex items-center gap-2 text-sm select-none ${f.umpireId ? 'cursor-pointer text-gray-700' : 'text-gray-400'}`}>
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded-lg accent-green-600"
+                    checked={!!f.umpireConfirmed}
+                    disabled={!f.umpireId}
+                    onChange={e => upd({ umpireConfirmed: e.target.checked || undefined })}
+                  />
+                  {sc.officialSingular} confirmed
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded-lg accent-green-600"
+                    checked={!!f.confirmed}
+                    onChange={e => upd({ confirmed: e.target.checked || undefined })}
+                  />
+                  All parties confirmed
+                </label>
+              </div>
             </>
           )}
 

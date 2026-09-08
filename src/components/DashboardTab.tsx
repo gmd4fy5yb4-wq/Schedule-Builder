@@ -588,6 +588,11 @@ export default function DashboardTab({ state, setState, readOnly = false, onNavi
                             {umpire ? (
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                                 <span className="font-medium text-gray-800">{umpire.name}</span>
+                                {g.umpireConfirmed && (
+                                  <span className="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                                    ✓ Confirmed
+                                  </span>
+                                )}
                                 {umpire.phone && (
                                   <a href={`tel:${umpire.phone}`} className="text-gray-500 hover:text-blue-600 transition-colors">
                                     {umpire.phone}
