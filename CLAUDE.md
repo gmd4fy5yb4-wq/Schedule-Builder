@@ -305,6 +305,30 @@ lapsed, collaborator, tester.
 - `/help` is in `PUBLIC_PREFIXES`. It must stay there: the docs exist to be linked
   from sales emails to prospects who have no account.
 
+## There are TWO confirm flags on a game, and they mean different things
+
+Added 2026-09-08 (`69e5295` on `dev`, merged to `main` as `c474e10`, deployed).
+
+| | Field | Means | Edited where |
+|---|---|---|---|
+| **All parties** | `confirmed` | coaches **and** the official **and** field staff notified | Today card header checkbox (`DashboardTab`), and now the event modal |
+| **Official only** | `umpireConfirmed` | the assigned official has accepted this game | event modal only, under the {official} select |
+
+Only `confirmed` lights the green ring on the Today card; `umpireConfirmed`
+renders as a small pill beside the official's name. **Do not collapse them** —
+the umpire usually says yes days before the coaches do, which is the whole
+reason the second flag exists.
+
+- **Both are game-only.** They are cleared when the event is switched to a
+  practice or special event, and `umpireConfirmed` is cleared (and its checkbox
+  disabled) when the official goes back to TBD — a confirmation with nobody
+  attached would still render a pill.
+- **Neither is ever written as `false`.** `commitDates` in `EventModal.tsx`
+  spreads them conditionally. The league is one JSON blob and the fd_010/fd_018
+  guards compare blob *size*, so writing a `false` onto every game inflates every
+  league for no information.
+- **No migration.** Both live inside `leagues.data`, not in a column.
+
 ## Lint
 
 `npm run lint` (`eslint .`) and `next build` both run ESLint. The config had been in
